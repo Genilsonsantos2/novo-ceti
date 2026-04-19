@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CETI - Controle de Acesso Profissional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#001e40',
+                        surface: '#f7f9fc',
+                        'on-surface': '#191c1e',
+                        tertiary: '#a3f69c',
+                    },
+                    fontFamily: {
+                        headline: ['Manrope', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f7f9fc; color: #191c1e; font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.3); }
+        .id-gradient { background: linear-gradient(135deg, #001e40 0%, #003366 100%); }
+    </style>
+</head>
+<body class="p-6 md:p-10">
+    <div id="app" class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+                <h1 class="font-headline text-4xl font-extrabold text-primary tracking-tight">Monitor de Saídas</h1>
+                <p class="text-slate-500 font-medium">Controle de Acesso CETI • Tempo Real</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="window.location.reload()" class="bg-white p-3 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                    <span class="material-symbols-outlined block">refresh</span>
+                </button>
+                <div class="bg-primary text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined">shield_person</span>
+                    Admin
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-sm flex flex-col justify-between h-44 border border-slate-100">
+                <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">Estudantes</span>
+                <div>
+                   <p id="count-out" class="text-5xl font-headline font-extrabold text-primary">--</p>
+                   <p class="text-slate-500 text-sm font-medium">Ausentes no momento</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-sm flex flex-col justify-between h-44 border border-slate-100">
+                <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">Autorizações</span>
+                <div>
+                   <p id="count-active" class="text-5xl font-headline font-extrabold text-emerald-500">--</p>
+                   <p class="text-slate-500 text-sm font-medium">Válidas hoje</p>
+                </div>
+            </div>
+            <div class="bg-orange-50 rounded-[2.5rem] p-8 shadow-sm flex flex-col justify-between h-44 border border-orange-100">
+                <span class="text-orange-400 text-xs font-bold uppercase tracking-widest">Atenção</span>
+                <div>
+                   <p id="count-late" class="text-5xl font-headline font-extrabold text-orange-600">0</p>
+                   <p class="text-orange-700/60 text-sm font-medium">Retornos Atrasados</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="bg-white rounded-[3rem] p-8 shadow-xl shadow-slate-200/50 border border-slate-100">
+            <h2 class="font-headline font-bold text-xl mb-8 flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">history</span>
+                Atividade Recente
+            </h2>
+            <div id="logs-container" class="space-y-4">
+                <!-- Logs will appear here -->
+                <div class="animate-pulse flex space-x-4 p-4">
+                    <div class="rounded-full bg-slate-200 h-10 w-10"></div>
+                    <div class="flex-1 space-y-4 py-1">
+                        <div class="h-2 bg-slate-200 rounded"></div>
+                        <div class="h-2 bg-slate-200 rounded w-3/4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bcmwsjuaoexupbrqoupf.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjbXdzanVhb2V4dXBicnFvdXBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1NDI4NzksImV4cCI6MjA5MjExODg3OX0.aDO0yOfpPK-Gpm3uGzCCPxNatnz_51WEZp38saQq5P4';
+        
+        const supabase = netlify.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Workaround for CDN import - standard is 'supabase.createClient'
+        const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function fetchData() {
+            try {
+                // Fetch stats
+                const { count: countOut } = await _supabase.from('access_logs').select('*', { count: 'exact' }).eq('type', 'OUT');
+                const { count: countActive } = await _supabase.from('student_authorizations').select('*', { count: 'exact' }).eq('status', 'ACTIVE');
+                
+                document.getElementById('count-out').textContent = countOut || 0;
+                document.getElementById('count-active').textContent = countActive || 0;
+
+                // Fetch logs
+                const { data: logs, error } = await _supabase
+                    .from('access_logs')
+                    .select('*, students(full_name, enrollment_id, grade, photo_url)')
+                    .order('timestamp', { ascending: false })
+                    .limit(8);
+
+                if (error) throw error;
+
+                const container = document.getElementById('logs-container');
+                container.innerHTML = '';
+
+                if (logs.length === 0) {
+                    container.innerHTML = `<p class="p-8 text-center text-slate-400 font-medium">Nenhuma atividade registrada.</p>`;
+                    return;
+                }
+
+                logs.forEach(log => {
+                    const date = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const isOut = log.type === 'OUT';
+                    
+                    container.innerHTML += `
+                        <div class="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-3xl transition-colors border border-transparent hover:border-slate-100">
+                            <img src="${log.students?.photo_url || 'https://via.placeholder.com/150'}" class="w-12 h-12 rounded-2xl object-cover shadow-sm">
+                            <div class="flex-1">
+                                <h4 class="font-bold text-slate-800">${log.students?.full_name || 'Desconhecido'}</h4>
+                                <p class="text-xs text-slate-500 font-medium uppercase tracking-tighter">${log.students?.grade || '--'} • ID: #${log.students?.enrollment_id || '000'}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase ${isOut ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}">
+                                    ${isOut ? 'Saída' : 'Entrada'}
+                                </span>
+                                <p class="text-[10px] font-bold text-slate-400 mt-1">${date}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error("Erro ao carregar dados:", err);
+            }
+        }
+
+        fetchData();
+        // Atualiza a cada 10 segundos
+        setInterval(fetchData, 10000);
+    </script>
+</body>
+</html>

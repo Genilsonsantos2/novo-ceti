@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#3a5f94",
+                        "tertiary-fixed-dim": "#88d982",
+                        "surface": "#f7f9fc",
+                        "inverse-primary": "#a7c8ff",
+                        "on-tertiary-container": "#5ead5c",
+                        "secondary-fixed-dim": "#afcbd8",
+                        "on-secondary-fixed-variant": "#304a55",
+                        "on-secondary-container": "#4e6874",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#48626e",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#005312",
+                        "on-primary-fixed": "#001b3c",
+                        "outline-variant": "#c3c6d1",
+                        "on-primary-container": "#799dd6",
+                        "secondary-fixed": "#cbe7f5",
+                        "primary-fixed": "#d5e3ff",
+                        "surface-container": "#eceef1",
+                        "primary-fixed-dim": "#a7c8ff",
+                        "on-surface-variant": "#43474f",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#003d0b",
+                        "surface-container-low": "#f2f4f7",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#e0e3e6",
+                        "inverse-surface": "#2d3133",
+                        "on-background": "#191c1e",
+                        "on-error-container": "#93000a",
+                        "background": "#f7f9fc",
+                        "surface-dim": "#d8dadd",
+                        "on-surface": "#191c1e",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#cbe7f5",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e0e3e6",
+                        "on-secondary-fixed": "#021f29",
+                        "tertiary-fixed": "#a3f69c",
+                        "on-tertiary-fixed": "#002204",
+                        "surface-bright": "#f7f9fc",
+                        "on-primary-fixed-variant": "#1f477b",
+                        "primary": "#001e40",
+                        "primary-container": "#003366",
+                        "outline": "#737780",
+                        "tertiary": "#002504",
+                        "inverse-on-surface": "#eff1f4",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e6e8eb"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .id-gradient {
+            background: linear-gradient(135deg, #001e40 0%, #003366 100%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface antialiased">
+<!-- TopAppBar -->
+<header class="bg-[#f7f9fc] dark:bg-[#191c1e] text-[#003366] dark:text-[#d6e3ff] docked full-width top-0 z-50">
+<div class="flex justify-between items-center w-full px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center">
+<img alt="CETI Nova Itarana Logo" class="w-8 h-8 object-contain" data-alt="professional academic shield logo for an educational institution with navy and white color palette" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfgksRLSaHo6A8xHwX2X93n-f40jlUK4Dh9ZGpbG66wnCaI955hpjgU00lyQASgdoX7pAJ4x3wxlF8vTGYbWGrLDerENYGUr-P5aVIHwEos2g7PfwjFEN-zOoiptAQ6Ktm1JolDseLp3MyEVfhxYF9MqMFZhVM4kr_tvEoci16HNA4gmLM8iMr9z6obQNL1RuPwhcWyuXHZFvt7kdcLknKS7JbUp38KzIe11lQioSpoxkroEcYn37aAK1bm7ayjThRbuH3d90_pQ"/>
+</div>
+<span class="text-lg font-extrabold text-[#001e40] dark:text-[#ffffff] uppercase tracking-wider font-headline">CETI NOVA ITARANA</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-full hover:bg-[#e6e8eb] dark:hover:bg-[#3f4144] transition-colors active:scale-95 duration-150 ease-in-out">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<main class="max-w-5xl mx-auto p-6 pb-32">
+<div class="flex flex-col lg:flex-row gap-8 items-start">
+<!-- Student ID Card (Asymmetric Layout) -->
+<div class="w-full lg:w-3/5">
+<div class="mb-6">
+<h1 class="font-headline text-3xl font-extrabold tracking-tight text-primary">Identidade Digital</h1>
+<p class="text-outline font-medium">Carteira de Identificação Estudantil</p>
+</div>
+<!-- Digital ID Shell -->
+<div class="id-gradient rounded-[2rem] p-8 shadow-[0px_20px_50px_rgba(0,30,64,0.15)] relative overflow-hidden text-white">
+<!-- Texture/Decorative elements -->
+<div class="absolute top-[-10%] right-[-10%] w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+<div class="absolute bottom-[-10%] left-[-10%] w-48 h-48 bg-primary-container/20 rounded-full blur-2xl"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-start mb-10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-4xl opacity-80" data-icon="school">school</span>
+<div class="h-8 w-[1px] bg-white/20"></div>
+<span class="text-xs font-bold tracking-widest uppercase opacity-60">ESTUDANTE</span>
+</div>
+<div class="text-right">
+<span class="block text-[10px] uppercase tracking-widest opacity-60">Instituição</span>
+<span class="font-headline font-bold text-sm">CETI Nova Itarana</span>
+</div>
+</div>
+<div class="flex flex-col md:flex-row gap-10 items-center md:items-end">
+<div class="relative">
+<div class="w-44 h-56 rounded-2xl overflow-hidden shadow-2xl bg-surface-container-high">
+<img alt="Student Portrait" class="w-full h-full object-cover grayscale-[0.2]" data-alt="high-quality studio portrait of a young adult student with friendly expression, neutral gray background, soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQ5Kds4cXTbztCu9EFFEEVAZzEQSX0he91AgK5pU_PAIKiKCs4g-do-ESVQ51Btl7ZqRLMJPD4ZU12mYpmUm5YkYOC8clnIda6uel4bUoDw4OQ8PjXlj4WQh2PXfXFsyMAr_vxo75OF5c-VdQAfhXdkGhxK3Sh1_FIiJnjiJy4ZhLQwZRGZHmktcvvqUat3fj74k_9UNq2Y8Ven3EDTcgJ6uQX_ODBG32BN3OTHYstRDQVwyfSQuI7NuSxQ2kBTULp5ykOzWVUwQ"/>
+</div>
+<div class="absolute -bottom-4 -right-4 bg-tertiary-fixed text-on-tertiary-fixed px-4 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">verified</span>
+                                    ATIVO
+                                </div>
+</div>
+<div class="flex-1 space-y-6 text-center md:text-left">
+<div>
+<h2 class="font-headline text-3xl font-bold leading-tight">GABRIEL RODRIGUES SILVA</h2>
+<p class="text-white/60 font-medium tracking-wide mt-1">2ª Série - Ensino Médio</p>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<span class="block text-[10px] uppercase tracking-widest opacity-60 mb-1">Matrícula</span>
+<span class="font-bold tracking-wider">2024.18902.04</span>
+</div>
+<div>
+<span class="block text-[10px] uppercase tracking-widest opacity-60 mb-1">Validade</span>
+<span class="font-bold tracking-wider">DEZ / 2024</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Bar -->
+<div class="mt-8 flex flex-wrap gap-4">
+<button class="flex-1 bg-primary text-white py-4 rounded-full font-bold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+                        Baixar PDF
+                    </button>
+<button class="flex-1 bg-surface-container-high text-primary py-4 rounded-full font-bold flex items-center justify-center gap-2 transition-transform active:scale-95">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+                        Compartilhar
+                    </button>
+</div>
+</div>
+<!-- Side Panel: Status and QR Code -->
+<div class="w-full lg:w-2/5 space-y-6">
+<!-- Authorization Status Card -->
+<div class="bg-surface-container-lowest rounded-[2rem] p-8 shadow-[0px_12px_32px_rgba(25,28,30,0.06)]">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-headline font-bold text-xl text-primary">Autorização de Saída</h3>
+<span class="bg-tertiary-fixed text-on-tertiary-fixed px-3 py-1 rounded-full text-xs font-bold">AUTORIZADO</span>
+</div>
+<div class="space-y-6">
+<div class="flex items-start gap-4">
+<div class="p-3 rounded-2xl bg-surface-container-low text-primary">
+<span class="material-symbols-outlined">calendar_today</span>
+</div>
+<div>
+<span class="block text-[10px] uppercase font-bold text-outline tracking-wider">Período de Vigência</span>
+<p class="text-sm font-semibold text-on-surface">15 Fev 2024 — 20 Dez 2024</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="p-3 rounded-2xl bg-surface-container-low text-primary">
+<span class="material-symbols-outlined">schedule</span>
+</div>
+<div>
+<span class="block text-[10px] uppercase font-bold text-outline tracking-wider">Horários Permitidos</span>
+<p class="text-sm font-semibold text-on-surface">Segunda a Sexta: 11:45 — 13:15</p>
+</div>
+</div>
+<div class="p-4 rounded-2xl bg-error-container text-on-error-container text-xs flex gap-3 items-start">
+<span class="material-symbols-outlined text-lg">info</span>
+<p class="leading-relaxed">Saída permitida exclusivamente para almoço fora das dependências escolares conforme autorização dos responsáveis.</p>
+</div>
+</div>
+</div>
+<!-- QR Code Scanning Section -->
+<div class="bg-surface-container-lowest rounded-[2rem] p-8 shadow-[0px_12px_32px_rgba(25,28,30,0.06)] text-center">
+<p class="text-[10px] uppercase font-bold text-outline tracking-[0.2em] mb-6">APRESENTE PARA SCAN</p>
+<div class="bg-white p-6 rounded-3xl inline-block shadow-inner mb-6 relative group">
+<div class="absolute inset-0 border-2 border-primary/5 rounded-3xl transition-all group-hover:border-primary/20"></div>
+<img alt="Student QR Code" class="w-48 h-48" data-alt="clean black and white QR code used for digital student identification and security check" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhCiCB2zJYDbG7aDvowqNPPSTz8_E9Tu_BgLt75Nuxj0UWw9m0UGsgLuKz3-KdUSyxXbD-6tsy7Qg5THAJv8TwxfBpxPmVSYN3wGBH-h6Bl6DGzzhkg0HQhmn56iY3CZ5Yk4M7ShZJg7KMHm_wUH5cxeZ5ofc6-SYJfer6GZXoUa3yYKNj1SqJzqyJerNoCoaJxHFQCJ6T7v075zFDbHDDTNTDv34NA_FeTno24sKEQLd50ZXsAjyEksHzR-v-xSFnZS45cJDEuA"/>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-mono text-sm text-outline mb-2">REF-ID: 77-AX90-B2</span>
+<div class="flex items-center gap-1 text-tertiary-fixed-dim text-xs font-bold">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim animate-pulse"></span>
+                            SINCROIZADO EM TEMPO REAL
+                        </div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-white/80 dark:bg-[#191c1e]/80 backdrop-blur-xl fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 shadow-[0px_-12px_32px_rgba(25,28,30,0.06)] border-t border-[#f2f4f7]/10 md:hidden">
+<div class="flex flex-col items-center justify-center text-[#5c6063] dark:text-[#c4c7cb] px-5 py-2 hover:text-[#001e40] dark:hover:text-white transition-all duration-200">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-['Inter'] text-[11px] font-medium">Dashboard</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#5c6063] dark:text-[#c4c7cb] px-5 py-2 hover:text-[#001e40] dark:hover:text-white transition-all duration-200">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+<span class="font-['Inter'] text-[11px] font-medium">Scan</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-[#003366] text-white dark:bg-[#d6e3ff] dark:text-[#001e40] rounded-2xl px-5 py-2 transition-all duration-300 scale-100 active:scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<span class="font-['Inter'] text-[11px] font-medium">Authorized</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#5c6063] dark:text-[#c4c7cb] px-5 py-2 hover:text-[#001e40] dark:hover:text-white transition-all duration-200">
+<span class="material-symbols-outlined">badge</span>
+<span class="font-['Inter'] text-[11px] font-medium">Profile</span>
+</div>
+</nav>
+<!-- Desktop Sidebar Suggestion (Navigation Drawer Concept) -->
+<aside class="hidden md:flex fixed inset-y-0 left-0 z-[60] w-72 flex-col bg-[#f2f4f7] dark:bg-[#1c1b1f] rounded-r-3xl transition-all duration-200 ease-out shadow-2xl dark:shadow-none">
+<div class="p-8">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-12 h-12 rounded-full bg-white shadow-md flex items-center justify-center text-primary font-bold text-xl overflow-hidden">
+<img alt="Admin" data-alt="portrait of an academic professional wearing a suit, smiling confidently, high-quality professional photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJTLvrBLR5Vgjzz1xVS9DL56trWzm3eYyxwzgWCwyFu_swK4I3RS1ut2DWtm_CvrI984SuNPgvi26CnOxxY4R_ixWlm24dgPQQaFGLqqXOUuvy1tvi3TQifVaG2UISJmQlPjxBbxAubvnuz66k2n_63II-HLNDB8UZIn-beWoTWyAEkddi59pmcEK_T4kOqp2C_Jjucla-NMbsXRqSSDqrI3AIHVeibw4qWfdTjAOnH0yaunD-p-gqsRDib19EasXjN_UQiVc7kg"/>
+</div>
+<div>
+<h4 class="font-headline font-bold text-primary text-sm">Gabriel Silva</h4>
+<p class="text-[10px] text-outline uppercase font-bold tracking-wider">Estudante</p>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 text-[#44474e] dark:text-[#c4c7cb] px-4 py-3 rounded-full hover:bg-[#dee1e6] transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-['Inter'] text-sm font-semibold">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 bg-[#e6e8eb] dark:bg-[#444746] text-[#001e40] dark:text-[#e3e2e6] rounded-full px-4 py-3 shadow-sm" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">badge</span>
+<span class="font-['Inter'] text-sm font-semibold">Minha Identidade</span>
+</a>
+<a class="flex items-center gap-3 text-[#44474e] dark:text-[#c4c7cb] px-4 py-3 rounded-full hover:bg-[#dee1e6] transition-all" href="#">
+<span class="material-symbols-outlined">history_edu</span>
+<span class="font-['Inter'] text-sm font-semibold">Frequência</span>
+</a>
+<a class="flex items-center gap-3 text-[#44474e] dark:text-[#c4c7cb] px-4 py-3 rounded-full hover:bg-[#dee1e6] transition-all" href="#">
+<span class="material-symbols-outlined">security</span>
+<span class="font-['Inter'] text-sm font-semibold">Segurança</span>
+</a>
+<a class="flex items-center gap-3 text-[#44474e] dark:text-[#c4c7cb] px-4 py-3 rounded-full hover:bg-[#dee1e6] transition-all" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-['Inter'] text-sm font-semibold">Configurações</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-8">
+<div class="bg-white/50 p-4 rounded-2xl border border-white/40">
+<p class="text-xs font-bold text-primary mb-2">Suporte Institucional</p>
+<p class="text-[10px] text-outline leading-relaxed">Em caso de perda ou erro nos dados, procure a secretaria acadêmica.</p>
+</div>
+</div>
+</aside>
+</body></html>

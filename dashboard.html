@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-tint": "#3a5f94",
+                    "tertiary-fixed-dim": "#88d982",
+                    "surface": "#f7f9fc",
+                    "inverse-primary": "#a7c8ff",
+                    "on-tertiary-container": "#5ead5c",
+                    "secondary-fixed-dim": "#afcbd8",
+                    "on-secondary-fixed-variant": "#304a55",
+                    "on-secondary-container": "#4e6874",
+                    "on-tertiary": "#ffffff",
+                    "secondary": "#48626e",
+                    "on-primary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#005312",
+                    "on-primary-fixed": "#001b3c",
+                    "outline-variant": "#c3c6d1",
+                    "on-primary-container": "#799dd6",
+                    "secondary-fixed": "#cbe7f5",
+                    "primary-fixed": "#d5e3ff",
+                    "surface-container": "#eceef1",
+                    "primary-fixed-dim": "#a7c8ff",
+                    "on-surface-variant": "#43474f",
+                    "on-secondary": "#ffffff",
+                    "tertiary-container": "#003d0b",
+                    "surface-container-low": "#f2f4f7",
+                    "error-container": "#ffdad6",
+                    "surface-variant": "#e0e3e6",
+                    "inverse-surface": "#2d3133",
+                    "on-background": "#191c1e",
+                    "on-error-container": "#93000a",
+                    "background": "#f7f9fc",
+                    "surface-dim": "#d8dadd",
+                    "on-surface": "#191c1e",
+                    "error": "#ba1a1a",
+                    "secondary-container": "#cbe7f5",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-highest": "#e0e3e6",
+                    "on-secondary-fixed": "#021f29",
+                    "tertiary-fixed": "#a3f69c",
+                    "on-tertiary-fixed": "#002204",
+                    "surface-bright": "#f7f9fc",
+                    "on-primary-fixed-variant": "#1f477b",
+                    "primary": "#001e40",
+                    "primary-container": "#003366",
+                    "outline": "#737780",
+                    "tertiary": "#002504",
+                    "inverse-on-surface": "#eff1f4",
+                    "on-error": "#ffffff",
+                    "surface-container-high": "#e6e8eb"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface">
+<!-- TopAppBar -->
+<header class="bg-[#f7f9fc] dark:bg-[#191c1e] dock full-width top-0 sticky z-40">
+<div class="flex justify-between items-center w-full px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-primary-container flex items-center justify-center">
+<img alt="CETI Logo" class="w-full h-full object-cover" data-alt="Official crest of an educational institution featuring a book and torch in classic navy and silver colors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6WmW1PNZG4YgyKG0MPDFkZTQLOx37BxJGClHL2k_CrUJdAzGo_5Nq2mmoIk2YaAJu4G7sfx9vT4VfZpLd6Cz_mYeY_v9C-Kj_fJtNPcmdVC0VfEnZHI2QyCSI8p5G0utch19eB7DSg4LBzObXA7nK7NjJ2sOmWJGapYttc-ZhyKeZNLweMu0tE42acHLYiAyhFbl-lal_dkob3iKx-G9YVLdb0pQkmGvGmXmTkY6o_3lk_szWMTplqDstbDsKTMUxtsmPkAO4Ew"/>
+</div>
+<h1 class="font-['Manrope'] font-bold tracking-[-0.02em] text-lg uppercase tracking-wider text-[#001e40] dark:text-[#ffffff]">CETI NOVA ITARANA</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#003366] dark:text-[#d6e3ff] text-2xl hover:bg-[#e6e8eb] dark:hover:bg-[#3f4144] p-2 rounded-full transition-colors active:scale-95 duration-150 ease-in-out">notifications</button>
+<button class="material-symbols-outlined text-[#003366] dark:text-[#d6e3ff] text-2xl hover:bg-[#e6e8eb] dark:hover:bg-[#3f4144] p-2 rounded-full transition-colors active:scale-95 duration-150 ease-in-out">account_circle</button>
+</div>
+</div>
+</header>
+<main class="flex min-h-screen">
+<!-- NavigationDrawer (Desktop) -->
+<aside class="hidden md:flex flex-col w-72 bg-[#f2f4f7] dark:bg-[#1c1b1f] h-screen sticky top-0 rounded-r-3xl z-30">
+<div class="p-6 flex flex-col items-start gap-1">
+<div class="flex items-center gap-3 mb-6">
+<img alt="Director Profile" class="w-12 h-12 rounded-full object-cover shadow-md" data-alt="Professional portrait of a middle-aged academic director in a sharp suit with a friendly and authoritative expression" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-pfKdwlH7BSnOQrW6oGo82puVoWtcZ4UdNl_-EUHOynoKvfjnkgo5WxldMYtSHgO7eQifDPR-89Dsy5nOvYLc_HR-TjLfgRJg-IfxZIXd2wsslE7P8WbO3adWbEzCWE3EB7UV-9ARL_CzrJJygrrts_HoIO7H_K3SAqWFdhmPBoMn-UdS495Vok81SkxCmvgCR0yRyo3XVP6VqLjb1GhUsTh_0RaM8PwLzcrllrofQ0QKwrVqy25g1_zkrt9DjiEOh_M5RwSv-Q"/>
+<div>
+<p class="font-['Inter'] text-sm font-semibold text-[#003366] dark:text-[#d6e3ff]">Diretor Acadêmico</p>
+<p class="text-[11px] text-[#5c6063] dark:text-[#c4c7cb]">CETI Nova Itarana</p>
+</div>
+</div>
+<nav class="w-full space-y-1">
+<a class="bg-[#e6e8eb] dark:bg-[#444746] text-[#001e40] dark:text-[#e3e2e6] rounded-full mx-2 flex items-center px-4 py-3 gap-3 font-semibold text-sm transition-all duration-200 ease-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="text-[#44474e] dark:text-[#c4c7cb] px-4 py-3 flex items-center gap-3 font-semibold text-sm hover:bg-[#dee1e6] dark:hover:bg-[#333538] transition-all duration-200 ease-out rounded-full mx-2" href="#">
+<span class="material-symbols-outlined">query_stats</span>
+<span>Attendance Stats</span>
+</a>
+<a class="text-[#44474e] dark:text-[#c4c7cb] px-4 py-3 flex items-center gap-3 font-semibold text-sm hover:bg-[#dee1e6] dark:hover:bg-[#333538] transition-all duration-200 ease-out rounded-full mx-2" href="#">
+<span class="material-symbols-outlined">verified_user</span>
+<span>Authorized</span>
+</a>
+<a class="text-[#44474e] dark:text-[#c4c7cb] px-4 py-3 flex items-center gap-3 font-semibold text-sm hover:bg-[#dee1e6] dark:hover:bg-[#333538] transition-all duration-200 ease-out rounded-full mx-2" href="#">
+<span class="material-symbols-outlined">security</span>
+<span>Security Logs</span>
+</a>
+<a class="text-[#44474e] dark:text-[#c4c7cb] px-4 py-3 flex items-center gap-3 font-semibold text-sm hover:bg-[#dee1e6] dark:hover:bg-[#333538] transition-all duration-200 ease-out rounded-full mx-2" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-8 opacity-40">
+<span class="text-xs font-bold text-[#003366] uppercase tracking-[0.2em]">Institutional Access</span>
+</div>
+</aside>
+<!-- Content Canvas -->
+<section class="flex-1 px-6 md:px-10 py-8 pb-32">
+<!-- Header Section -->
+<div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-headline font-extrabold text-3xl md:text-4xl text-on-surface tracking-tight mb-2">Monitor de Saídas</h2>
+<p class="text-on-surface-variant font-body">Visão em tempo real do tráfego discente autorizado.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-6 py-3 bg-primary-container text-white rounded-full font-semibold shadow-sm hover:shadow-lg transition-all active:scale-95">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+<span>Novo Scan</span>
+</button>
+</div>
+</div>
+<!-- Bento Grid Stats -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+<!-- Stat 1: Students Out -->
+<div class="bg-surface-container-lowest rounded-[2rem] p-8 flex flex-col justify-between h-48 border-none shadow-[0px_12px_32px_rgba(25,28,30,0.06)]">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-2xl bg-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-fixed">person</span>
+</div>
+<span class="text-outline text-xs font-bold uppercase tracking-widest">Atualmente</span>
+</div>
+<div>
+<p class="text-4xl font-headline font-extrabold text-primary">24</p>
+<p class="text-on-surface-variant text-sm font-medium">Estudantes Ausentes</p>
+</div>
+</div>
+<!-- Stat 2: Active Authorizations -->
+<div class="bg-surface-container-lowest rounded-[2rem] p-8 flex flex-col justify-between h-48 border-none shadow-[0px_12px_32px_rgba(25,28,30,0.06)]">
+<div class="flex justify-between items-start">
+<div class="w-12 h-12 rounded-2xl bg-secondary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-fixed">assignment_turned_in</span>
+</div>
+<span class="text-outline text-xs font-bold uppercase tracking-widest">Válidas</span>
+</div>
+<div>
+<p class="text-4xl font-headline font-extrabold text-secondary">38</p>
+<p class="text-on-surface-variant text-sm font-medium">Autorizações Ativas</p>
+</div>
+</div>
+<!-- Stat 3: Alerts (Late) -->
+<div class="bg-error-container rounded-[2rem] p-8 flex flex-col justify-between h-48 border-none shadow-[0px_12px_32px_rgba(25,28,30,0.06)] relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-on-error-container/5 rounded-full -mr-12 -mt-12"></div>
+<div class="flex justify-between items-start z-10">
+<div class="w-12 h-12 rounded-2xl bg-white/40 backdrop-blur-md flex items-center justify-center">
+<span class="material-symbols-outlined text-on-error-container" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<span class="text-on-error-container text-xs font-bold uppercase tracking-widest">Crítico</span>
+</div>
+<div class="z-10">
+<p class="text-4xl font-headline font-extrabold text-on-error-container">03</p>
+<p class="text-on-error-container text-sm font-bold">Retornos Atrasados</p>
+</div>
+</div>
+</div>
+<!-- Main Content Area: List and Activity -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+<!-- Student List (60%) -->
+<div class="lg:col-span-2 space-y-6">
+<div class="flex items-center justify-between mb-4 px-2">
+<h3 class="font-headline font-bold text-xl text-on-surface">Lista de Saídas</h3>
+<div class="flex gap-2">
+<span class="text-xs font-semibold px-3 py-1 bg-surface-container-high rounded-full text-outline">Filtrar por: Recentes</span>
+</div>
+</div>
+<!-- Student Row: ALERT STATE -->
+<div class="bg-white rounded-[1.5rem] p-6 flex flex-col sm:flex-row items-center gap-6 shadow-[0px_12px_32px_rgba(25,28,30,0.04)] border-l-8 border-error">
+<div class="relative">
+<img alt="Student photo" class="w-16 h-16 rounded-2xl object-cover" data-alt="Portrait of a male student with curly hair wearing a white polo school uniform against a soft blue background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCrB_4R3v1VzroywswXuUwREMOvPOw6LFcvDPHZFtPXmA8prCWSTdcdMHPrONf5IhxuupRlpX_S9PNskXv_ChFvXnjWexOJPtCCu-VwSW_M0Dv7a5j20GIum4FYHn0Di528PC6tNNhOYiPZtk1Lc6ShzIJ4i6309IPm2_yvkG8OAzv5KRZsJr226qA2t9MOr_8pE-_cHIsZetJC30S9wHDncMbUMaN35uqWOHh4DkNq3F7jY-7ahASstDK8jRcbhBiFHlvrTqYHBg"/>
+<div class="absolute -bottom-1 -right-1 w-6 h-6 bg-error rounded-full border-4 border-white flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[12px]" style="font-variation-settings: 'FILL' 1;">priority_high</span>
+</div>
+</div>
+<div class="flex-1 text-center sm:text-left">
+<h4 class="font-headline font-bold text-lg text-on-surface">Gabriel dos Santos</h4>
+<p class="text-sm text-outline font-medium tracking-tight">ID: #882910 • 3º Ano A</p>
+</div>
+<div class="grid grid-cols-2 gap-4 sm:gap-8">
+<div class="text-center sm:text-left">
+<p class="text-[10px] uppercase font-bold text-outline tracking-wider mb-1">Saída</p>
+<p class="font-headline font-bold text-on-surface">09:15</p>
+</div>
+<div class="text-center sm:text-left">
+<p class="text-[10px] uppercase font-bold text-error tracking-wider mb-1">Retorno (Prev)</p>
+<p class="font-headline font-bold text-error">10:45</p>
+</div>
+</div>
+<div class="flex flex-col items-center">
+<span class="bg-error-container text-on-error-container text-[11px] font-bold px-4 py-1.5 rounded-full mb-1">+45 min atraso</span>
+<button class="text-on-primary-container text-xs font-bold hover:underline">Detalhes</button>
+</div>
+</div>
+<!-- Student Row: NORMAL STATE -->
+<div class="bg-surface-container-lowest rounded-[1.5rem] p-6 flex flex-col sm:flex-row items-center gap-6 shadow-[0px_8px_24px_rgba(25,28,30,0.02)]">
+<div class="relative">
+<img alt="Student photo" class="w-16 h-16 rounded-2xl object-cover" data-alt="Close-up portrait of a young female student with glasses and a friendly smile, academic setting background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcjQ83P3ohKDiY34Qzz-6OJfRs7056WNeT9ByW98V9FnQzIF2yoJcZVFr7LxcWSvD6shJHXa72Lrij0BpvMtyS7l6APuNs5hatSqDF-IA0MUVchRYsCOZ7A4VvGJcvE_NGS1ilmo20n6mebf2URrJVFMYCJxs2qjJYaOv6t8V-ijnhJUcTptoVE2-Rn_geXzjSUI1inUe8z4mKT1fmv4IyRAYwYWp7BdkBb0Qs-LhvuZBXdPLcJAtSgg5xgZ5dvEA5UzzL6UkpQA"/>
+</div>
+<div class="flex-1 text-center sm:text-left">
+<h4 class="font-headline font-bold text-lg text-on-surface">Ana Luíza Oliveira</h4>
+<p class="text-sm text-outline font-medium tracking-tight">ID: #901123 • 2º Ano B</p>
+</div>
+<div class="grid grid-cols-2 gap-4 sm:gap-8">
+<div class="text-center sm:text-left">
+<p class="text-[10px] uppercase font-bold text-outline tracking-wider mb-1">Saída</p>
+<p class="font-headline font-bold text-on-surface">11:00</p>
+</div>
+<div class="text-center sm:text-left">
+<p class="text-[10px] uppercase font-bold text-outline tracking-wider mb-1">Retorno (Prev)</p>
+<p class="font-headline font-bold text-on-surface">13:30</p>
+</div>
+</div>
+<div>
+<span class="bg-tertiary-fixed text-on-tertiary-fixed text-[11px] font-bold px-4 py-1.5 rounded-full">No Prazo</span>
+</div>
+</div>
+<!-- Student Row: NORMAL STATE 2 -->
+<div class="bg-surface-container-lowest rounded-[1.5rem] p-6 flex flex-col sm:flex-row items-center gap-6 shadow-[0px_8px_24px_rgba(25,28,30,0.02)]">
+<div class="relative">
+<img alt="Student photo" class="w-16 h-16 rounded-2xl object-cover" data-alt="Portrait of a young male student wearing a school uniform, neutral gray background, high quality lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6tBNkQkZFEQ8Cw6gOiw2USQYSk3ZgDIIE4JHJUt3ImDavmXHjMhfOQDYGRQIEfYh4aUcbNUhd7_eo4HSwPbck7UINpj1_xg5GWpeM2tyBvWnes8y70L2XuFrhN9fkkKC9Flbm1iBSlT5mIct72IL39d_3fNqmnsMdQuYrwRAaDR8ogREylNx45FMRmBfi-G768d0Xuu2eaax9meTpG6mmVK3j12tGoMA6xDFsUsgr6IameoLI94GSAAEVNeHWM3W5vga74Q70Uw"/>
+</div>
+<div class="flex-1 text-center sm:text-left">
+<h4 class="font-headline font-bold text-lg text-on-surface">Marcos Vinícius</h4>
+<p class="text-sm text-outline font-medium tracking-tight">ID: #774412 • 1º Ano C</p>
+</div>
+<div class="grid grid-cols-2 gap-4 sm:gap-8">
+<div class="text-center sm:text-left">
+<p class="text-[10px] uppercase font-bold text-outline tracking-wider mb-1">Saída</p>
+<p class="font-headline font-bold text-on-surface">11:15</p>
+</div>
+<div class="text-center sm:text-left">
+<p class="text-[10px] uppercase font-bold text-outline tracking-wider mb-1">Retorno (Prev)</p>
+<p class="font-headline font-bold text-on-surface">12:00</p>
+</div>
+</div>
+<div>
+<span class="bg-tertiary-fixed text-on-tertiary-fixed text-[11px] font-bold px-4 py-1.5 rounded-full">No Prazo</span>
+</div>
+</div>
+</div>
+<!-- Secondary Information Column (40%) -->
+<div class="space-y-8">
+<!-- Critical Alerts Feed -->
+<div class="bg-[#001e40] text-white rounded-[2rem] p-8 shadow-xl">
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-tertiary-fixed text-3xl">emergency_home</span>
+<h3 class="font-headline font-bold text-xl">Alertas Críticos</h3>
+</div>
+<div class="space-y-4">
+<div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/5">
+<div class="flex items-center gap-3 mb-2">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<p class="text-xs font-bold uppercase tracking-widest text-secondary-fixed">Retorno Excedido</p>
+</div>
+<p class="text-sm font-medium leading-relaxed">Gabriel dos Santos não retornou às 10:45 conforme autorizado. Contatar responsável.</p>
+<button class="mt-4 w-full py-2 bg-error text-white text-xs font-bold rounded-xl hover:bg-error/90 transition-colors uppercase tracking-widest">Ação Necessária</button>
+</div>
+<div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/5">
+<div class="flex items-center gap-3 mb-2">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed"></span>
+<p class="text-xs font-bold uppercase tracking-widest text-secondary-fixed">Próximo Retorno</p>
+</div>
+<p class="text-sm font-medium leading-relaxed">2 estudantes com retorno previsto para os próximos 15 minutos.</p>
+</div>
+</div>
+</div>
+<!-- Authorization Summary Card -->
+<div class="bg-surface-container-high rounded-[2rem] p-8">
+<h4 class="font-headline font-bold text-on-surface-variant text-sm uppercase tracking-[0.15em] mb-6">Tipo de Autorização</h4>
+<div class="space-y-6">
+<div>
+<div class="flex justify-between text-sm font-bold mb-2">
+<span>Médico / Consulta</span>
+<span>65%</span>
+</div>
+<div class="w-full h-2 bg-surface rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[65%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-sm font-bold mb-2">
+<span>Evento Externo</span>
+<span>20%</span>
+</div>
+<div class="w-full h-2 bg-surface rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed-dim w-[20%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-sm font-bold mb-2">
+<span>Outros</span>
+<span>15%</span>
+</div>
+<div class="w-full h-2 bg-surface rounded-full overflow-hidden">
+<div class="h-full bg-outline-variant w-[15%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 bg-white/80 dark:bg-[#191c1e]/80 backdrop-blur-xl flex justify-around items-center px-4 pb-6 pt-3 rounded-t-3xl shadow-[0px_-12px_32px_rgba(25,28,30,0.06)]">
+<div class="flex flex-col items-center justify-center bg-[#003366] text-white dark:bg-[#d6e3ff] dark:text-[#001e40] rounded-2xl px-5 py-2 transition-all duration-300 active:scale-90 duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-['Inter'] text-[11px] font-medium">Dashboard</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#5c6063] dark:text-[#c4c7cb] px-5 py-2 hover:text-[#001e40] dark:hover:text-white transition-all duration-300">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+<span class="font-['Inter'] text-[11px] font-medium">Scan</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#5c6063] dark:text-[#c4c7cb] px-5 py-2 hover:text-[#001e40] dark:hover:text-white transition-all duration-300">
+<span class="material-symbols-outlined">verified_user</span>
+<span class="font-['Inter'] text-[11px] font-medium">Authorized</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#5c6063] dark:text-[#c4c7cb] px-5 py-2 hover:text-[#001e40] dark:hover:text-white transition-all duration-300">
+<span class="material-symbols-outlined">badge</span>
+<span class="font-['Inter'] text-[11px] font-medium">Profile</span>
+</div>
+</nav>
+</body></html>
