@@ -35,62 +35,74 @@ export const AdminUsersPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 px-6 md:px-10 py-8 bg-surface min-h-screen">
-      <header className="mb-10 flex justify-between items-center">
+    <div className="flex-1 px-6 md:px-10 py-8 min-h-screen">
+      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
+          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Segurança</p>
           <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Gestão de Usuários</h2>
-          <p className="text-outline font-medium">Controle de acessos e papéis do sistema</p>
+          <p className="text-on-surface-variant font-medium mt-1">Controle de acessos e papéis do sistema</p>
+        </div>
+        <div className="glass-card px-4 py-2 rounded-xl inline-flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary text-base">shield_person</span>
+          <span className="text-xs font-bold text-on-surface-variant">{profiles.length} usuário{profiles.length !== 1 ? 's' : ''}</span>
         </div>
       </header>
 
-      <div className="bg-white rounded-[2rem] overflow-hidden shadow-[0px_12px_32px_rgba(25,28,30,0.06)]">
+      <div className="glass-card rounded-[2rem] overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-surface-container-high border-b border-outline-variant">
+          <thead className="bg-white/50 border-b border-white/30">
             <tr>
-              <th className="px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-outline">Usuário</th>
-              <th className="px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-outline">Papel Atual</th>
-              <th className="px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-outline">Ações / Definir Papel</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Usuário</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Papel Atual</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Definir Papel</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-outline-variant">
+          <tbody className="divide-y divide-white/30">
             {loading ? (
-              <tr><td colSpan={3} className="px-8 py-10 text-center text-outline">Carregando usuários...</td></tr>
+              <tr><td colSpan={3} className="px-8 py-16 text-center">
+                <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
+                <span className="text-outline font-medium">Carregando usuários...</span>
+              </td></tr>
             ) : profiles.length === 0 ? (
-              <tr><td colSpan={3} className="px-8 py-10 text-center text-outline">Nenhum usuário encontrado.</td></tr>
+              <tr><td colSpan={3} className="px-8 py-16 text-center">
+                <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">person_off</span>
+                <span className="text-outline font-medium">Nenhum usuário encontrado.</span>
+              </td></tr>
             ) : profiles.map((p) => (
-              <tr key={p.id} className="hover:bg-surface-container-low transition-colors">
-                <td className="px-8 py-4">
+              <tr key={p.id} className="hover:bg-white/40 transition-all duration-200 group">
+                <td className="px-8 py-5">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-bold uppercase">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-bold uppercase text-lg group-hover:shadow-md transition-all">
                       {p.full_name?.charAt(0) || '?'}
                     </div>
                     <div>
-                      <div className="font-bold text-on-surface">{p.full_name || 'Usuário sem nome'}</div>
-                      <div className="text-xs text-outline font-mono mt-1">{p.id.split('-')[0]}...</div>
+                      <div className="font-bold text-on-surface text-sm">{p.full_name || 'Usuário sem nome'}</div>
+                      <div className="text-[11px] text-outline font-mono">{p.id.split('-')[0]}...</div>
                     </div>
                   </div>
                 </td>
-                <td className="px-8 py-4">
-                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider
-                    ${p.role === 'DIRETOR' ? 'bg-error-container text-on-error-container' : 
-                      p.role === 'PORTEIRO' ? 'bg-secondary-fixed text-on-secondary-fixed' : 
-                      'bg-surface-variant text-on-surface-variant'
+                <td className="px-8 py-5">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider
+                    ${p.role === 'DIRETOR' ? 'bg-error/10 text-error' : 
+                      p.role === 'PORTEIRO' ? 'bg-secondary/10 text-secondary' : 
+                      'bg-outline/10 text-outline'
                     }`}>
+                    <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>
+                      {p.role === 'DIRETOR' ? 'shield' : p.role === 'PORTEIRO' ? 'door_front' : 'person'}
+                    </span>
                     {p.role || 'ALUNO'}
                   </span>
                 </td>
-                <td className="px-8 py-4">
-                  <div className="flex items-center gap-2">
-                    <select 
-                      className="bg-surface-container-low border border-outline-variant rounded-xl px-3 py-1.5 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                      value={p.role || 'ALUNO'}
-                      onChange={(e) => updateRole(p.id, e.target.value)}
-                    >
-                      <option value="ALUNO">ALUNO (Visualizador)</option>
-                      <option value="PORTEIRO">PORTEIRO (Scanner)</option>
-                      <option value="DIRETOR">DIRETOR (Admin Total)</option>
-                    </select>
-                  </div>
+                <td className="px-8 py-5">
+                  <select 
+                    className="bg-white/50 border border-white/80 rounded-xl px-4 py-2.5 text-sm font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all cursor-pointer hover:bg-white/70"
+                    value={p.role || 'ALUNO'}
+                    onChange={(e) => updateRole(p.id, e.target.value)}
+                  >
+                    <option value="ALUNO">👁 ALUNO (Visualizador)</option>
+                    <option value="PORTEIRO">🚪 PORTEIRO (Scanner)</option>
+                    <option value="DIRETOR">🛡 DIRETOR (Admin Total)</option>
+                  </select>
                 </td>
               </tr>
             ))}
