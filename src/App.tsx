@@ -5,6 +5,8 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ScannerPage } from './pages/ScannerPage';
 import { StudentCardPage } from './pages/StudentCardPage';
 import { StudentsPage } from './pages/StudentsPage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
+import { AdminLayout } from './components/AdminLayout';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
   const { user, profile, loading } = useAuth();
@@ -26,37 +28,46 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
       
-      <Route path="/" element={
-        <ProtectedRoute>
-          {profile?.role === 'DIRETOR' ? <DashboardPage /> : 
-           profile?.role === 'PORTEIRO' ? <ScannerPage /> : 
-           <StudentCardPage />}
-        </ProtectedRoute>
-      } />
+      {/* Protected routes wrapped in AdminLayout */}
+      <Route element={<AdminLayout />}>
+        <Route path="/" element={
+          <ProtectedRoute>
+            {profile?.role === 'DIRETOR' ? <DashboardPage /> : 
+             profile?.role === 'PORTEIRO' ? <ScannerPage /> : 
+             <StudentCardPage />}
+          </ProtectedRoute>
+        } />
 
-      <Route path="/dashboard" element={
-        <ProtectedRoute allowedRoles={['DIRETOR']}>
-          <DashboardPage />
-        </ProtectedRoute>
-      } />
+        <Route path="/dashboard" element={
+          <ProtectedRoute allowedRoles={['DIRETOR']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        } />
 
-      <Route path="/scanner" element={
-        <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
-          <ScannerPage />
-        </ProtectedRoute>
-      } />
+        <Route path="/scanner" element={
+          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+            <ScannerPage />
+          </ProtectedRoute>
+        } />
 
-      <Route path="/id" element={
-        <ProtectedRoute>
-          <StudentCardPage />
-        </ProtectedRoute>
-      } />
+        <Route path="/id" element={
+          <ProtectedRoute>
+            <StudentCardPage />
+          </ProtectedRoute>
+        } />
 
-      <Route path="/students" element={
-        <ProtectedRoute allowedRoles={['DIRETOR']}>
-          <StudentsPage />
-        </ProtectedRoute>
-      } />
+        <Route path="/students" element={
+          <ProtectedRoute allowedRoles={['DIRETOR']}>
+            <StudentsPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/users" element={
+          <ProtectedRoute allowedRoles={['DIRETOR']}>
+            <AdminUsersPage />
+          </ProtectedRoute>
+        } />
+      </Route>
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
