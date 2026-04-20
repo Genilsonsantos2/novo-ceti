@@ -22,7 +22,7 @@ export const StudentBadge: React.FC<{ student: any }> = ({ student }) => {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-white font-headline font-extrabold text-sm leading-none tracking-tight">CETI</h3>
-            <p className="text-white/50 text-[8px] font-bold uppercase tracking-[0.15em] leading-tight mt-0.5">Centro de Educação de Tempo Integral</p>
+            <p className="text-white/50 text-[7px] font-bold uppercase tracking-[0.12em] leading-tight mt-0.5">Colégio Estadual de Tempo Integral de Nova Itarana</p>
           </div>
           <div className="text-right shrink-0">
             <span className="text-[7px] text-white/40 font-bold uppercase tracking-widest block">2026</span>
@@ -49,7 +49,7 @@ export const StudentBadge: React.FC<{ student: any }> = ({ student }) => {
           {/* Student Info */}
           <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
             <div>
-              <h2 className="text-white font-headline font-extrabold text-base leading-tight uppercase truncate">{student.full_name}</h2>
+              <h2 className="text-white font-headline font-extrabold text-[13px] leading-tight uppercase break-words">{student.full_name}</h2>
               <p className="text-white/50 text-[10px] font-bold mt-1 tracking-wide">{student.grade}</p>
             </div>
             
