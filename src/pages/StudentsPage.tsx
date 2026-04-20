@@ -63,18 +63,27 @@ export const StudentsPage: React.FC = () => {
 
   return (
     <div className="flex-1 px-6 md:px-10 py-8 bg-surface min-h-screen relative">
-      <header className="mb-10 flex justify-between items-center">
+      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Gestão de Alunos</h2>
           <p className="text-outline font-medium">Controle de autorizações e matrículas</p>
         </div>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-primary text-white px-6 py-3 rounded-full font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined text-sm">add</span>
-          Novo Aluno
-        </button>
+        <div className="flex gap-4 w-full md:w-auto">
+          <Link 
+            to="/print-cards"
+            className="flex-1 md:flex-none justify-center bg-surface-container-highest text-on-surface px-6 py-3 rounded-full font-bold shadow-sm hover:bg-outline-variant transition-all active:scale-95 flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-sm">print</span>
+            Imprimir Lote
+          </Link>
+          <button 
+            onClick={() => setShowModal(true)}
+            className="flex-1 md:flex-none justify-center bg-primary text-white px-6 py-3 rounded-full font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-sm">add</span>
+            Novo Aluno
+          </button>
+        </div>
       </header>
 
       <div className="bg-white rounded-[2rem] overflow-hidden shadow-[0px_12px_32px_rgba(25,28,30,0.06)]">

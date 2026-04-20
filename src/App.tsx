@@ -6,6 +6,7 @@ import { ScannerPage } from './pages/ScannerPage';
 import { StudentCardPage } from './pages/StudentCardPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
+import { PrintCardsPage } from './pages/PrintCardsPage';
 import { AdminLayout } from './components/AdminLayout';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
@@ -28,6 +29,13 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
       
+      {/* Independent full-screen routes */}
+      <Route path="/print-cards" element={
+        <ProtectedRoute allowedRoles={['DIRETOR']}>
+          <PrintCardsPage />
+        </ProtectedRoute>
+      } />
+
       {/* Protected routes wrapped in AdminLayout */}
       <Route element={<AdminLayout />}>
         <Route path="/" element={
