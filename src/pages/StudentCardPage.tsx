@@ -20,7 +20,6 @@ export const StudentCardPage: React.FC = () => {
     if (studentId) {
       query = query.eq('id', studentId);
     } else {
-      // Fallback for ALUNO role seeing their own ID, or just first student for now
       query = query.limit(1);
     }
 
@@ -31,23 +30,57 @@ export const StudentCardPage: React.FC = () => {
     setLoading(false);
   };
 
-  if (loading) return <div className="p-10 text-center">Carregando carteirinha...</div>;
-  if (!student) return <div className="p-10 text-center text-error">Estudante não encontrado.</div>;
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center min-h-[50vh]">
+      <div className="text-center">
+        <span className="material-symbols-outlined text-5xl text-outline animate-spin block mb-3">progress_activity</span>
+        <p className="text-outline font-medium">Carregando carteirinha...</p>
+      </div>
+    </div>
+  );
+
+  if (!student) return (
+    <div className="flex-1 flex items-center justify-center min-h-[50vh]">
+      <div className="glass-card rounded-3xl p-10 text-center max-w-sm">
+        <span className="material-symbols-outlined text-5xl text-error/30 block mb-3">person_off</span>
+        <p className="text-error font-bold">Estudante não encontrado.</p>
+      </div>
+    </div>
+  );
 
   return (
-    <main className="max-w-5xl mx-auto p-6 pb-32">
-      <div className="mb-10 text-center lg:text-left">
-        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary">Prévia do Cartão Digital</h1>
-        <p className="text-outline font-medium mt-1">Este é o formato final com o QR Code unificado pronto para impressão</p>
+    <main className="max-w-3xl mx-auto p-6 pb-32">
+      <div className="mb-8">
+        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Identidade Digital</p>
+        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface">Cartão de {student.full_name}</h1>
+        <p className="text-on-surface-variant font-medium mt-1">Prévia do formato impresso com QR Code e logotipo</p>
       </div>
 
-      <div className="flex justify-center lg:justify-start">
+      {/* Card Preview */}
+      <div className="flex justify-center mb-8">
         <StudentBadge student={student} />
       </div>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-10">
+        <button 
+          onClick={() => window.print()}
+          className="flex-1 bg-gradient-to-r from-primary to-primary-container text-white py-4 rounded-2xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-lg">print</span>
+          Imprimir Este Cartão
+        </button>
+      </div>
       
-      <div className="mt-10 lg:w-1/2 flex items-center gap-4 bg-tertiary-container text-on-tertiary-container p-6 rounded-3xl">
-        <span className="material-symbols-outlined text-4xl">info</span>
-        <p className="text-sm font-medium">O QR Code agora fica permanentemente atrelado à parte frontal da identidade impressa, facilitando a rápida aprovação na portaria do colégio.</p>
+      {/* Info Card */}
+      <div className="glass-card rounded-2xl p-6 flex items-start gap-4">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined text-primary text-xl">info</span>
+        </div>
+        <div>
+          <h3 className="font-bold text-sm text-on-surface mb-1">Orientações de Impressão</h3>
+          <p className="text-xs text-on-surface-variant leading-relaxed">O cartão já contém o QR Code, logotipo do CETI e dados do aluno. Para impressão, recomendamos papel couchê 300g e ativar "Gráficos de Fundo" nas configurações da impressora.</p>
+        </div>
       </div>
     </main>
   );
