@@ -25,14 +25,41 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   const fetchStats = async () => {
-    // In a real app, we'd use complex queries or RPCs. Simplified for now:
-    const { count: ausentes } = await supabase.from('access_logs').select('*', { count: 'exact' }).eq('type', 'OUT');
-    const { count: ativas } = await supabase.from('student_authorizations').select('*', { count: 'exact' }).eq('status', 'ACTIVE');
+    // Busca logs de hoje para calcular quem saiu e não voltou hoje
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    // Simplificado para o MVP: Ativas
+    const { data: ativasData } = await supabase
+      .from('student_authorizations')
+      .select('*')
+      .eq('status', 'ACTIVE');
+      
+    // Count atrasos locally
+    let lateCount = 0;
+    const now = new Date();
+    const currentTimeString = now.toLocaleTimeString('pt-BR', { hour12: false }); // "14:30:00"
+    
+    if (ativasData) {
+      ativasData.forEach((auth: any) => {
+         // end_time format is typically "HH:MM:SS" or "HH:MM"
+         if (auth.end_time && auth.end_time < currentTimeString) {
+            lateCount++;
+         }
+      });
+    }
+    
+    // Para ausentes, usar count de logs de saídas do dia (Simplificação)
+    const { count: ausentes } = await supabase
+      .from('access_logs')
+      .select('*', { count: 'exact' })
+      .eq('type', 'OUT')
+      .gte('timestamp', today.toISOString());
     
     setStats({
       ausentes: ausentes || 0,
-      ativas: ativas || 0,
-      atrasos: 0 // Logic for late returns would go here
+      ativas: ativasData?.length || 0,
+      atrasos: lateCount
     });
   };
 
@@ -44,7 +71,7 @@ export const DashboardPage: React.FC = () => {
       .limit(10);
 
     if (error) console.error(error);
-    else setLogs(data);
+    else setLogs(data || []);
     setLoading(false);
   };
 

@@ -2,24 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
+import { useParams } from 'react-router-dom';
 
 export const StudentCardPage: React.FC = () => {
   const { user } = useAuth();
+  const { studentId } = useParams<{ studentId: string }>();
   const [student, setStudent] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) fetchStudentData();
-  }, [user]);
+  }, [user, studentId]);
 
   const fetchStudentData = async () => {
-    // Assuming student ID is linked to the authenticated user's ID
-    // or found via profile metadata
-    const { data, error } = await supabase
-      .from('students')
-      .select('*, student_authorizations(*)')
-      .limit(1)
-      .single(); // In a real app, match by user.id or a student_id link
+    let query = supabase.from('students').select('*, student_authorizations(*)');
+    
+    if (studentId) {
+      query = query.eq('id', studentId);
+    } else {
+      // Fallback for ALUNO role seeing their own ID, or just first student for now
+      query = query.limit(1);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) console.error(error);
     else setStudent(data);

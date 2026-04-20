@@ -55,6 +55,12 @@ function AppRoutes() {
             <StudentCardPage />
           </ProtectedRoute>
         } />
+        
+        <Route path="/id/:studentId" element={
+          <ProtectedRoute>
+            <StudentCardPage />
+          </ProtectedRoute>
+        } />
 
         <Route path="/students" element={
           <ProtectedRoute allowedRoles={['DIRETOR']}>
