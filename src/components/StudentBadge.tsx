@@ -86,7 +86,7 @@ export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto =
             {/* QR Code Column */}
             <div className="shrink-0 flex flex-col items-center justify-center gap-1">
               <div className="bg-white p-1 rounded-lg shadow-md border border-white/20">
-                <QRCodeSVG value={student.qr_code_id} size={48} level="H" quietZone={0} />
+                <QRCodeSVG value={student.qr_code_id} size={48} level="H" />
               </div>
               <span className="text-[4px] text-white/30 font-mono tracking-widest text-center leading-tight">ID</span>
             </div>
