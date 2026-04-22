@@ -17,6 +17,9 @@ export const StudentsPage: React.FC = () => {
     guardian_name: '',
     guardian_cpf: ''
   });
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -95,6 +98,58 @@ export const StudentsPage: React.FC = () => {
     setSaving(false);
   };
 
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      const newStudents = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const values = lines[i].split(',').map(v => v.trim());
+        const student: any = {};
+        headers.forEach((header, index) => {
+          // Map CSV headers to database fields
+          const field = header.toLowerCase();
+          if (field.includes('nome')) student.full_name = values[index];
+          if (field.includes('rm') || field.includes('matri')) student.enrollment_id = values[index];
+          if (field.includes('serie') || field.includes('turma')) student.grade = values[index];
+          if (field.includes('cpf')) student.cpf = values[index];
+          if (field.includes('nasc')) student.birth_date = values[index];
+          if (field.includes('responsavel')) student.guardian_name = values[index];
+          if (field.includes('cpf_resp')) student.guardian_cpf = values[index];
+        });
+
+        if (student.full_name && student.enrollment_id) {
+          student.qr_code_id = `QR-${student.enrollment_id}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+          student.is_authorized = true;
+          student.photo_url = `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}&backgroundColor=random`;
+          newStudents.push(student);
+        }
+      }
+
+      if (newStudents.length > 0) {
+        const { error } = await supabase.from('students').insert(newStudents);
+        if (error) {
+          console.error(error);
+          alert('Erro ao importar: ' + error.message);
+        } else {
+          alert(`${newStudents.length} alunos importados com sucesso!`);
+          fetchStudents();
+          setShowImportModal(false);
+        }
+      }
+      setImporting(false);
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="flex-1 px-6 md:px-10 py-8 min-h-screen relative">
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -103,20 +158,20 @@ export const StudentsPage: React.FC = () => {
           <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Gestão de Alunos</h2>
           <p className="text-on-surface-variant font-medium mt-1">Controle de autorizações e matrículas</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <button 
+            onClick={() => setShowImportModal(true)}
+            className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-secondary"
+          >
+            <span className="material-symbols-outlined text-base">upload_file</span>
+            Importar CSV
+          </button>
           <Link 
             to="/exit-report"
             className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
           >
             <span className="material-symbols-outlined text-base">description</span>
-            Relatório de Saídas
-          </Link>
-          <Link 
-            to="/print-cards"
-            className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm"
-          >
-            <span className="material-symbols-outlined text-base">print</span>
-            Imprimir Lote
+            Relatórios
           </Link>
           <button 
             onClick={() => setShowModal(true)}
@@ -219,8 +274,8 @@ export const StudentsPage: React.FC = () => {
       {/* MODAL NOVO ALUNO */}
       {showModal && (
         <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="glass-panel rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl">
-            <div className="flex items-center gap-4 mb-8">
+          <div className="glass-panel rounded-[2.5rem] p-8 md:p-10 w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center gap-4 mb-6 shrink-0">
               <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-container rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
                 <span className="material-symbols-outlined text-white text-xl">person_add</span>
               </div>
@@ -230,7 +285,7 @@ export const StudentsPage: React.FC = () => {
               </div>
             </div>
             
-            <form onSubmit={handleCreateStudent} className="space-y-4">
+            <form onSubmit={handleCreateStudent} className="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-4 flex-1">
               {/* Photo Upload */}
               <div>
                 <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Foto do Aluno</label>
@@ -371,6 +426,60 @@ export const StudentsPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL IMPORTAÇÃO CSV */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="glass-panel rounded-[2.5rem] p-8 md:p-10 w-full max-w-md shadow-2xl">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-gradient-to-br from-secondary to-primary-container rounded-2xl flex items-center justify-center shadow-lg">
+                <span className="material-symbols-outlined text-white text-xl">upload_file</span>
+              </div>
+              <div>
+                <h3 className="font-headline font-extrabold text-xl text-primary tracking-tight">Importar Alunos</h3>
+                <p className="text-xs text-outline font-medium">Use um arquivo CSV ou Excel (CSV)</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Instruções:</p>
+                <ul className="text-[10px] text-on-surface-variant space-y-1 font-medium">
+                  <li>• O arquivo deve conter cabeçalhos (Nome, RM, Turma, etc)</li>
+                  <li>• Formatos aceitos: .csv</li>
+                  <li>• Novos alunos serão autorizados automaticamente</li>
+                </ul>
+              </div>
+
+              <div className="relative">
+                <input 
+                  type="file" 
+                  accept=".csv"
+                  onChange={handleImportCSV}
+                  className="hidden" 
+                  id="csv-input"
+                />
+                <label htmlFor="csv-input" className="flex flex-col items-center justify-center gap-3 w-full py-12 bg-white/30 hover:bg-white/50 border-2 border-dashed border-secondary/40 rounded-3xl cursor-pointer transition-all hover:border-secondary">
+                  {importing ? (
+                    <span className="material-symbols-outlined text-4xl text-secondary animate-spin">progress_activity</span>
+                  ) : (
+                    <span className="material-symbols-outlined text-4xl text-secondary">cloud_upload</span>
+                  )}
+                  <span className="text-xs font-bold text-secondary">
+                    {importing ? 'Importando dados...' : 'Selecionar arquivo .csv'}
+                  </span>
+                </label>
+              </div>
+
+              <button 
+                onClick={() => setShowImportModal(false)}
+                className="w-full py-4 glass-card rounded-2xl font-bold hover:scale-[1.02] transition-all text-on-surface-variant"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
