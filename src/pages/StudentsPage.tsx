@@ -230,7 +230,7 @@ export const StudentsPage: React.FC = () => {
                 <td className="px-8 py-5 font-mono text-xs font-bold text-on-surface-variant hidden md:table-cell">{s.enrollment_id}</td>
                 <td className="px-8 py-5">
                   <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    s.is_authorized ? 'bg-tertiary-fixed/20 text-on-tertiary-container' : 'bg-error/10 text-error'
+                    s.is_authorized ? 'bg-logo-green/10 text-logo-green' : 'bg-logo-red/10 text-logo-red'
                   }`}>
                     <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>{s.is_authorized ? 'check_circle' : 'block'}</span>
                     {s.is_authorized ? 'Ativo' : 'Bloqueado'}

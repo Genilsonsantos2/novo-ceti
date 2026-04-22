@@ -54,6 +54,10 @@ export default {
         'inverse-on-surface': '#eff1f4',
         'on-error': '#ffffff',
         'surface-container-high': '#e6e8eb',
+        'logo-orange': '#F26522',
+        'logo-green': '#009444',
+        'logo-red': '#ED1C24',
+        'logo-blue': '#0071BC',
       },
       fontFamily: {
         headline: ["Manrope", "sans-serif"],

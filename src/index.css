@@ -5,11 +5,11 @@
 @layer base {
   body {
     @apply bg-surface text-on-surface;
-    background-color: #f0f4f8;
+    background-color: #f7f9fc;
     background-image: 
-      radial-gradient(at 0% 0%, hsla(210, 100%, 95%, 1) 0, transparent 50%), 
-      radial-gradient(at 100% 0%, hsla(216, 100%, 90%, 1) 0, transparent 50%),
-      radial-gradient(at 50% 100%, hsla(220, 100%, 93%, 1) 0, transparent 50%);
+      radial-gradient(at 0% 0%, hsla(18, 90%, 94%, 1) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(145, 90%, 94%, 1) 0, transparent 50%),
+      radial-gradient(at 50% 100%, hsla(202, 90%, 94%, 1) 0, transparent 50%);
     background-attachment: fixed;
   }
 }

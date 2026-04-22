@@ -79,7 +79,7 @@ export const ScannerPage: React.FC = () => {
           <button 
             onClick={() => setScanType('IN')}
             className={`flex-1 py-3.5 rounded-xl font-bold uppercase tracking-widest text-xs transition-all duration-300 flex items-center justify-center gap-2 ${
-              scanType === 'IN' ? 'bg-gradient-to-r from-tertiary-fixed to-tertiary-fixed-dim text-on-tertiary-fixed shadow-md shadow-tertiary-fixed/20 scale-[1.02]' : 'text-outline hover:bg-white/50'
+              scanType === 'IN' ? 'bg-logo-green text-white shadow-md shadow-logo-green/20 scale-[1.02]' : 'text-outline hover:bg-white/50'
             }`}
           >
             <span className="material-symbols-outlined text-base">login</span>
@@ -88,7 +88,7 @@ export const ScannerPage: React.FC = () => {
           <button 
             onClick={() => setScanType('OUT')}
             className={`flex-1 py-3.5 rounded-xl font-bold uppercase tracking-widest text-xs transition-all duration-300 flex items-center justify-center gap-2 ${
-              scanType === 'OUT' ? 'bg-gradient-to-r from-error to-error/80 text-white shadow-md shadow-error/20 scale-[1.02]' : 'text-outline hover:bg-white/50'
+              scanType === 'OUT' ? 'bg-logo-red text-white shadow-md shadow-logo-red/20 scale-[1.02]' : 'text-outline hover:bg-white/50'
             }`}
           >
             <span className="material-symbols-outlined text-base">logout</span>
@@ -113,8 +113,8 @@ export const ScannerPage: React.FC = () => {
             {status !== 'idle' && (
               <div className={`absolute inset-0 flex items-center justify-center z-20 ${
                 status === 'success' 
-                  ? 'bg-gradient-to-br from-tertiary-fixed/95 to-tertiary-fixed-dim/95 text-on-tertiary-fixed' 
-                  : 'bg-gradient-to-br from-error/95 to-error/80 text-white'
+                  ? 'bg-logo-green/95 text-white' 
+                  : 'bg-logo-red/95 text-white'
               }`}>
                 <div className="text-center p-8">
                   <span className="material-symbols-outlined text-7xl mb-4 block" style={{fontVariationSettings: "'FILL' 1"}}>
@@ -150,7 +150,7 @@ export const ScannerPage: React.FC = () => {
                   className="w-16 h-16 rounded-2xl object-cover ring-2 ring-white shadow-md"
                 />
                 <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${
-                  student.is_authorized ? 'bg-tertiary-fixed' : 'bg-error'
+                  student.is_authorized ? 'bg-logo-green' : 'bg-logo-red'
                 }`}>
                   <span className="material-symbols-outlined text-white text-[10px]" style={{fontVariationSettings: "'FILL' 1"}}>
                     {student.is_authorized ? 'check' : 'close'}
@@ -161,7 +161,7 @@ export const ScannerPage: React.FC = () => {
                 <h3 className="font-headline font-bold text-lg text-on-surface">{student.full_name}</h3>
                 <p className="text-xs text-outline font-medium mt-0.5">#{student.enrollment_id} • {student.grade}</p>
                 <div className={`mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                  student.is_authorized ? 'bg-tertiary-fixed/20 text-on-tertiary-container' : 'bg-error/10 text-error'
+                  student.is_authorized ? 'bg-logo-green/10 text-logo-green' : 'bg-logo-red/10 text-logo-red'
                 }`}>
                   {student.is_authorized ? 'Liberado' : 'Bloqueado'}
                 </div>

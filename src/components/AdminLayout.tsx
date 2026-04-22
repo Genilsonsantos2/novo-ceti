@@ -16,11 +16,24 @@ export const AdminLayout: React.FC = () => {
       {/* Sidebar */}
       <aside className="w-64 glass-panel border-r border-white/20 flex flex-col hidden md:flex fixed h-[calc(100vh-2rem)] z-10 top-4 left-4 rounded-[2rem] overflow-hidden">
         <div className="p-8 pb-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-container rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
-            <span className="material-symbols-outlined text-white text-2xl">school</span>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center p-2 border border-white/50 relative overflow-hidden group">
+              {/* Logo Quadrant Accents */}
+              <div className="absolute top-0 left-0 w-1/2 h-1/2 bg-logo-orange/10 group-hover:bg-logo-orange/20 transition-colors"></div>
+              <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-logo-green/10 group-hover:bg-logo-green/20 transition-colors"></div>
+              <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-logo-red/10 group-hover:bg-logo-red/20 transition-colors"></div>
+              <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-logo-blue/10 group-hover:bg-logo-blue/20 transition-colors"></div>
+              
+              <img src="/ceti-logo.png" alt="CETI Logo" className="w-full h-full object-contain relative z-10" />
+            </div>
+            <div>
+              <h1 className="font-headline font-extrabold text-2xl text-primary tracking-tighter leading-none">CETI</h1>
+              <p className="text-[10px] text-outline font-bold uppercase tracking-widest mt-1 opacity-80">Nova Itarana</p>
+            </div>
           </div>
-          <h1 className="font-headline font-extrabold text-2xl text-primary tracking-tight">CETI Admin</h1>
-          <p className="text-[10px] text-outline font-bold uppercase tracking-widest mt-1 opacity-80">{profile?.role}</p>
+          <div className="px-1 py-0.5 bg-primary/5 rounded-full inline-block border border-primary/10">
+            <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] px-2">{profile?.role}</p>
+          </div>
         </div>
 
         <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">

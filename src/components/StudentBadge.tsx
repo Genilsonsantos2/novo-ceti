@@ -38,8 +38,22 @@ export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto =
           </div>
         </div>
 
-        {/* Decorative holographic-ish line */}
-        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-amber-400/40 to-transparent"></div>
+        {/* Holographic Stripe */}
+        <div className="absolute top-0 left-0 w-full h-1.5 flex">
+          <div className="h-full flex-1 bg-logo-orange"></div>
+          <div className="h-full flex-1 bg-logo-green"></div>
+          <div className="h-full flex-1 bg-logo-red"></div>
+          <div className="h-full flex-1 bg-logo-blue"></div>
+        </div>
+
+        {/* Logo-inspired quadrant background accents */}
+        <div className="absolute top-0 left-0 w-32 h-32 bg-logo-orange/5 rounded-full -translate-x-16 -translate-y-16 blur-2xl"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-logo-green/5 rounded-full translate-x-16 -translate-y-16 blur-2xl"></div>
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-logo-red/5 rounded-full -translate-x-16 translate-y-16 blur-2xl"></div>
+        <div className="absolute bottom-0 right-0 w-32 h-32 bg-logo-blue/5 rounded-full translate-x-16 translate-y-16 blur-2xl"></div>
+
+        {/* Glossy Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
 
         {/* Body */}
         <div className="flex-1 px-5 py-3 flex gap-4">
