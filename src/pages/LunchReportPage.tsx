@@ -110,8 +110,8 @@ export const LunchReportPage: React.FC = () => {
         @media print {
           body { background: white !important; margin: 0; padding: 0 !important; width: 100% !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .print\\:hidden { display: none !important; }
-          @page { margin: 0.5cm; size: A4; }
-          .max-w-\\[210mm\\] { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
+          @page { margin: 0; size: auto; }
+          .max-w-\\[210mm\\] { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 1cm !important; }
           td, th, p, h2, h3 { color: black !important; }
           .bg-\\[\\#001228\\] { background-color: #001228 !important; color: white !important; }
           .bg-gray-100 { background-color: #f3f4f6 !important; }

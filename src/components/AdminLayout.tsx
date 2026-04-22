@@ -14,7 +14,7 @@ export const AdminLayout: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-transparent">
       {/* Sidebar */}
-      <aside className="w-64 glass-panel border-r border-white/20 flex flex-col hidden md:flex fixed h-[calc(100vh-2rem)] z-10 top-4 left-4 rounded-[2rem] overflow-hidden">
+      <aside className="w-64 glass-panel border-r border-white/20 flex flex-col hidden md:flex fixed h-[calc(100vh-2rem)] z-10 top-4 left-4 rounded-[2rem] overflow-hidden print:hidden">
         <div className="p-8 pb-4">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center p-2 border border-white/50 relative overflow-hidden group">
@@ -122,9 +122,9 @@ export const AdminLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-[18rem] w-full mt-4 mr-4 mb-4">
+      <main className="flex-1 md:ml-[18rem] w-full md:mt-4 md:mr-4 md:mb-4 print:ml-0 print:m-0 print:p-0">
         {/* Mobile Header (Floating styling for mobile too) */}
-        <div className="md:hidden glass-panel mx-4 mb-4 rounded-2xl px-6 py-4 flex items-center justify-between sticky top-4 z-40">
+        <div className="md:hidden glass-panel mx-4 mb-4 rounded-2xl px-6 py-4 flex items-center justify-between sticky top-4 z-40 print:hidden">
            <div className="flex items-center gap-3">
              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                <span className="material-symbols-outlined text-white text-sm">school</span>
@@ -137,7 +137,7 @@ export const AdminLayout: React.FC = () => {
         </div>
         
         {/* Wrapped Outlet inside a subtle fade animation so pages transition in smoothly */}
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 w-full h-full">
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 w-full h-full print:p-0 print:m-0 print:animate-none">
           <Outlet />
         </div>
       </main>
