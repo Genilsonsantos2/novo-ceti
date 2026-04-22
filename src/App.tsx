@@ -8,6 +8,7 @@ import { StudentsPage } from './pages/StudentsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { PrintCardsPage } from './pages/PrintCardsPage';
 import { AdminLayout } from './components/AdminLayout';
+import { ExitReportPage } from './pages/ExitReportPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
   const { user, profile, loading } = useAuth();
@@ -79,6 +80,12 @@ function AppRoutes() {
         <Route path="/admin/users" element={
           <ProtectedRoute allowedRoles={['DIRETOR']}>
             <AdminUsersPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/exit-report" element={
+          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+            <ExitReportPage />
           </ProtectedRoute>
         } />
       </Route>

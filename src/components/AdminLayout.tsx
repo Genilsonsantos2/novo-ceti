@@ -53,13 +53,23 @@ export const AdminLayout: React.FC = () => {
           )}
 
           {(profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
-            <NavLink 
-              to="/scanner" 
-              className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-            >
-              <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
-              Portaria
-            </NavLink>
+            <>
+              <NavLink 
+                to="/scanner" 
+                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
+              >
+                <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
+                Portaria
+              </NavLink>
+
+              <NavLink 
+                to="/exit-report" 
+                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
+              >
+                <span className="material-symbols-outlined text-lg">description</span>
+                Relatório
+              </NavLink>
+            </>
           )}
 
           <NavLink 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { Link } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({ ausentes: 0, ativas: 0, atrasos: 0 });
@@ -84,9 +85,18 @@ export const DashboardPage: React.FC = () => {
           <h2 className="font-headline font-extrabold text-3xl md:text-4xl text-on-surface tracking-tight">Monitor de Saídas</h2>
           <p className="text-on-surface-variant font-body mt-1">Visão em tempo real do tráfego discente autorizado.</p>
         </div>
-        <div className="glass-card px-5 py-3 rounded-2xl flex items-center gap-3">
-          <span className="w-2.5 h-2.5 rounded-full bg-tertiary-fixed animate-pulse"></span>
-          <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Ao Vivo</span>
+        <div className="flex gap-3">
+          <Link 
+            to="/exit-report"
+            className="glass-card px-6 py-3 rounded-2xl flex items-center gap-2 text-sm font-bold text-primary hover:scale-[1.02] transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined text-base">description</span>
+            Relatório de Saídas
+          </Link>
+          <div className="glass-card px-5 py-3 rounded-2xl flex items-center gap-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-tertiary-fixed animate-pulse"></span>
+            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Ao Vivo</span>
+          </div>
         </div>
       </div>
 

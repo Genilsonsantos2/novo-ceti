@@ -89,6 +89,13 @@ export const StudentsPage: React.FC = () => {
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <Link 
+            to="/exit-report"
+            className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
+          >
+            <span className="material-symbols-outlined text-base">description</span>
+            Relatório de Saídas
+          </Link>
+          <Link 
             to="/print-cards"
             className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm"
           >
