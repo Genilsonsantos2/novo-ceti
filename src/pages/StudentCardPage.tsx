@@ -9,6 +9,7 @@ export const StudentCardPage: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const [student, setStudent] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showPhoto, setShowPhoto] = useState(true);
 
   useEffect(() => {
     if (user) fetchStudentData();
@@ -53,12 +54,32 @@ export const StudentCardPage: React.FC = () => {
       <div className="mb-8">
         <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Identidade Digital</p>
         <h1 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface">Cartão de {student.full_name}</h1>
-        <p className="text-on-surface-variant font-medium mt-1">Prévia do formato impresso com QR Code e logotipo</p>
+        <p className="text-on-surface-variant font-medium mt-1">Prévia para impressão - Tamanho A6 (86×54mm)</p>
       </div>
 
-      {/* Card Preview */}
-      <div className="flex justify-center mb-8">
-        <StudentBadge student={student} />
+      {/* Preview Section */}
+      <div className="bg-gradient-to-br from-surface-container to-surface/50 rounded-3xl p-8 mb-8">
+        <div className="flex flex-col items-center gap-6">
+          {/* Card Preview */}
+          <div className="flex justify-center">
+            <StudentBadge student={student} showPhoto={showPhoto} />
+          </div>
+
+          {/* Display Options */}
+          <div className="flex gap-2 glass-card rounded-2xl p-3">
+            <button
+              onClick={() => setShowPhoto(!showPhoto)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold transition-all ${
+                showPhoto 
+                  ? 'bg-primary shadow-lg shadow-primary/30 text-white' 
+                  : 'bg-white/10 text-on-surface-variant hover:bg-white/20'
+              }`}
+            >
+              <span className="material-symbols-outlined">photo_camera</span>
+              {showPhoto ? 'Com Foto' : 'Sem Foto'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Actions */}
@@ -78,8 +99,13 @@ export const StudentCardPage: React.FC = () => {
           <span className="material-symbols-outlined text-primary text-xl">info</span>
         </div>
         <div>
-          <h3 className="font-bold text-sm text-on-surface mb-1">Orientações de Impressão</h3>
-          <p className="text-xs text-on-surface-variant leading-relaxed">O cartão já contém o QR Code, logotipo do CETI e dados do aluno. Para impressão, recomendamos papel couchê 300g e ativar "Gráficos de Fundo" nas configurações da impressora.</p>
+          <h3 className="font-bold text-sm text-on-surface mb-2">Orientações de Impressão</h3>
+          <ul className="text-xs text-on-surface-variant leading-relaxed space-y-1">
+            <li>• <strong>Tamanho:</strong> A6 (86 × 54 mm) - Cartão padrão</li>
+            <li>• <strong>Papel:</strong> Recomendamos papel couchê 300g</li>
+            <li>• <strong>Gráficos:</strong> Ative "Gráficos de Fundo" na impressora</li>
+            <li>• <strong>Qualidade:</strong> Use a configuração de qualidade máxima</li>
+          </ul>
         </div>
       </div>
     </main>
