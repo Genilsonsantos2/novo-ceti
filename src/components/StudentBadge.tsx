@@ -8,99 +8,91 @@ interface StudentBadgeProps {
 
 export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto = true }) => {
   const year = new Date().getFullYear();
+  const isAuthorized = student.is_authorized;
 
   return (
     <div 
-      className="w-[86mm] h-[54mm] shrink-0 rounded-xl overflow-hidden shadow-2xl mx-auto print:shadow-none print:mx-0"
+      className="w-[86mm] h-[54mm] shrink-0 rounded-lg overflow-hidden shadow-2xl mx-auto print:shadow-none print:mx-0"
       style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
     >
-      <div className="relative w-full h-full overflow-hidden" style={{ background: 'linear-gradient(135deg, #1A3D6B 0%, #00A651 100%)' }}>
+      <div className="relative w-full h-full flex overflow-hidden" style={{ background: isAuthorized ? 'linear-gradient(135deg, #1A3D6B 0%, #00A651 100%)' : 'linear-gradient(135deg, #c41e3a 0%, #8b1428 100%)' }}>
         
-        {/* Subtle decorative pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-0 right-0 w-32 h-32 border-2 border-white rounded-full"></div>
-          <div className="absolute bottom-0 left-0 w-40 h-40 border-2 border-white rounded-full"></div>
+        {/* LEFT SIDE - PHOTO (MAIN FOCUS) */}
+        <div className="relative w-[40%] h-full bg-white/10 flex items-center justify-center border-r-2" style={{ borderColor: isAuthorized ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)' }}>
+          {showPhoto && (
+            <img 
+              src={student.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}&backgroundColor=random`} 
+              alt={student.full_name} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.src = `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}&backgroundColor=random`;
+              }}
+            />
+          )}
+          {!showPhoto && (
+            <span className="material-symbols-outlined text-white text-5xl opacity-30">person</span>
+          )}
         </div>
-        
-        {/* Main container */}
-        <div className="relative z-10 h-full flex flex-col p-3 gap-2">
+
+        {/* RIGHT SIDE - INFORMATION */}
+        <div className="flex-1 flex flex-col justify-between p-3 relative z-10">
           
-          {/* Header Section - Logo + Institution Name */}
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full overflow-hidden bg-white/20 flex items-center justify-center shrink-0 shadow-md border border-white/40">
-              <img src="/ceti-logo.png" alt="CETI" className="w-5 h-5 object-contain" />
-            </div>
+          {/* TOP - School Info + Year */}
+          <div className="flex items-start justify-between gap-1">
             <div className="flex-1 min-w-0">
-              <h3 className="text-white font-bold text-[10px] leading-none tracking-tight">CETI</h3>
-              <p className="text-white/90 text-[6px] leading-tight font-semibold">Colégio Estadual de Tempo Integral</p>
+              <h3 className="text-white font-black text-[8px] leading-none uppercase tracking-tight">CETI</h3>
+              <p className="text-white/90 text-[5px] leading-none font-bold mt-0.5">Nova Itarana</p>
             </div>
-            <span className="text-[6px] text-white/80 font-bold tracking-widest shrink-0">{year}</span>
+            <span className="text-white/80 font-black text-[10px] tracking-tight shrink-0">{year}</span>
           </div>
 
-          {/* Divider line with accent color */}
-          <div className="h-px bg-gradient-to-r from-white/40 via-white/60 to-white/40"></div>
-
-          {/* Main Content Section - Photo + Info + QR */}
-          <div className="flex-1 flex gap-2 min-h-0">
-            
-            {/* Photo Column */}
-            {showPhoto && (
-              <div className="shrink-0">
-                <div className="w-14 h-[calc(100%-2px)] rounded-lg overflow-hidden ring-2 ring-white/30 shadow-lg bg-white/10">
-                  <img 
-                    src={student.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}&backgroundColor=random`} 
-                    alt={student.full_name} 
-                    className="w-full h-full object-cover" 
-                    onError={(e) => {
-                      const img = e.target as HTMLImageElement;
-                      img.src = `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}&backgroundColor=random`;
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-            
-            {/* Info Column - Central */}
-            <div className="flex-1 flex flex-col justify-between min-w-0 gap-1">
-              {/* Student Name */}
-              <div>
-                <h2 className="text-white font-black text-[11px] leading-tight uppercase truncate pr-1">
-                  {student.full_name}
-                </h2>
-                <p className="text-white/95 text-[8px] font-bold mt-0.5">
-                  {student.grade || 'Série não informada'}
-                </p>
-              </div>
-              
-              {/* ID and Status Row 1 */}
-              <div className="bg-white/10 rounded-sm px-2 py-1">
-                <div className="flex justify-between gap-3">
-                  <div>
-                    <span className="block text-[5px] text-white/70 uppercase font-bold tracking-widest leading-none mb-0.5">Matrícula</span>
-                    <span className="text-white font-bold text-[9px] tracking-wider font-mono">{student.enrollment_id}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[5px] text-white/70 uppercase font-bold tracking-widest leading-none mb-0.5">Status</span>
-                    <div className={`inline-flex items-center gap-1 ${student.is_authorized ? 'text-emerald-200' : 'text-red-200'}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                      <span className="text-[8px] font-bold uppercase">{student.is_authorized ? 'ATIVO' : 'BLOQUEADO'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* MIDDLE - STUDENT INFO (MAIN CONTENT) */}
+          <div className="flex-1 flex flex-col justify-center gap-1">
+            {/* Name - LARGE - Most important */}
+            <div className="bg-white/15 px-2 py-1.5 rounded-md">
+              <h2 className="text-white font-black text-[12px] leading-tight uppercase break-words">
+                {student.full_name.split(' ').slice(0, 3).join(' ')}
+              </h2>
+              <p className="text-white/95 text-[9px] font-bold mt-0.5">
+                {student.grade}
+              </p>
             </div>
 
-            {/* QR Code Column - Right */}
-            <div className="shrink-0 flex flex-col items-center justify-center gap-0.5">
-              <div className="bg-white p-1 rounded shadow-lg border-2 border-white/30">
-                <QRCodeSVG value={student.qr_code_id} size={52} level="H" />
+            {/* ID Badge */}
+            <div className="flex gap-1 text-[7px]">
+              <div className="flex-1 bg-white/10 px-1.5 py-1 rounded">
+                <span className="text-white/70 block font-bold leading-none">RM</span>
+                <span className="text-white font-black text-[9px] tracking-wider">{student.enrollment_id}</span>
               </div>
-              <span className="text-[5px] text-white/70 font-mono tracking-wider font-bold">QR ID</span>
+            </div>
+          </div>
+
+          {/* BOTTOM - STATUS + QR */}
+          <div className="flex items-end gap-2 mt-1">
+            
+            {/* STATUS - HIGHLY VISIBLE */}
+            <div className={`flex-1 rounded-md px-2 py-1.5 flex flex-col items-center justify-center border-2 ${
+              isAuthorized 
+                ? 'bg-emerald-400/30 border-emerald-300 text-emerald-100' 
+                : 'bg-red-500/40 border-red-300 text-red-100'
+            }`}>
+              <span className="material-symbols-outlined text-[14px] leading-none font-black">
+                {isAuthorized ? 'check_circle' : 'cancel'}
+              </span>
+              <span className="text-[7px] font-black uppercase tracking-tight leading-none mt-0.5">
+                {isAuthorized ? 'OK' : 'BLOQ'}
+              </span>
+            </div>
+
+            {/* QR CODE - COMPACT */}
+            <div className="bg-white p-0.5 rounded shadow-sm border border-white/40">
+              <QRCodeSVG value={student.qr_code_id} size={42} level="H" />
             </div>
           </div>
         </div>
 
-        {/* Bottom accent bar - usando cor do logo (laranja/vermelho) */}
+        {/* ACCENT BAR - Bottom */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-400 via-red-500 to-red-600"></div>
       </div>
     </div>

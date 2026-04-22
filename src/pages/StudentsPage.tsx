@@ -7,7 +7,8 @@ export const StudentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   const [showModal, setShowModal] = useState(false);
-  const [newStudent, setNewStudent] = useState({ full_name: '', enrollment_id: '', grade: '' });
+  const [newStudent, setNewStudent] = useState({ full_name: '', enrollment_id: '', grade: '', photo_url: '' });
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -34,6 +35,19 @@ export const StudentsPage: React.FC = () => {
     else fetchStudents();
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setPhotoPreview(base64);
+        setNewStudent({ ...newStudent, photo_url: base64 });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -41,13 +55,16 @@ export const StudentsPage: React.FC = () => {
     // Generate a simple unique QR Code ID (could be better UUID in prod)
     const qrCodeId = `QR-${newStudent.enrollment_id}-${Date.now().toString().slice(-4)}`;
 
+    // Use uploaded photo or generate placeholder
+    const photoUrl = newStudent.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${newStudent.full_name}&backgroundColor=random`;
+
     const { error } = await supabase.from('students').insert({
       full_name: newStudent.full_name,
       enrollment_id: newStudent.enrollment_id,
       grade: newStudent.grade,
       qr_code_id: qrCodeId,
-      is_authorized: true, // true by default
-      photo_url: `https://api.dicebear.com/7.x/initials/svg?seed=${newStudent.full_name}`, // placeholder avatar
+      is_authorized: true,
+      photo_url: photoUrl,
     });
 
     if (error) {
@@ -55,7 +72,8 @@ export const StudentsPage: React.FC = () => {
       alert('Erro ao cadastrar aluno: ' + error.message);
     } else {
       setShowModal(false);
-      setNewStudent({ full_name: '', enrollment_id: '', grade: '' });
+      setNewStudent({ full_name: '', enrollment_id: '', grade: '', photo_url: '' });
+      setPhotoPreview(null);
       fetchStudents();
     }
     setSaving(false);
@@ -183,6 +201,33 @@ export const StudentsPage: React.FC = () => {
             </div>
             
             <form onSubmit={handleCreateStudent} className="space-y-4">
+              {/* Photo Upload */}
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Foto do Aluno</label>
+                <div className="relative">
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="hidden" 
+                    id="photo-input"
+                  />
+                  <label htmlFor="photo-input" className="flex items-center justify-center gap-2 w-full py-8 bg-white/30 hover:bg-white/50 border-2 border-dashed border-primary/40 rounded-xl cursor-pointer transition-all hover:border-primary/60">
+                    {photoPreview ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <img src={photoPreview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                        <span className="text-[10px] font-bold text-primary">Clique para alterar</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="material-symbols-outlined text-3xl text-outline/50">camera_alt</span>
+                        <span className="text-[10px] font-bold text-outline">Clique ou arraste uma foto</span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome Completo</label>
                 <div className="relative">
