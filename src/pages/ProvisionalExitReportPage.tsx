@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -8,8 +8,17 @@ interface ProvisionalStudent {
 }
 
 export const ProvisionalExitReportPage: React.FC = () => {
-  const [students, setStudents] = useState<ProvisionalStudent[]>([{ name: '', grade: '' }]);
+  // Persistence using localStorage
+  const [students, setStudents] = useState<ProvisionalStudent[]>(() => {
+    const saved = localStorage.getItem('ceti_provisional_students');
+    return saved ? JSON.parse(saved) : [{ name: '', grade: '' }];
+  });
+
   const today = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+  useEffect(() => {
+    localStorage.setItem('ceti_provisional_students', JSON.stringify(students));
+  }, [students]);
 
   const addStudent = () => setStudents([...students, { name: '', grade: '' }]);
   const removeStudent = (index: number) => {
@@ -22,6 +31,12 @@ export const ProvisionalExitReportPage: React.FC = () => {
     setStudents(newStudents);
   };
 
+  const clearAll = () => {
+    if (window.confirm('Deseja limpar toda a lista?')) {
+      setStudents([{ name: '', grade: '' }]);
+    }
+  };
+
   const handlePrint = () => window.print();
 
   return (
@@ -30,35 +45,43 @@ export const ProvisionalExitReportPage: React.FC = () => {
       <div className="max-w-5xl mx-auto mb-8 flex justify-between items-center print:hidden px-4 md:px-0">
         <div>
           <h1 className="text-2xl font-black text-primary tracking-tight">Relatório Provisório de Saída</h1>
-          <p className="text-on-surface-variant font-medium">Controle manual para alunos não cadastrados</p>
+          <p className="text-on-surface-variant font-medium">Os nomes abaixo ficam salvos automaticamente neste navegador.</p>
         </div>
         <div className="flex gap-4">
+          <button 
+            onClick={clearAll}
+            className="bg-red-50 text-red-500 px-6 py-3 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined">delete_sweep</span>
+            Limpar Tudo
+          </button>
           <button 
             onClick={addStudent}
             className="bg-secondary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 hover:scale-105 transition-all"
           >
             <span className="material-symbols-outlined">person_add</span>
-            Adicionar Linha
+            Novo Aluno
           </button>
           <button 
             onClick={handlePrint}
             className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 hover:scale-105 transition-all"
           >
             <span className="material-symbols-outlined">print</span>
-            Imprimir Relatório
+            Imprimir Agora
           </button>
         </div>
       </div>
 
       {/* Manual Entry Section (Hidden on print) */}
       <div className="max-w-5xl mx-auto mb-10 print:hidden px-4 md:px-0">
-        <div className="glass-card rounded-[2rem] p-8 space-y-4">
+        <div className="glass-card rounded-[2rem] p-8 space-y-4 border-2 border-primary/10">
           <h3 className="font-bold text-primary mb-4 flex items-center gap-2 uppercase tracking-widest text-xs">
             <span className="material-symbols-outlined">edit_note</span>
-            Preenchimento da Lista
+            Lista de Espera / Provisória
           </h3>
           {students.map((student, index) => (
-            <div key={index} className="flex gap-3">
+            <div key={index} className="flex gap-3 items-center">
+              <span className="text-gray-300 font-black w-6">{index + 1}.</span>
               <input 
                 type="text" 
                 value={student.name}
@@ -70,14 +93,14 @@ export const ProvisionalExitReportPage: React.FC = () => {
                 type="text" 
                 value={student.grade}
                 onChange={(e) => updateStudent(index, 'grade', e.target.value)}
-                placeholder="Turma (Ex: 3A)"
+                placeholder="Turma"
                 className="flex-1 bg-white border-2 border-gray-100 rounded-xl px-5 py-3 font-bold focus:border-primary outline-none transition-all"
               />
               <button 
                 onClick={() => removeStudent(index)}
                 className="w-12 h-12 rounded-xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shrink-0"
               >
-                <span className="material-symbols-outlined">delete</span>
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
           ))}
@@ -85,9 +108,12 @@ export const ProvisionalExitReportPage: React.FC = () => {
       </div>
 
       {/* Report Sheet */}
-      <div className="max-w-5xl mx-auto bg-white print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-[2.5rem] overflow-hidden">
+      <div 
+        className="max-w-5xl mx-auto bg-white print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-[2.5rem] overflow-hidden"
+        style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+      >
         {/* Header */}
-        <div className="bg-[#001228] text-white px-10 py-12 flex justify-between items-center relative overflow-hidden">
+        <div className="bg-[#001228] text-white px-10 py-12 flex justify-between items-center relative overflow-hidden" style={{ backgroundColor: '#001228 !important' }}>
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2"></div>
           <div className="relative z-10 flex items-center gap-6">
             <div className="w-24 h-24 bg-white p-3 rounded-2xl shadow-xl flex items-center justify-center">
@@ -108,7 +134,7 @@ export const ProvisionalExitReportPage: React.FC = () => {
         </div>
 
         {/* Info Bar */}
-        <div className="bg-gray-50/50 border-b-2 border-gray-100 px-10 py-6">
+        <div className="bg-gray-50 border-b-2 border-gray-100 px-10 py-6" style={{ backgroundColor: '#f9fafb !important' }}>
           <p className="text-[12px] font-black text-gray-950 uppercase leading-relaxed text-justify">
             Atenção Porteiro: Os alunos listados abaixo estão autorizados provisoriamente para saída no dia de hoje ({today}). 
             Favor colher assinatura e registrar os horários.
@@ -119,22 +145,22 @@ export const ProvisionalExitReportPage: React.FC = () => {
         <div className="p-0">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-gray-50/30">
-                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-100">Nome do Aluno</th>
-                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-100">Série/Turma</th>
-                <th className="px-10 py-6 text-center text-[12px] font-black uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-100">Saída</th>
-                <th className="px-10 py-6 text-center text-[12px] font-black uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-100">Entrada</th>
-                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-100">Assinatura / Obs</th>
+              <tr className="bg-gray-100" style={{ backgroundColor: '#f3f4f6 !important' }}>
+                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Nome do Aluno</th>
+                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Série/Turma</th>
+                <th className="px-10 py-6 text-center text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Saída</th>
+                <th className="px-10 py-6 text-center text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Entrada</th>
+                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Assinatura / Obs</th>
               </tr>
             </thead>
             <tbody>
               {students.map((student, idx) => (
-                <tr key={idx} className="border-b-2 border-gray-50 break-inside-avoid">
+                <tr key={idx} className="border-b-2 border-gray-100 break-inside-avoid">
                   <td className="px-10 py-8">
-                    <div className="font-black text-gray-900 text-xl uppercase tracking-tight">{student.name || '__________________________________'}</div>
+                    <div className="font-black text-black text-xl uppercase tracking-tight">{student.name || '__________________________________'}</div>
                   </td>
                   <td className="px-10 py-8">
-                    <div className="font-black text-gray-700 text-lg uppercase tracking-tight">{student.grade || '_______'}</div>
+                    <div className="font-black text-gray-800 text-lg uppercase tracking-tight">{student.grade || '_______'}</div>
                   </td>
                   <td className="px-10 py-8 text-center">
                     <div className="w-14 h-14 border-2 border-gray-400 rounded-xl mx-auto"></div>
@@ -143,12 +169,12 @@ export const ProvisionalExitReportPage: React.FC = () => {
                     <div className="w-14 h-14 border-2 border-gray-400 rounded-xl mx-auto"></div>
                   </td>
                   <td className="px-10 py-8">
-                    <div className="h-10 border-b-2 border-gray-200 w-full min-w-[200px]"></div>
+                    <div className="h-10 border-b-2 border-gray-300 w-full min-w-[200px]"></div>
                   </td>
                 </tr>
               ))}
               {/* Extra empty rows for handwriting */}
-              {[...Array(3)].map((_, i) => (
+              {[...Array(2)].map((_, i) => (
                 <tr key={`extra-${i}`} className="border-b-2 border-gray-50 break-inside-avoid opacity-30">
                   <td className="px-10 py-8">
                     <div className="h-8 border-b-2 border-gray-200 w-full"></div>
@@ -172,18 +198,18 @@ export const ProvisionalExitReportPage: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-10 py-20 border-t-4 border-gray-100">
+        <div className="bg-gray-50 px-10 py-20 border-t-4 border-gray-200" style={{ backgroundColor: '#f9fafb !important' }}>
           <div className="grid grid-cols-2 gap-32">
             <div className="text-center">
-              <div className="h-0.5 bg-gray-950 mb-4 w-full"></div>
-              <p className="text-[14px] font-black text-gray-900 uppercase tracking-[0.3em]">Responsável pela Portaria</p>
+              <div className="h-0.5 bg-black mb-4 w-full"></div>
+              <p className="text-[14px] font-black text-black uppercase tracking-[0.3em]">Responsável pela Portaria</p>
             </div>
             <div className="text-center">
-              <div className="h-0.5 bg-gray-950 mb-4 w-full"></div>
-              <p className="text-[14px] font-black text-gray-900 uppercase tracking-[0.3em]">Visto da Direção</p>
+              <div className="h-0.5 bg-black mb-4 w-full"></div>
+              <p className="text-[14px] font-black text-black uppercase tracking-[0.3em]">Direção Geral CETI</p>
             </div>
           </div>
-          <div className="mt-20 text-center opacity-30">
+          <div className="mt-20 text-center opacity-40">
             <p className="text-[10px] font-black uppercase tracking-[0.6em]">CETI ACCESS SYSTEM v2.0 - GERADO EM {format(new Date(), "HH:mm:ss")}</p>
           </div>
         </div>
@@ -191,14 +217,24 @@ export const ProvisionalExitReportPage: React.FC = () => {
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          body { background: white; margin: 0; padding: 0; color: black !important; }
+          body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .print\\:hidden { display: none !important; }
           .print\\:shadow-none { box-shadow: none !important; }
           .print\\:border-none { border: none !important; }
           @page { margin: 1cm; size: A4; }
           .break-inside-avoid { break-inside: avoid; }
+          
+          /* Force backgrounds to show */
+          .bg-\\[\\#001228\\] { background-color: #001228 !important; color: white !important; }
+          .bg-gray-50 { background-color: #f9fafb !important; }
+          .bg-gray-100 { background-color: #f3f4f6 !important; }
+          .text-white { color: white !important; }
+          
           td, th, h2, h3, p { color: black !important; }
-          .bg-gray-50\\/30 { background-color: #f9fafb !important; }
+          .bg-logo-orange { background-color: #F26522 !important; }
+          .bg-logo-green { background-color: #009444 !important; }
+          .bg-logo-red { background-color: #ED1C24 !important; }
+          .bg-logo-blue { background-color: #0071BC !important; }
         }
       `}} />
     </div>
