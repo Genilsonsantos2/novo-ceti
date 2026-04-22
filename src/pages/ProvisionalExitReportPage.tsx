@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -8,7 +8,6 @@ interface ProvisionalStudent {
 }
 
 export const ProvisionalExitReportPage: React.FC = () => {
-  // Persistence using localStorage
   const [students, setStudents] = useState<ProvisionalStudent[]>(() => {
     const saved = localStorage.getItem('ceti_provisional_students');
     return saved ? JSON.parse(saved) : [{ name: '', grade: '' }];
@@ -18,6 +17,18 @@ export const ProvisionalExitReportPage: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem('ceti_provisional_students', JSON.stringify(students));
+  }, [students]);
+
+  // Group students by grade for the report
+  const groupedStudents = useMemo(() => {
+    return students
+      .filter(s => s.name.trim() !== '')
+      .reduce((acc: Record<string, ProvisionalStudent[]>, student) => {
+        const grade = student.grade.trim() || 'SEM TURMA';
+        if (!acc[grade]) acc[grade] = [];
+        acc[grade].push(student);
+        return acc;
+      }, {});
   }, [students]);
 
   const addStudent = () => setStudents([...students, { name: '', grade: '' }]);
@@ -44,8 +55,8 @@ export const ProvisionalExitReportPage: React.FC = () => {
       {/* Action Bar (Hidden on print) */}
       <div className="max-w-5xl mx-auto mb-8 flex justify-between items-center print:hidden px-4 md:px-0">
         <div>
-          <h1 className="text-2xl font-black text-primary tracking-tight">Relatório Provisório de Saída</h1>
-          <p className="text-on-surface-variant font-medium">Os nomes abaixo ficam salvos automaticamente neste navegador.</p>
+          <h1 className="text-2xl font-black text-primary tracking-tight">Relatório Provisório por Turma</h1>
+          <p className="text-on-surface-variant font-medium">Os nomes são agrupados automaticamente para impressão.</p>
         </div>
         <div className="flex gap-4">
           <button 
@@ -53,7 +64,7 @@ export const ProvisionalExitReportPage: React.FC = () => {
             className="bg-red-50 text-red-500 px-6 py-3 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
           >
             <span className="material-symbols-outlined">delete_sweep</span>
-            Limpar Tudo
+            Limpar Lista
           </button>
           <button 
             onClick={addStudent}
@@ -67,7 +78,7 @@ export const ProvisionalExitReportPage: React.FC = () => {
             className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 hover:scale-105 transition-all"
           >
             <span className="material-symbols-outlined">print</span>
-            Imprimir Agora
+            Imprimir por Turma
           </button>
         </div>
       </div>
@@ -77,7 +88,7 @@ export const ProvisionalExitReportPage: React.FC = () => {
         <div className="glass-card rounded-[2rem] p-8 space-y-4 border-2 border-primary/10">
           <h3 className="font-bold text-primary mb-4 flex items-center gap-2 uppercase tracking-widest text-xs">
             <span className="material-symbols-outlined">edit_note</span>
-            Lista de Espera / Provisória
+            Cadastro Provisório
           </h3>
           {students.map((student, index) => (
             <div key={index} className="flex gap-3 items-center">
@@ -123,7 +134,7 @@ export const ProvisionalExitReportPage: React.FC = () => {
               <h2 className="text-3xl font-black tracking-tighter uppercase leading-none">CETI - Nova Itarana</h2>
               <p className="text-white/60 font-bold text-sm uppercase tracking-[0.2em] mt-2">Colégio Estadual de Tempo Integral</p>
               <div className="inline-block mt-4 px-4 py-1.5 bg-white/10 rounded-full border border-white/10">
-                <span className="text-[12px] font-black uppercase tracking-widest text-primary-fixed">AUTORIZAÇÃO PROVISÓRIA DE SAÍDA</span>
+                <span className="text-[12px] font-black uppercase tracking-widest text-primary-fixed">LISTA PROVISÓRIA AGRUPADA POR TURMA</span>
               </div>
             </div>
           </div>
@@ -133,68 +144,53 @@ export const ProvisionalExitReportPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Info Bar */}
-        <div className="bg-gray-50 border-b-2 border-gray-100 px-10 py-6" style={{ backgroundColor: '#f9fafb !important' }}>
-          <p className="text-[12px] font-black text-gray-950 uppercase leading-relaxed text-justify">
-            Atenção Porteiro: Os alunos listados abaixo estão autorizados provisoriamente para saída no dia de hoje ({today}). 
-            Favor colher assinatura e registrar os horários.
-          </p>
-        </div>
+        {/* Content Grouped by Grade */}
+        <div className="p-10 space-y-12">
+          {Object.entries(groupedStudents).map(([grade, students]) => (
+            <div key={grade} className="break-inside-avoid">
+              <div className="flex items-center gap-6 mb-6">
+                <h3 className="text-2xl font-black text-gray-950 uppercase tracking-tighter bg-gray-100 px-6 py-2 rounded-xl border-l-8 border-primary">{grade}</h3>
+                <div className="flex-1 h-[2px] bg-gray-200"></div>
+                <span className="text-[14px] font-black text-gray-500 uppercase">{students.length} Alunos</span>
+              </div>
 
-        {/* Report Table */}
-        <div className="p-0">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-100" style={{ backgroundColor: '#f3f4f6 !important' }}>
-                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Nome do Aluno</th>
-                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Série/Turma</th>
-                <th className="px-10 py-6 text-center text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Saída</th>
-                <th className="px-10 py-6 text-center text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Entrada</th>
-                <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Assinatura / Obs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student, idx) => (
-                <tr key={idx} className="border-b-2 border-gray-100 break-inside-avoid">
-                  <td className="px-10 py-8">
-                    <div className="font-black text-black text-xl uppercase tracking-tight">{student.name || '__________________________________'}</div>
-                  </td>
-                  <td className="px-10 py-8">
-                    <div className="font-black text-gray-800 text-lg uppercase tracking-tight">{student.grade || '_______'}</div>
-                  </td>
-                  <td className="px-10 py-8 text-center">
-                    <div className="w-14 h-14 border-2 border-gray-400 rounded-xl mx-auto"></div>
-                  </td>
-                  <td className="px-10 py-8 text-center">
-                    <div className="w-14 h-14 border-2 border-gray-400 rounded-xl mx-auto"></div>
-                  </td>
-                  <td className="px-10 py-8">
-                    <div className="h-10 border-b-2 border-gray-300 w-full min-w-[200px]"></div>
-                  </td>
-                </tr>
-              ))}
-              {/* Extra empty rows for handwriting */}
-              {[...Array(2)].map((_, i) => (
-                <tr key={`extra-${i}`} className="border-b-2 border-gray-50 break-inside-avoid opacity-30">
-                  <td className="px-10 py-8">
-                    <div className="h-8 border-b-2 border-gray-200 w-full"></div>
-                  </td>
-                  <td className="px-10 py-8">
-                    <div className="h-8 border-b-2 border-gray-200 w-24"></div>
-                  </td>
-                  <td className="px-10 py-8 text-center">
-                    <div className="w-14 h-14 border-2 border-gray-300 rounded-xl mx-auto"></div>
-                  </td>
-                  <td className="px-10 py-8 text-center">
-                    <div className="w-14 h-14 border-2 border-gray-300 rounded-xl mx-auto"></div>
-                  </td>
-                  <td className="px-10 py-8">
-                    <div className="h-10 border-b-2 border-gray-200 w-full min-w-[200px]"></div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100" style={{ backgroundColor: '#f3f4f6 !important' }}>
+                    <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Nome do Aluno</th>
+                    <th className="px-10 py-6 text-center text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Saída</th>
+                    <th className="px-10 py-6 text-center text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Entrada</th>
+                    <th className="px-10 py-6 text-left text-[12px] font-black uppercase tracking-[0.2em] text-gray-950 border-b-2 border-gray-200">Assinatura / Obs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student, idx) => (
+                    <tr key={idx} className="border-b-2 border-gray-100 break-inside-avoid">
+                      <td className="px-10 py-8">
+                        <div className="font-black text-black text-xl uppercase tracking-tight">{student.name}</div>
+                      </td>
+                      <td className="px-10 py-8 text-center">
+                        <div className="w-14 h-14 border-2 border-gray-400 rounded-xl mx-auto"></div>
+                      </td>
+                      <td className="px-10 py-8 text-center">
+                        <div className="w-14 h-14 border-2 border-gray-400 rounded-xl mx-auto"></div>
+                      </td>
+                      <td className="px-10 py-8">
+                        <div className="h-10 border-b-2 border-gray-300 w-full min-w-[250px]"></div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+
+          {Object.keys(groupedStudents).length === 0 && (
+            <div className="py-20 text-center opacity-30">
+              <span className="material-symbols-outlined text-6xl mb-4">edit_off</span>
+              <p className="font-black uppercase tracking-widest text-lg">Nenhum aluno preenchido na lista</p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -202,15 +198,15 @@ export const ProvisionalExitReportPage: React.FC = () => {
           <div className="grid grid-cols-2 gap-32">
             <div className="text-center">
               <div className="h-0.5 bg-black mb-4 w-full"></div>
-              <p className="text-[14px] font-black text-black uppercase tracking-[0.3em]">Responsável pela Portaria</p>
+              <p className="text-[14px] font-black text-black uppercase tracking-[0.3em]">Porteiro Responsável</p>
             </div>
             <div className="text-center">
               <div className="h-0.5 bg-black mb-4 w-full"></div>
               <p className="text-[14px] font-black text-black uppercase tracking-[0.3em]">Direção Geral CETI</p>
             </div>
           </div>
-          <div className="mt-20 text-center opacity-40">
-            <p className="text-[10px] font-black uppercase tracking-[0.6em]">CETI ACCESS SYSTEM v2.0 - GERADO EM {format(new Date(), "HH:mm:ss")}</p>
+          <div className="mt-16 text-center opacity-40">
+            <p className="text-[10px] font-black uppercase tracking-[0.6em]">CETI ACCESS v2.0 - GERADO EM {format(new Date(), "HH:mm:ss")}</p>
           </div>
         </div>
       </div>
@@ -231,10 +227,6 @@ export const ProvisionalExitReportPage: React.FC = () => {
           .text-white { color: white !important; }
           
           td, th, h2, h3, p { color: black !important; }
-          .bg-logo-orange { background-color: #F26522 !important; }
-          .bg-logo-green { background-color: #009444 !important; }
-          .bg-logo-red { background-color: #ED1C24 !important; }
-          .bg-logo-blue { background-color: #0071BC !important; }
         }
       `}} />
     </div>
