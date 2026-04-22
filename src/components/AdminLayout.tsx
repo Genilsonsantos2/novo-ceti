@@ -90,6 +90,14 @@ export const AdminLayout: React.FC = () => {
                 <span className="material-symbols-outlined text-lg">restaurant</span>
                 Relatório Almoço
               </NavLink>
+
+              <NavLink 
+                to="/provisional-report" 
+                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
+              >
+                <span className="material-symbols-outlined text-lg">edit_note</span>
+                Relatório Provisório
+              </NavLink>
             </>
           )}
 

@@ -11,8 +11,15 @@ import { AdminLayout } from './components/AdminLayout';
 import { ExitReportPage } from './pages/ExitReportPage';
 import { LunchReportPage } from './pages/LunchReportPage';
 import { AuthorizationTermPage } from './pages/AuthorizationTermPage';
+import { ProvisionalExitReportPage } from './pages/ProvisionalExitReportPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
+// ...
+          <Route path="/provisional-report" element={
+            <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+              <ProvisionalExitReportPage />
+            </ProtectedRoute>
+          } />
   const { user, profile, loading } = useAuth();
 
   if (loading) return <div>Carregando...</div>;
@@ -100,6 +107,12 @@ function AppRoutes() {
         <Route path="/auth-term/:studentId" element={
           <ProtectedRoute allowedRoles={['DIRETOR']}>
             <AuthorizationTermPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/provisional-report" element={
+          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+            <ProvisionalExitReportPage />
           </ProtectedRoute>
         } />
       </Route>
