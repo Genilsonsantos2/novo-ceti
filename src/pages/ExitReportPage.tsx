@@ -62,7 +62,7 @@ export const ExitReportPage: React.FC = () => {
               <img src="/ceti-logo.png" alt="CETI Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight">CETI - Colégio Estadual de Tempo Integral</h2>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight">CETI - Colégio Estadual de Tempo Integral de Nova Itarana</h2>
               <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">Controle de Saída e Entrada - Portaria</p>
             </div>
           </div>

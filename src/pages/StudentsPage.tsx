@@ -7,7 +7,16 @@ export const StudentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   const [showModal, setShowModal] = useState(false);
-  const [newStudent, setNewStudent] = useState({ full_name: '', enrollment_id: '', grade: '', photo_url: '' });
+  const [newStudent, setNewStudent] = useState({ 
+    full_name: '', 
+    enrollment_id: '', 
+    grade: '', 
+    photo_url: '',
+    cpf: '',
+    birth_date: '',
+    guardian_name: '',
+    guardian_cpf: ''
+  });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -62,6 +71,10 @@ export const StudentsPage: React.FC = () => {
       full_name: newStudent.full_name,
       enrollment_id: newStudent.enrollment_id,
       grade: newStudent.grade,
+      cpf: newStudent.cpf,
+      birth_date: newStudent.birth_date,
+      guardian_name: newStudent.guardian_name,
+      guardian_cpf: newStudent.guardian_cpf,
       qr_code_id: qrCodeId,
       is_authorized: true,
       photo_url: photoUrl,
@@ -72,7 +85,10 @@ export const StudentsPage: React.FC = () => {
       alert('Erro ao cadastrar aluno: ' + error.message);
     } else {
       setShowModal(false);
-      setNewStudent({ full_name: '', enrollment_id: '', grade: '', photo_url: '' });
+      setNewStudent({ 
+        full_name: '', enrollment_id: '', grade: '', photo_url: '',
+        cpf: '', birth_date: '', guardian_name: '', guardian_cpf: ''
+      });
       setPhotoPreview(null);
       fetchStudents();
     }
@@ -179,6 +195,13 @@ export const StudentsPage: React.FC = () => {
                       {s.is_authorized ? 'Revogar' : 'Autorizar'}
                     </button>
                     <Link 
+                      to={`/auth-term/${s.id}`} 
+                      className="text-xs font-bold px-3 py-1.5 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20 transition-all hover:scale-105 flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-xs">assignment</span>
+                      Termo
+                    </Link>
+                    <Link 
                       to={`/id/${s.id}`} 
                       className="text-xs font-bold px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all hover:scale-105 flex items-center gap-1"
                     >
@@ -247,28 +270,84 @@ export const StudentsPage: React.FC = () => {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Matrícula (RM)</label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">tag</span>
-                  <input 
-                    type="text" required
-                    value={newStudent.enrollment_id} onChange={e => setNewStudent({...newStudent, enrollment_id: e.target.value})}
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
-                    placeholder="123456"
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Matrícula (RM)</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">tag</span>
+                    <input 
+                      type="text" required
+                      value={newStudent.enrollment_id} onChange={e => setNewStudent({...newStudent, enrollment_id: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
+                      placeholder="123456"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Série / Turma</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">class</span>
+                    <input 
+                      type="text" required
+                      value={newStudent.grade} onChange={e => setNewStudent({...newStudent, grade: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
+                      placeholder="3º Ano A"
+                    />
+                  </div>
                 </div>
               </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Série / Turma</label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">class</span>
-                  <input 
-                    type="text" required
-                    value={newStudent.grade} onChange={e => setNewStudent({...newStudent, grade: e.target.value})}
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
-                    placeholder="3º Ano A"
-                  />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">CPF do Aluno</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">badge</span>
+                    <input 
+                      type="text"
+                      value={newStudent.cpf} onChange={e => setNewStudent({...newStudent, cpf: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
+                      placeholder="000.000.000-00"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Data de Nascimento</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">calendar_today</span>
+                    <input 
+                      type="date"
+                      value={newStudent.birth_date} onChange={e => setNewStudent({...newStudent, birth_date: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
+                <p className="text-[10px] font-black uppercase text-primary tracking-widest px-1">Dados do Responsável</p>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome do Responsável</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">supervisor_account</span>
+                    <input 
+                      type="text"
+                      value={newStudent.guardian_name} onChange={e => setNewStudent({...newStudent, guardian_name: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
+                      placeholder="Nome do Pai/Mãe"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">CPF do Responsável</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">fingerprint</span>
+                    <input 
+                      type="text"
+                      value={newStudent.guardian_cpf} onChange={e => setNewStudent({...newStudent, guardian_cpf: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
+                      placeholder="000.000.000-00"
+                    />
+                  </div>
                 </div>
               </div>
 

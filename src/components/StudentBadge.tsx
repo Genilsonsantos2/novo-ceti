@@ -29,7 +29,7 @@ export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto =
             </div>
             <div>
               <h3 className="text-white font-headline font-black text-base leading-none tracking-tighter">CETI</h3>
-              <p className="text-white/40 text-[6px] font-bold uppercase tracking-[0.2em] mt-0.5">Colégio Estadual de Tempo Integral</p>
+              <p className="text-white/40 text-[5px] font-bold uppercase tracking-[0.1em] mt-0.5">Colégio Estadual de Tempo Integral de Nova Itarana</p>
             </div>
           </div>
           <div className="text-right">

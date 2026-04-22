@@ -12,6 +12,10 @@ CREATE TABLE students (
   enrollment_id TEXT UNIQUE NOT NULL,
   full_name TEXT NOT NULL,
   grade TEXT, -- Ex: 3º Ano A
+  cpf TEXT,
+  birth_date DATE,
+  guardian_name TEXT,
+  guardian_cpf TEXT,
   photo_url TEXT,
   is_authorized BOOLEAN DEFAULT false,
   qr_code_id TEXT UNIQUE NOT NULL, -- Identificador único para o QR Code
