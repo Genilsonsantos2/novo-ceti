@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+import { ExportActions } from '../components/ExportActions';
+
 export const ExitReportPage: React.FC = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,12 +33,21 @@ export const ExitReportPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white md:bg-gray-50 p-0 md:p-8 print:p-0 print:min-h-0">
-      <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center print:hidden px-4">
-        <h1 className="text-xl font-black text-primary uppercase">Relatório Geral</h1>
-        <button onClick={handlePrint} className="bg-primary text-white px-6 py-2 rounded-xl font-bold">Imprimir</button>
+      <div className="max-w-4xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-6 print:hidden">
+        <div>
+          <h1 className="text-2xl font-black text-gray-950 uppercase tracking-tight">Relatório Geral</h1>
+          <p className="text-gray-500 font-bold text-xs uppercase tracking-widest mt-1">Controle de Fluxo Diário</p>
+        </div>
+        
+        <ExportActions 
+          elementId="report-sheet-general" 
+          filename={`Relatorio_Geral_${format(new Date(), 'yyyy-MM-dd')}`}
+          onPrint={handlePrint}
+          className="w-full md:w-auto"
+        />
       </div>
 
-      <div className="max-w-[210mm] mx-auto bg-white print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-xl overflow-hidden relative" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+      <div id="report-sheet-general" className="max-w-[210mm] mx-auto bg-white print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-xl overflow-hidden relative" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
         
         <div className="bg-[#001e40] text-white px-8 py-6 flex justify-between items-center relative z-10">
           <div className="flex items-center gap-4">

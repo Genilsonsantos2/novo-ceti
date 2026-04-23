@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useParams } from 'react-router-dom';
 import { StudentBadge } from '../components/StudentBadge';
 
+import { ExportActions } from '../components/ExportActions';
+
 export const StudentCardPage: React.FC = () => {
   const { user } = useAuth();
   const { studentId } = useParams<{ studentId: string }>();
@@ -61,7 +63,7 @@ export const StudentCardPage: React.FC = () => {
       <div className="bg-gradient-to-br from-surface-container to-surface/50 rounded-3xl p-8 mb-8">
         <div className="flex flex-col items-center gap-6">
           {/* Card Preview */}
-          <div className="flex justify-center">
+          <div className="flex justify-center p-4 bg-white/50 backdrop-blur-sm rounded-2xl" id="student-card-export">
             <StudentBadge student={student} showPhoto={showPhoto} />
           </div>
 
@@ -83,14 +85,11 @@ export const StudentCardPage: React.FC = () => {
       </div>
 
       {/* Actions */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-10">
-        <button 
-          onClick={() => window.print()}
-          className="flex-1 bg-gradient-to-r from-primary to-primary-container text-white py-4 rounded-2xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
-        >
-          <span className="material-symbols-outlined text-lg">print</span>
-          Imprimir Este Cartão
-        </button>
+      <div className="mb-10">
+        <ExportActions 
+          elementId="student-card-export" 
+          filename={`Cartao_${student.full_name.replace(/\s+/g, '_')}`}
+        />
       </div>
       
       {/* Info Card */}

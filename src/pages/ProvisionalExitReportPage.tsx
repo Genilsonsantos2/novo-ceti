@@ -7,6 +7,8 @@ interface ProvisionalStudent {
   grade: string;
 }
 
+import { ExportActions } from '../components/ExportActions';
+
 export const ProvisionalExitReportPage: React.FC = () => {
   const [students, setStudents] = useState<ProvisionalStudent[]>(() => {
     const saved = localStorage.getItem('ceti_provisional_students');
@@ -52,17 +54,32 @@ export const ProvisionalExitReportPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white md:bg-gray-50 p-0 md:p-8 print:p-0 print:min-h-0">
       {/* Action Bar (Hidden on print) */}
-      <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center print:hidden px-4 md:px-0">
+      <div className="max-w-4xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-6 print:hidden">
         <div>
-          <h1 className="text-xl font-black text-primary uppercase">Relatório Provisório</h1>
+          <h1 className="text-2xl font-black text-gray-950 uppercase tracking-tight">Relatório Provisório</h1>
+          <p className="text-gray-500 font-bold text-xs uppercase tracking-widest mt-1">Manual de Entrada/Saída</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={clearAll} className="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold text-sm">Limpar</button>
-          <button onClick={addStudent} className="bg-secondary text-white px-4 py-2 rounded-xl font-bold text-sm">Novo</button>
-          <button onClick={handlePrint} className="bg-primary text-white px-6 py-2 rounded-xl font-bold shadow-lg flex items-center gap-2">
-            <span className="material-symbols-outlined text-lg">print</span>
-            Imprimir
+        
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <button 
+            onClick={clearAll} 
+            className="px-6 py-3.5 rounded-2xl font-black text-sm text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+          >
+            LIMPAR TUDO
           </button>
+          <button 
+            onClick={addStudent} 
+            className="px-6 py-3.5 rounded-2xl font-black text-sm text-white bg-secondary hover:scale-105 transition-all shadow-lg shadow-secondary/20"
+          >
+            ADICIONAR ALUNO
+          </button>
+          
+          <ExportActions 
+            elementId="report-sheet-provisional" 
+            filename={`Relatorio_Provisorio_${format(new Date(), 'yyyy-MM-dd')}`}
+            onPrint={handlePrint}
+            className="flex-1 md:flex-initial"
+          />
         </div>
       </div>
 
@@ -75,17 +92,22 @@ export const ProvisionalExitReportPage: React.FC = () => {
                 type="text" 
                 value={student.name}
                 onChange={(e) => updateStudent(index, 'name', e.target.value)}
-                placeholder="Nome..."
-                className="flex-[2] bg-white border border-gray-200 rounded-lg px-4 py-2 font-bold outline-none text-sm"
+                placeholder="Nome completo do aluno..."
+                className="flex-[2] bg-white border border-gray-200 rounded-lg px-4 py-2 font-bold outline-none text-sm focus:border-primary transition-colors"
               />
               <input 
                 type="text" 
                 value={student.grade}
                 onChange={(e) => updateStudent(index, 'grade', e.target.value)}
                 placeholder="Turma"
-                className="flex-1 bg-white border border-gray-200 rounded-lg px-4 py-2 font-bold outline-none text-sm"
+                className="flex-1 bg-white border border-gray-200 rounded-lg px-4 py-2 font-bold outline-none text-sm focus:border-primary transition-colors text-center"
               />
-              <button onClick={() => removeStudent(index)} className="text-red-400"><span className="material-symbols-outlined text-sm">close</span></button>
+              <button 
+                onClick={() => removeStudent(index)} 
+                className="w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+              >
+                <span className="material-symbols-outlined text-xl">delete</span>
+              </button>
             </div>
           ))}
         </div>
@@ -93,6 +115,7 @@ export const ProvisionalExitReportPage: React.FC = () => {
 
       {/* Report Sheet */}
       <div 
+        id="report-sheet-provisional"
         className="max-w-[210mm] mx-auto bg-white print:m-0 print:p-0 print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-[1rem] overflow-hidden relative"
         style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
       >

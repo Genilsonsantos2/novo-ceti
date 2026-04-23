@@ -5,6 +5,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { QRCodeSVG } from 'qrcode.react';
 
+import { ExportActions } from '../components/ExportActions';
+
 export const AuthorizationTermPage: React.FC = () => {
   const { studentId } = useParams();
   const navigate = useNavigate();
@@ -46,21 +48,21 @@ export const AuthorizationTermPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       {/* Action Bar */}
-      <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
+      <div className="max-w-4xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-center gap-6 print:hidden">
         <button 
           onClick={() => navigate('/students')} 
-          className="flex items-center gap-2 text-gray-600 hover:text-primary font-bold transition-colors"
+          className="flex items-center gap-2 text-gray-600 hover:text-primary font-bold transition-colors group"
         >
-          <span className="material-symbols-outlined">arrow_back</span>
+          <span className="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
           Voltar aos Alunos
         </button>
-        <button 
-          onClick={handlePrint}
-          className="bg-primary text-white px-10 py-4 rounded-2xl font-black shadow-2xl flex items-center gap-3 hover:scale-105 transition-all active:scale-95"
-        >
-          <span className="material-symbols-outlined">print</span>
-          IMPRIMIR TERMO OFICIAL
-        </button>
+        
+        <ExportActions 
+          elementId="printable-term" 
+          filename={`Termo_Autorizacao_${student.full_name.replace(/\s+/g, '_')}`}
+          onPrint={handlePrint}
+          className="w-full md:w-auto"
+        />
       </div>
 
       {/* Document Sheet - Optimized for A4 Portrait */}
