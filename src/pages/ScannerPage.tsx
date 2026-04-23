@@ -122,6 +122,37 @@ export const ScannerPage: React.FC = () => {
     }
   }, [activeCameraId]);
 
+  const playBeep = (type: 'success' | 'error') => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      if (type === 'success') {
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.2);
+      } else {
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(220, audioCtx.currentTime); // A3
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.3);
+      }
+    } catch (e) {
+      console.warn('Audio feedback failed', e);
+    }
+  };
+
   const handleValidateStudent = async (qrId: string) => {
     // Prevent multiple simultaneous scans
     if (loading || status !== 'idle') return;
@@ -143,8 +174,14 @@ export const ScannerPage: React.FC = () => {
       // Se for Saída (OUT), verificar se tem autorização ativa
       if (currentScanType === 'OUT' && !data.is_authorized) {
         setStatus('error');
+        playBeep('error');
+        // Haptic feedback for error
+        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
       } else {
         setStatus('success');
+        playBeep('success');
+        // Haptic feedback for success
+        if ('vibrate' in navigator) navigator.vibrate(200);
         
         // Log the access
         await supabase.from('access_logs').insert({
@@ -163,6 +200,8 @@ export const ScannerPage: React.FC = () => {
       console.error(err);
       setStatus('error');
       setStudent(null);
+      playBeep('error');
+      if ('vibrate' in navigator) navigator.vibrate([300]);
       setTimeout(() => setStatus('idle'), 3000);
     } finally {
       setLoading(false);

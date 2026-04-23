@@ -117,23 +117,64 @@ export const AdminLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 md:ml-[18rem] w-full md:mt-4 md:mr-4 md:mb-4 print:ml-0 print:m-0 print:p-0">
-        {/* Mobile Header (Floating styling for mobile too) */}
-        <div className="md:hidden glass-panel mx-4 mb-4 rounded-2xl px-6 py-4 flex items-center justify-between sticky top-4 z-40 print:hidden">
+        {/* Mobile Header */}
+        <div className="md:hidden glass-panel mx-4 mt-4 mb-4 rounded-2xl px-6 py-4 flex items-center justify-between sticky top-4 z-40 print:hidden">
            <div className="flex items-center gap-3">
              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                <span className="material-symbols-outlined text-white text-sm">school</span>
              </div>
              <h1 className="font-headline font-extrabold text-lg text-primary tracking-tight">CETI</h1>
            </div>
-           <button onClick={handleSignOut} className="text-error bg-error-container p-2 rounded-lg">
-             <span className="material-symbols-outlined text-sm block">logout</span>
-           </button>
+           <div className="flex items-center gap-3">
+             <div className="text-right">
+               <p className="text-[8px] font-black uppercase text-primary tracking-widest leading-none">{profile?.role}</p>
+               <p className="text-[10px] font-bold text-outline leading-tight">{profile?.full_name?.split(' ')[0]}</p>
+             </div>
+             <button onClick={handleSignOut} className="w-8 h-8 flex items-center justify-center bg-logo-red/10 text-logo-red rounded-lg">
+               <span className="material-symbols-outlined text-base">logout</span>
+             </button>
+           </div>
         </div>
         
-        {/* Wrapped Outlet inside a subtle fade animation so pages transition in smoothly */}
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 w-full h-full print:p-0 print:m-0 print:animate-none">
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 w-full h-full pb-24 md:pb-0 print:p-0 print:m-0 print:animate-none">
           <Outlet />
         </div>
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="md:hidden fixed bottom-6 left-4 right-4 h-20 glass-panel rounded-[2rem] border border-white/40 shadow-2xl z-50 flex items-center justify-around px-2 print:hidden">
+          {profile?.role === 'DIRETOR' && (
+            <NavLink to="/dashboard" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
+              <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>space_dashboard</span>
+              <span className="text-[8px] font-black uppercase tracking-tighter">Início</span>
+            </NavLink>
+          )}
+
+          {(profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
+            <NavLink to="/scanner" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center -mt-8 shadow-lg border-4 border-[#f7f9fc] ${isActive ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
+                <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>qr_code_scanner</span>
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-tighter mt-1">Portaria</span>
+            </NavLink>
+          )}
+
+          {profile?.role === 'DIRETOR' && (
+            <NavLink to="/students" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
+              <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>groups</span>
+              <span className="text-[8px] font-black uppercase tracking-tighter">Alunos</span>
+            </NavLink>
+          )}
+
+          <NavLink to="/exit-report" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
+            <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>description</span>
+            <span className="text-[8px] font-black uppercase tracking-tighter">Relatos</span>
+          </NavLink>
+
+          <NavLink to="/id" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
+            <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>account_circle</span>
+            <span className="text-[8px] font-black uppercase tracking-tighter">Perfil</span>
+          </NavLink>
+        </nav>
       </main>
     </div>
   );

@@ -191,84 +191,150 @@ export const StudentsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Students List - Card-based for mobile, table-like for desktop */}
-      <div className="glass-card rounded-[2rem] overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-white/50 border-b border-white/30">
-            <tr>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Aluno</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline hidden md:table-cell">Matrícula</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Status</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/30">
-            {loading ? (
-              <tr><td colSpan={4} className="px-8 py-16 text-center">
-                <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
-                <span className="text-outline font-medium">Carregando alunos...</span>
-              </td></tr>
-            ) : students.length === 0 ? (
-              <tr><td colSpan={4} className="px-8 py-16 text-center">
-                <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
-                <span className="text-outline font-medium">Nenhum aluno cadastrado. Clique em "Novo Aluno" para começar!</span>
-              </td></tr>
-            ) : students.map((s) => (
-              <tr key={s.id} className="hover:bg-white/40 transition-all duration-200 group">
-                <td className="px-8 py-5">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <img src={s.photo_url} className="w-11 h-11 rounded-xl object-cover ring-2 ring-white shadow-sm group-hover:shadow-md transition-all" alt="" />
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${s.is_authorized ? 'bg-tertiary-fixed' : 'bg-error'}`}></div>
-                    </div>
-                    <div>
-                      <div className="font-bold text-on-surface text-sm">{s.full_name}</div>
-                      <div className="text-[11px] text-outline font-medium">{s.grade}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-8 py-5 font-mono text-xs font-bold text-on-surface-variant hidden md:table-cell">{s.enrollment_id}</td>
-                <td className="px-8 py-5">
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    s.is_authorized ? 'bg-logo-green/10 text-logo-green' : 'bg-logo-red/10 text-logo-red'
-                  }`}>
-                    <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>{s.is_authorized ? 'check_circle' : 'block'}</span>
-                    {s.is_authorized ? 'Ativo' : 'Bloqueado'}
-                  </span>
-                </td>
-                <td className="px-8 py-5">
-                  <div className="flex gap-2 items-center">
-                    <button 
-                      onClick={() => toggleAuthorization(s.id, s.is_authorized)}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all hover:scale-105 flex items-center gap-1 ${
-                        s.is_authorized 
-                          ? 'bg-error/10 text-error hover:bg-error/20' 
-                          : 'bg-tertiary-fixed/20 text-on-tertiary-container hover:bg-tertiary-fixed/30'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-xs">{s.is_authorized ? 'lock' : 'lock_open'}</span>
-                      {s.is_authorized ? 'Revogar' : 'Autorizar'}
-                    </button>
-                    <Link 
-                      to={`/auth-term/${s.id}`} 
-                      className="text-xs font-bold px-3 py-1.5 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20 transition-all hover:scale-105 flex items-center gap-1"
-                    >
-                      <span className="material-symbols-outlined text-xs">assignment</span>
-                      Termo
-                    </Link>
-                    <Link 
-                      to={`/id/${s.id}`} 
-                      className="text-xs font-bold px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all hover:scale-105 flex items-center gap-1"
-                    >
-                      <span className="material-symbols-outlined text-xs">id_card</span>
-                      Cartão
-                    </Link>
-                  </div>
-                </td>
+      {/* Students List - Responsive: Table for Desktop, Cards for Mobile */}
+      <div className="glass-card rounded-[2rem] overflow-hidden border border-white/20">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-white/50 border-b border-white/30">
+              <tr>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Aluno</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Matrícula</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Status</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Ações</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white/30">
+              {loading ? (
+                <tr><td colSpan={4} className="px-8 py-16 text-center">
+                  <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
+                  <span className="text-outline font-medium">Carregando alunos...</span>
+                </td></tr>
+              ) : students.length === 0 ? (
+                <tr><td colSpan={4} className="px-8 py-16 text-center">
+                  <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
+                  <span className="text-outline font-medium">Nenhum aluno cadastrado.</span>
+                </td></tr>
+              ) : students.map((s) => (
+                <tr key={s.id} className="hover:bg-white/40 transition-all duration-200 group">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <img src={s.photo_url} className="w-11 h-11 rounded-xl object-cover ring-2 ring-white shadow-sm group-hover:shadow-md transition-all" alt="" />
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${s.is_authorized ? 'bg-tertiary-fixed' : 'bg-error'}`}></div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-on-surface text-sm">{s.full_name}</div>
+                        <div className="text-[11px] text-outline font-medium">{s.grade}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5 font-mono text-xs font-bold text-on-surface-variant">{s.enrollment_id}</td>
+                  <td className="px-8 py-5">
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      s.is_authorized ? 'bg-logo-green/10 text-logo-green' : 'bg-logo-red/10 text-logo-red'
+                    }`}>
+                      <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>{s.is_authorized ? 'check_circle' : 'block'}</span>
+                      {s.is_authorized ? 'Ativo' : 'Bloqueado'}
+                    </span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex gap-2 items-center">
+                      <button 
+                        onClick={() => toggleAuthorization(s.id, s.is_authorized)}
+                        className={`text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all hover:scale-105 flex items-center gap-1.5 ${
+                          s.is_authorized 
+                            ? 'bg-logo-red/10 text-logo-red hover:bg-logo-red/20' 
+                            : 'bg-logo-green/10 text-logo-green hover:bg-logo-green/20'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-sm">{s.is_authorized ? 'lock' : 'lock_open'}</span>
+                        {s.is_authorized ? 'Bloquear' : 'Liberar'}
+                      </button>
+                      <Link 
+                        to={`/auth-term/${s.id}`} 
+                        className="text-[10px] font-black uppercase px-3 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all hover:scale-105 flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-sm">assignment</span>
+                        Termo
+                      </Link>
+                      <Link 
+                        to={`/id/${s.id}`} 
+                        className="text-[10px] font-black uppercase px-3 py-2 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20 transition-all hover:scale-105 flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-sm">id_card</span>
+                        Cartão
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card List View */}
+        <div className="md:hidden divide-y divide-white/30">
+          {loading ? (
+            <div className="p-12 text-center">
+              <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
+              <span className="text-outline font-medium">Carregando...</span>
+            </div>
+          ) : students.length === 0 ? (
+            <div className="p-12 text-center">
+              <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
+              <span className="text-outline font-medium">Nenhum aluno.</span>
+            </div>
+          ) : students.map((s) => (
+            <div key={s.id} className="p-5 flex flex-col gap-4 bg-white/20 active:bg-white/40 transition-all">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <img src={s.photo_url} className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white shadow-sm" alt="" />
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${s.is_authorized ? 'bg-logo-green' : 'bg-logo-red'}`}></div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-on-surface text-base truncate">{s.full_name}</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-outline font-medium">{s.grade}</span>
+                    <span className="w-1 h-1 rounded-full bg-outline/30"></span>
+                    <span className="text-xs font-mono font-bold text-outline">#{s.enrollment_id}</span>
+                  </div>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                  s.is_authorized ? 'bg-logo-green/10 text-logo-green' : 'bg-logo-red/10 text-logo-red'
+                }`}>
+                  {s.is_authorized ? 'Ativo' : 'Bloq'}
+                </span>
+              </div>
+              
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => toggleAuthorization(s.id, s.is_authorized)}
+                  className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+                    s.is_authorized ? 'bg-logo-red/10 text-logo-red' : 'bg-logo-green/10 text-logo-green'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">{s.is_authorized ? 'lock' : 'lock_open'}</span>
+                  {s.is_authorized ? 'Bloquear' : 'Liberar'}
+                </button>
+                <Link 
+                  to={`/auth-term/${s.id}`}
+                  className="flex-1 py-3 bg-primary/10 text-primary rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-base">assignment</span>
+                  Termo
+                </Link>
+                <Link 
+                  to={`/id/${s.id}`}
+                  className="flex-1 py-3 bg-secondary/10 text-secondary rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-base">id_card</span>
+                  Cartão
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* MODAL NOVO ALUNO */}
