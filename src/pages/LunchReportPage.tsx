@@ -129,17 +129,15 @@ export const LunchReportPage: React.FC = () => {
           }
           .print\\:hidden { display: none !important; }
           @page { 
-            margin: 0 !important; 
             size: A4 portrait; 
+            /* ABNT Margins: Top 3cm, Left 3cm, Right 2cm, Bottom 2cm */
+            margin: 30mm 20mm 20mm 30mm !important;
           }
           .max-w-\\[210mm\\] { 
-            width: 210mm !important; 
-            max-width: 210mm !important; 
-            margin: 0 auto !important; 
-            padding-top: 30mm !important;
-            padding-left: 30mm !important;
-            padding-right: 20mm !important;
-            padding-bottom: 20mm !important;
+            width: 100% !important; 
+            max-width: 100% !important; 
+            margin: 0 !important; 
+            padding: 0 !important;
             border: none !important; 
             box-shadow: none !important;
           }
@@ -147,6 +145,7 @@ export const LunchReportPage: React.FC = () => {
           .bg-\\[\\#001e40\\] { background-color: #001e40 !important; color: white !important; }
           .bg-gray-100 { background-color: #f3f4f6 !important; }
           .break-inside-avoid { break-inside: avoid !important; }
+          * { box-sizing: border-box !important; }
         }
       `}} />
     </div>

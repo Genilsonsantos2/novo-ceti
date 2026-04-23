@@ -67,13 +67,13 @@ export const AuthorizationTermPage: React.FC = () => {
       <div className="w-full max-w-[210mm] mx-auto bg-white shadow-2xl relative print:shadow-none print:m-0" id="printable-term">
         
         {/* Absolute Container for Print Scaling */}
-        <div className="p-12 md:p-20 flex flex-col min-h-[297mm] relative overflow-hidden">
+        <div className="p-12 md:p-20 flex flex-col min-h-[297mm] relative overflow-hidden print:p-0 print:shadow-none">
           
           <div className="relative z-10 flex-1 flex flex-col h-full">
             {/* Header */}
-            <div className="text-center mb-10 border-b-2 border-gray-950 pb-8">
+            <div className="text-center mb-6 border-b-2 border-gray-950 pb-4">
               <div className="flex justify-center mb-6">
-                <img src="/ceti-logo.png" alt="CETI Logo" className="h-24 w-auto object-contain" />
+                <img src="/ceti-logo.png" alt="CETI Logo" className="h-16 w-auto object-contain" />
               </div>
               <div className="space-y-2">
                 <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight leading-none">
@@ -88,12 +88,11 @@ export const AuthorizationTermPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Title Section */}
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-black text-gray-900 uppercase tracking-[0.2em] underline underline-offset-8 decoration-4 decoration-primary">
-                TERMO DE AUTORIZAÇÃO
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-black inline-block uppercase tracking-tight text-gray-950 border-b-4 border-gray-950 pb-1">
+                Termo de Autorização
               </h2>
-              <p className="text-gray-500 font-black text-xs mt-6 uppercase tracking-[0.5em]">Controle de Saída - Almoço Externo</p>
+              <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mt-3">Controle de Saída - Almoço Externo</p>
             </div>
 
             {/* Body Content */}
@@ -126,26 +125,26 @@ export const AuthorizationTermPage: React.FC = () => {
             </div>
 
             {/* Signatures */}
-            <div className="mt-16 grid grid-cols-2 gap-20">
+            <div className="mt-10 grid grid-cols-2 gap-12">
               <div className="text-center">
-                <div className="border-t-2 border-gray-900 pt-4">
-                  <p className="font-black text-gray-900 uppercase text-sm">{student.guardian_name || "Assinatura do Responsável"}</p>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Responsável Legal</p>
-                  <p className="text-[9px] text-gray-400 mt-1">CPF: {student.guardian_cpf || "___.___.___-__"}</p>
+                <div className="border-t border-black pt-2">
+                  <p className="font-black text-gray-900 uppercase text-[11px]">{student.guardian_name || "Assinatura do Responsável"}</p>
+                  <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Responsável Legal</p>
+                  <p className="text-[8px] text-gray-400">CPF: {student.guardian_cpf || "___.___.___-__"}</p>
                 </div>
               </div>
               <div className="text-center">
-                <div className="border-t-2 border-gray-900 pt-4">
-                  <p className="font-black text-gray-900 uppercase text-sm">Direção CETI</p>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Assinatura e Carimbo Oficial</p>
+                <div className="border-t border-black pt-2">
+                  <p className="font-black text-gray-900 uppercase text-[11px]">Direção CETI</p>
+                  <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Assinatura e Carimbo Oficial</p>
                 </div>
               </div>
             </div>
 
             {/* Footer Text & QR Authenticity */}
-            <div className="mt-12 pt-8 border-t-2 border-gray-100 flex justify-between items-end">
+            <div className="mt-6 pt-4 border-t border-gray-200 flex justify-between items-end">
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-black">Sistema CETI v2.5</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-black">Sistema CETI v2.6</p>
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Documento gerado eletronicamente em {format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</p>
                 <p className="text-[10px] font-black uppercase tracking-widest italic text-primary mt-2">Validez supeditada à conferência da identidade escolar</p>
               </div>
@@ -165,38 +164,54 @@ export const AuthorizationTermPage: React.FC = () => {
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
+          @page { 
+            size: A4 portrait; 
+            margin: 0 !important;
+          }
           html, body { 
-            height: 297mm !important;
             margin: 0 !important; 
             padding: 0 !important;
-            overflow: hidden !important;
+            width: 210mm !important;
+            height: 297mm !important;
             background: white !important;
-            font-family: Arial, Helvetica, sans-serif !important;
+            font-family: Arial, sans-serif !important;
           }
           .print\\:hidden { display: none !important; }
-          @page { 
-            margin: 0 !important; 
-            size: A4 portrait; 
-          }
           #printable-term {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
             width: 210mm !important;
             height: 297mm !important;
             margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
+            padding: 30mm 20mm 20mm 30mm !important;
+            box-sizing: border-box !important;
+            background: white !important;
+            z-index: 9999 !important;
             overflow: hidden !important;
           }
           #printable-term > div {
-            height: 297mm !important;
-            /* ABNT Margins: Top 3cm, Left 3cm, Right 2cm, Bottom 2cm */
-            padding-top: 30mm !important;
-            padding-left: 30mm !important;
-            padding-right: 20mm !important;
-            padding-bottom: 20mm !important;
-            overflow: hidden !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
           }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          /* Typography */
+          .font-sans { font-size: 11pt !important; line-height: 1.4 !important; }
+          h1 { font-size: 12pt !important; }
+          h2 { font-size: 12pt !important; }
+          strong { font-weight: bold !important; }
+          
+          * { 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            color: black !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+          }
         }
       `}} />
     </div>
