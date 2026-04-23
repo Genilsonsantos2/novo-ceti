@@ -97,7 +97,7 @@ export const AuthorizationTermPage: React.FC = () => {
             </div>
 
             {/* Body Content */}
-            <div className="flex-1 space-y-8 text-gray-950 text-justify leading-relaxed font-serif text-[19px]">
+            <div className="flex-1 space-y-8 text-gray-950 text-justify leading-relaxed font-sans text-[12pt]">
               <p>
                 Eu, <strong className="text-xl border-b border-gray-400">{student.guardian_name || "__________________________________________________"}</strong>, 
                 portador(a) do CPF nº <strong className="bg-gray-50 px-2">{student.guardian_cpf || "____________________"}</strong>, 
@@ -171,6 +171,7 @@ export const AuthorizationTermPage: React.FC = () => {
             padding: 0 !important;
             overflow: hidden !important;
             background: white !important;
+            font-family: Arial, Helvetica, sans-serif !important;
           }
           .print\\:hidden { display: none !important; }
           @page { 
@@ -188,7 +189,11 @@ export const AuthorizationTermPage: React.FC = () => {
           }
           #printable-term > div {
             height: 297mm !important;
-            padding: 20mm !important;
+            /* ABNT Margins: Top 3cm, Left 3cm, Right 2cm, Bottom 2cm */
+            padding-top: 30mm !important;
+            padding-left: 30mm !important;
+            padding-right: 20mm !important;
+            padding-bottom: 20mm !important;
             overflow: hidden !important;
           }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }

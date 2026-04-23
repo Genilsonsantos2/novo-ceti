@@ -9,8 +9,13 @@ interface StudentBadgeProps {
 export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto = true }) => {
   return (
     <div 
-      className="w-[86mm] h-[54mm] shrink-0 rounded-xl overflow-hidden shadow-lg mx-auto relative bg-white border border-gray-200 flex flex-col"
-      style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+      className="w-[86mm] h-[54mm] shrink-0 rounded-xl overflow-hidden shadow-lg mx-auto relative bg-[#f8fafc] border border-gray-200 flex flex-col"
+      style={{ 
+        WebkitPrintColorAdjust: 'exact', 
+        printColorAdjust: 'exact',
+        backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(0,30,64,0.03) 1px, transparent 0)',
+        backgroundSize: '16px 16px'
+      }}
     >
       {/* Top Color Bar (Holographic style for print) */}
       <div className="h-2 w-full flex">

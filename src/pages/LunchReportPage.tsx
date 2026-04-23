@@ -118,13 +118,35 @@ export const LunchReportPage: React.FC = () => {
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          body { background: white !important; margin: 0; padding: 0 !important; width: 100% !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { 
+            background: white !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            width: 100% !important; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            font-family: Arial, Helvetica, sans-serif !important;
+          }
           .print\\:hidden { display: none !important; }
-          @page { margin: 1cm; size: A4 portrait; }
-          .max-w-\\[210mm\\] { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; border: none !important; }
-          td, th, p, h2, h3 { color: black !important; }
+          @page { 
+            margin: 0 !important; 
+            size: A4 portrait; 
+          }
+          .max-w-\\[210mm\\] { 
+            width: 210mm !important; 
+            max-width: 210mm !important; 
+            margin: 0 auto !important; 
+            padding-top: 30mm !important;
+            padding-left: 30mm !important;
+            padding-right: 20mm !important;
+            padding-bottom: 20mm !important;
+            border: none !important; 
+            box-shadow: none !important;
+          }
+          td, th, p, h1, h2, h3 { color: black !important; }
           .bg-\\[\\#001e40\\] { background-color: #001e40 !important; color: white !important; }
           .bg-gray-100 { background-color: #f3f4f6 !important; }
+          .break-inside-avoid { break-inside: avoid !important; }
         }
       `}} />
     </div>
