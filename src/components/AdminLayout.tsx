@@ -150,11 +150,18 @@ export const AdminLayout: React.FC = () => {
           )}
 
           {(profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
-            <NavLink to="/scanner" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center -mt-8 shadow-lg border-4 border-[#f7f9fc] ${isActive ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
-                <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>qr_code_scanner</span>
-              </div>
-              <span className="text-[8px] font-black uppercase tracking-tighter mt-1">Portaria</span>
+            <NavLink 
+              to="/scanner" 
+              className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}
+            >
+              {({ isActive }) => (
+                <>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center -mt-8 shadow-lg border-4 border-[#f7f9fc] ${isActive ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
+                    <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>qr_code_scanner</span>
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-tighter mt-1">Portaria</span>
+                </>
+              )}
             </NavLink>
           )}
 
