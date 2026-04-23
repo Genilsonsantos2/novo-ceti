@@ -144,7 +144,7 @@ export const AuthorizationTermPage: React.FC = () => {
             {/* Footer Text & QR Authenticity */}
             <div className="mt-6 pt-4 border-t border-gray-200 flex justify-between items-end">
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-black">Sistema CETI v2.6</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-black">Sistema CETI v2.7</p>
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Documento gerado eletronicamente em {format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</p>
                 <p className="text-[10px] font-black uppercase tracking-widest italic text-primary mt-2">Validez supeditada à conferência da identidade escolar</p>
               </div>
@@ -174,7 +174,6 @@ export const AuthorizationTermPage: React.FC = () => {
             width: 210mm !important;
             height: 297mm !important;
             background: white !important;
-            font-family: Arial, sans-serif !important;
           }
           .print\\:hidden { display: none !important; }
           #printable-term {
@@ -199,19 +198,19 @@ export const AuthorizationTermPage: React.FC = () => {
             display: flex !important;
             flex-direction: column !important;
           }
-          /* Typography */
-          .font-sans { font-size: 11pt !important; line-height: 1.4 !important; }
-          h1 { font-size: 12pt !important; }
-          h2 { font-size: 12pt !important; }
-          strong { font-weight: bold !important; }
           
+          /* Keep UI Colors and Styles */
           * { 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
-            color: black !important;
             box-shadow: none !important;
             text-shadow: none !important;
           }
+          
+          /* Font consistency */
+          .font-sans { font-size: 11.5pt !important; line-height: 1.4 !important; }
+          h1 { font-size: 13pt !important; font-weight: 900 !important; }
+          h2 { font-size: 12pt !important; font-weight: 900 !important; }
         }
       `}} />
     </div>
