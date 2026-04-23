@@ -9,113 +9,99 @@ interface StudentBadgeProps {
 export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto = true }) => {
   return (
     <div 
-      className="w-[86mm] h-[54mm] shrink-0 rounded-[1.2rem] overflow-hidden shadow-2xl mx-auto relative group bg-[#001228] border border-white/10"
+      className="w-[86mm] h-[54mm] shrink-0 rounded-xl overflow-hidden shadow-lg mx-auto relative bg-white border border-gray-200 flex flex-col"
       style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
     >
-      {/* Background patterns */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[120%] bg-primary/20 blur-[60px] rounded-full animate-pulse"></div>
-        <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[100%] bg-tertiary-fixed/10 blur-[50px] rounded-full"></div>
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
+      {/* Top Color Bar (Holographic style for print) */}
+      <div className="h-2 w-full flex">
+        <div className="h-full flex-1 bg-logo-orange"></div>
+        <div className="h-full flex-1 bg-logo-green"></div>
+        <div className="h-full flex-1 bg-logo-red"></div>
+        <div className="h-full flex-1 bg-logo-blue"></div>
       </div>
 
-      {/* Main Card Content */}
-      <div className="relative z-10 h-full flex flex-col">
-        {/* Header */}
-        <div className="px-5 pt-4 pb-2 flex justify-between items-start">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white p-1 shadow-lg shadow-black/20 flex items-center justify-center">
-              <img src="/ceti-logo.png" alt="CETI" className="w-full h-full object-contain" />
-            </div>
-            <div>
-              <h3 className="text-white font-headline font-black text-base leading-none tracking-tighter">CETI</h3>
-              <p className="text-white/40 text-[5px] font-bold uppercase tracking-[0.1em] mt-0.5">Colégio Estadual de Tempo Integral de Nova Itarana</p>
-            </div>
+      {/* Header */}
+      <div className="bg-[#001e40] text-white px-3 py-2 flex justify-between items-center relative z-10">
+        <div className="flex items-center gap-2">
+          <img src="/ceti-logo.png" alt="Logo" className="w-7 h-7 object-contain bg-white rounded p-0.5" />
+          <div>
+            <h3 className="font-headline font-black text-[12px] leading-none tracking-tight">CETI - NOVA ITARANA</h3>
+            <p className="text-[6px] font-bold uppercase tracking-wider mt-1 opacity-80">Colégio Estadual de Tempo Integral</p>
           </div>
-          <div className="text-right">
-            <div className="text-white/30 text-[8px] font-black tracking-widest uppercase">Identidade Estudantil</div>
-            <div className="text-amber-400 font-black text-[10px] mt-0.5">2026</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[7px] font-black uppercase tracking-widest opacity-60">Identidade</div>
+          <div className="text-[10px] font-black text-amber-400">2026</div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 p-4 flex gap-5 relative z-10">
+        {/* Photo Section */}
+        <div className="flex flex-col gap-2">
+          <div className="w-[70px] h-[85px] rounded-md overflow-hidden border-2 border-gray-100 shadow-sm bg-gray-50">
+            {showPhoto ? (
+              <img 
+                src={student.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}`} 
+                alt={student.full_name} 
+                className="w-full h-full object-cover" 
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="material-symbols-outlined text-gray-300 text-4xl">person</span>
+              </div>
+            )}
+          </div>
+          <div className={`text-[8px] font-black uppercase text-center py-0.5 rounded border ${
+            student.is_authorized ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'
+          }`}>
+            {student.is_authorized ? 'Autorizado' : 'Restrito'}
           </div>
         </div>
 
-        {/* Holographic Stripe */}
-        <div className="absolute top-0 left-0 w-full h-1.5 flex">
-          <div className="h-full flex-1 bg-logo-orange"></div>
-          <div className="h-full flex-1 bg-logo-green"></div>
-          <div className="h-full flex-1 bg-logo-red"></div>
-          <div className="h-full flex-1 bg-logo-blue"></div>
-        </div>
-
-        {/* Logo-inspired quadrant background accents */}
-        <div className="absolute top-0 left-0 w-32 h-32 bg-logo-orange/5 rounded-full -translate-x-16 -translate-y-16 blur-2xl"></div>
-        <div className="absolute top-0 right-0 w-32 h-32 bg-logo-green/5 rounded-full translate-x-16 -translate-y-16 blur-2xl"></div>
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-logo-red/5 rounded-full -translate-x-16 translate-y-16 blur-2xl"></div>
-        <div className="absolute bottom-0 right-0 w-32 h-32 bg-logo-blue/5 rounded-full translate-x-16 translate-y-16 blur-2xl"></div>
-
-        {/* Glossy Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
-
-        {/* Body */}
-        <div className="flex-1 px-5 py-3 flex gap-4">
-          {/* Photo Section */}
-          <div className="relative">
-            <div className="w-[75px] h-[95px] rounded-lg overflow-hidden border-2 border-white/20 shadow-xl relative z-10">
-              {showPhoto ? (
-                <img 
-                  src={student.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}`} 
-                  alt={student.full_name} 
-                  className="w-full h-full object-cover" 
-                />
-              ) : (
-                <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-white/20 text-4xl">person</span>
-                </div>
-              )}
-            </div>
-            {/* Holographic sticker effect */}
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 opacity-60 blur-[1px] border border-white/40 flex items-center justify-center z-20">
-              <span className="material-symbols-outlined text-[10px] text-white font-bold">verified</span>
-            </div>
-          </div>
-
-          {/* Info Section */}
-          <div className="flex-1 flex flex-col justify-between py-0.5">
+        {/* Info Section */}
+        <div className="flex-1 flex flex-col justify-between py-0.5">
+          <div className="space-y-2">
             <div>
-              <h2 className="text-white font-headline font-black text-[14px] leading-tight uppercase tracking-tight line-clamp-2">
+              <span className="text-[6px] text-gray-400 font-black uppercase tracking-widest block">Nome do Aluno</span>
+              <h2 className="text-gray-900 font-headline font-black text-[13px] leading-tight uppercase line-clamp-2">
                 {student.full_name}
               </h2>
-              <div className="inline-block mt-1 px-2 py-0.5 bg-white/10 rounded-md border border-white/5">
-                <span className="text-white/70 text-[9px] font-bold uppercase tracking-wider">{student.grade}</span>
-              </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-2">
+            
+            <div className="flex gap-4">
               <div>
-                <span className="text-[6px] text-white/30 font-black uppercase tracking-widest block">Matrícula</span>
-                <span className="text-white font-mono font-bold text-[11px] tracking-tight">{student.enrollment_id}</span>
+                <span className="text-[6px] text-gray-400 font-black uppercase tracking-widest block">Turma</span>
+                <span className="text-gray-900 font-black text-[11px] uppercase tracking-tight">{student.grade}</span>
               </div>
-              <div className="text-right">
-                <span className="text-[6px] text-white/30 font-black uppercase tracking-widest block">Acesso</span>
-                <div className={`flex items-center justify-end gap-1 ${student.is_authorized ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  <span className="w-1 h-1 rounded-full bg-current shadow-[0_0_4px_currentColor]"></span>
-                  <span className="text-[8px] font-black uppercase">{student.is_authorized ? 'Liberado' : 'Restrito'}</span>
-                </div>
+              <div>
+                <span className="text-[6px] text-gray-400 font-black uppercase tracking-widest block">Matrícula</span>
+                <span className="text-gray-900 font-mono font-bold text-[11px] tracking-tight">{student.enrollment_id}</span>
               </div>
             </div>
           </div>
 
-          {/* QR Code Section */}
-          <div className="flex flex-col items-center justify-center">
-            <div className="bg-white p-1.5 rounded-xl shadow-2xl ring-4 ring-black/20">
-              <QRCodeSVG value={student.qr_code_id} size={54} level="H" />
+          <div className="flex items-end justify-between">
+            <div className="text-[5px] text-gray-400 font-bold uppercase leading-relaxed">
+              Este cartão é pessoal e intransferível.<br />
+              Uso obrigatório para acesso escolar.
             </div>
-            <span className="text-[6px] font-mono text-white/20 mt-1.5 font-bold uppercase tracking-widest">{student.qr_code_id}</span>
           </div>
         </div>
 
-        {/* Footer Accent */}
-        <div className="h-2 w-full bg-gradient-to-r from-[#001228] via-primary to-[#001228] opacity-50"></div>
+        {/* QR Code Section */}
+        <div className="flex flex-col items-center justify-center gap-1.5">
+          <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm">
+            <QRCodeSVG value={student.qr_code_id} size={50} level="H" />
+          </div>
+          <span className="text-[6px] font-mono text-gray-400 font-bold tracking-widest">{student.qr_code_id}</span>
+        </div>
       </div>
+
+      {/* Bottom Stripe */}
+      <div className="h-1 w-full bg-[#001e40] opacity-10"></div>
     </div>
   );
 };
+
+

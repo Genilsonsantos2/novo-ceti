@@ -36,58 +36,80 @@ export const ExitReportPage: React.FC = () => {
         <button onClick={handlePrint} className="bg-primary text-white px-6 py-2 rounded-xl font-bold">Imprimir</button>
       </div>
 
-      <div className="max-w-[210mm] mx-auto bg-white print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-xl overflow-hidden" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-        <div className="bg-[#001228] text-white px-8 py-6 flex justify-between items-center">
+      <div className="max-w-[210mm] mx-auto bg-white print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-xl overflow-hidden relative" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+        
+        <div className="bg-[#001e40] text-white px-8 py-6 flex justify-between items-center relative z-10">
           <div className="flex items-center gap-4">
-            <img src="/ceti-logo.png" alt="Logo" className="w-14 h-14 bg-white p-1 rounded-lg" />
+            <img src="/ceti-logo.png" alt="Logo" className="h-12 w-12 object-contain bg-white rounded-lg p-1" />
             <div>
-              <h2 className="text-xl font-black uppercase">CETI - Nova Itarana</h2>
-              <p className="text-white/60 text-[9px] font-bold uppercase">Relatório Oficial de Acessos</p>
+              <h2 className="text-[10px] font-bold opacity-60 uppercase tracking-widest leading-none">Governo da Bahia</h2>
+              <h1 className="text-xl font-black uppercase leading-tight tracking-tight mt-1">CETI - Nova Itarana</h1>
+              <p className="text-white/40 font-bold text-[9px] uppercase tracking-[0.2em] mt-0.5">Colégio Estadual de Tempo Integral</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-lg font-black">{today}</p>
+            <p className="text-lg font-black uppercase">Relatório de Acessos</p>
+            <p className="text-white/60 text-xs font-bold">{today}</p>
           </div>
         </div>
 
-        <div className="p-4">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-[9px] font-black uppercase text-gray-700 border-b">Aluno</th>
-                <th className="px-4 py-3 text-center text-[9px] font-black uppercase text-gray-700 border-b">Turma</th>
-                <th className="px-4 py-3 text-center text-[9px] font-black uppercase text-gray-700 border-b">Acesso</th>
-                <th className="px-4 py-3 text-left text-[9px] font-black uppercase text-gray-700 border-b">Assinatura</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student) => (
-                <tr key={student.id} className="border-b border-gray-50 break-inside-avoid">
-                  <td className="px-4 py-3">
-                    <div className="font-black text-black text-sm uppercase">{student.full_name}</div>
-                  </td>
-                  <td className="px-2 py-3 text-center">
-                    <span className="text-[10px] font-black">{student.grade}</span>
-                  </td>
-                  <td className="px-2 py-3 text-center">
-                    <div className="flex justify-center gap-1">
-                      <div className="w-6 h-6 border border-gray-400 rounded"></div>
-                      <div className="w-6 h-6 border border-gray-400 rounded"></div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="h-6 border-b border-gray-200 w-full min-w-[150px]"></div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="p-6 space-y-8 relative z-10">
+          {(Object.entries(
+            students.reduce((acc: Record<string, any[]>, student) => {
+              const grade = student.grade || 'SEM TURMA';
+              if (!acc[grade]) acc[grade] = [];
+              acc[grade].push(student);
+              return acc;
+            }, {})
+          ) as [string, any[]][]).map(([grade, gradeStudents]) => (
+            <div key={grade} className="break-inside-avoid">
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-lg font-black text-gray-950 uppercase bg-gray-50 px-4 py-1.5 rounded-lg border-l-4 border-primary">{grade}</h3>
+                <div className="flex-1 h-[1px] bg-gray-200"></div>
+              </div>
+
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100/50">
+                    <th className="px-4 py-3 text-left text-[10px] font-black uppercase text-gray-700 border-b-2 border-gray-200">Aluno</th>
+                    <th className="px-4 py-3 text-center text-[10px] font-black uppercase text-gray-700 border-b-2 border-gray-200 w-32">Acesso</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-black uppercase text-gray-700 border-b-2 border-gray-200">Assinatura / Visto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gradeStudents.map((student) => (
+                    <tr key={student.id} className="border-b border-gray-100 break-inside-avoid">
+                      <td className="px-4 py-4">
+                        <div className="font-black text-black text-sm uppercase leading-none">{student.full_name}</div>
+                        <div className="text-[8px] text-gray-400 font-bold mt-1 uppercase">RM: {student.enrollment_id}</div>
+                      </td>
+                      <td className="px-2 py-4 text-center">
+                        <div className="flex justify-center gap-2">
+                          <div className="w-8 h-8 border-2 border-gray-300 rounded flex items-center justify-center text-[8px] font-black text-gray-300">IN</div>
+                          <div className="w-8 h-8 border-2 border-gray-300 rounded flex items-center justify-center text-[8px] font-black text-gray-300">OUT</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="h-8 border-b border-gray-200 w-full min-w-[200px]"></div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
         </div>
 
-        <div className="bg-gray-50 px-10 py-8 border-t mt-4 text-center">
-          <div className="grid grid-cols-2 gap-20">
-            <div className="border-t border-black pt-1 text-[10px] font-black uppercase tracking-widest">Portaria</div>
-            <div className="border-t border-black pt-1 text-[10px] font-black uppercase tracking-widest">Direção</div>
+        <div className="bg-gray-50 px-10 py-12 border-t mt-4 relative z-10">
+          <div className="grid grid-cols-2 gap-24">
+            <div className="text-center">
+              <div className="h-px bg-black mb-2 w-full"></div>
+              <p className="text-[10px] font-black uppercase tracking-widest">Portaria / Recepção</p>
+            </div>
+            <div className="text-center">
+              <div className="h-px bg-black mb-2 w-full"></div>
+              <p className="text-[10px] font-black uppercase tracking-widest">Direção / Coordenação</p>
+            </div>
           </div>
         </div>
       </div>
@@ -96,12 +118,13 @@ export const ExitReportPage: React.FC = () => {
         @media print {
           body { background: white !important; margin: 0; padding: 0 !important; width: 100% !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .print\\:hidden { display: none !important; }
-          @page { margin: 0; size: auto; }
-          .max-w-\\[210mm\\] { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 1cm !important; }
+          @page { margin: 1cm; size: A4 portrait; }
+          .max-w-\\[210mm\\] { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; border: none !important; }
           td, th, p, h2, h3 { color: black !important; }
-          .bg-\\[\\#001228\\] { background-color: #001228 !important; color: white !important; }
+          .bg-\\[\\#001e40\\] { background-color: #001e40 !important; color: white !important; }
         }
       `}} />
     </div>
   );
 };
+

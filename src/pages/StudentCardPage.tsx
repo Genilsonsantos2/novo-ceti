@@ -52,9 +52,9 @@ export const StudentCardPage: React.FC = () => {
   return (
     <main className="max-w-3xl mx-auto p-6 pb-32">
       <div className="mb-8">
-        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Identidade Digital</p>
+        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Identidade do Aluno</p>
         <h1 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface">Cartão de {student.full_name}</h1>
-        <p className="text-on-surface-variant font-medium mt-1">Prévia para impressão - Tamanho A6 (86×54mm)</p>
+        <p className="text-on-surface-variant font-medium mt-1">Versão para impressão física - Padrão PVC (86×54mm)</p>
       </div>
 
       {/* Preview Section */}

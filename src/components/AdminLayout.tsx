@@ -17,14 +17,8 @@ export const AdminLayout: React.FC = () => {
       <aside className="w-64 glass-panel border-r border-white/20 flex flex-col hidden md:flex fixed h-[calc(100vh-2rem)] z-10 top-4 left-4 rounded-[2rem] overflow-hidden print:hidden">
         <div className="p-8 pb-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center p-2 border border-white/50 relative overflow-hidden group">
-              {/* Logo Quadrant Accents */}
-              <div className="absolute top-0 left-0 w-1/2 h-1/2 bg-logo-orange/10 group-hover:bg-logo-orange/20 transition-colors"></div>
-              <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-logo-green/10 group-hover:bg-logo-green/20 transition-colors"></div>
-              <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-logo-red/10 group-hover:bg-logo-red/20 transition-colors"></div>
-              <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-logo-blue/10 group-hover:bg-logo-blue/20 transition-colors"></div>
-              
-              <img src="/ceti-logo.png" alt="CETI Logo" className="w-full h-full object-contain relative z-10" />
+            <div className="w-12 h-12 bg-primary rounded-2xl shadow-xl flex items-center justify-center border border-white/50 relative overflow-hidden group">
+              <span className="material-symbols-outlined text-white text-2xl">school</span>
             </div>
             <div>
               <h1 className="font-headline font-extrabold text-2xl text-primary tracking-tighter leading-none">CETI</h1>

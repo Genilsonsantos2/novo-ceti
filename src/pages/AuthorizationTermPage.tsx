@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { QRCodeSVG } from 'qrcode.react';
 
 export const AuthorizationTermPage: React.FC = () => {
   const { studentId } = useParams();
@@ -43,111 +44,154 @@ export const AuthorizationTermPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-0 md:p-12">
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       {/* Action Bar */}
-      <div className="max-w-4xl mx-auto mb-8 flex justify-between items-center print:hidden px-4">
-        <button onClick={() => navigate('/students')} className="text-primary font-black flex items-center gap-2 hover:underline">
+      <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
+        <button 
+          onClick={() => navigate('/students')} 
+          className="flex items-center gap-2 text-gray-600 hover:text-primary font-bold transition-colors"
+        >
           <span className="material-symbols-outlined">arrow_back</span>
-          Voltar para Alunos
+          Voltar aos Alunos
         </button>
         <button 
           onClick={handlePrint}
-          className="bg-primary text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-3 hover:scale-105 transition-all"
+          className="bg-primary text-white px-10 py-4 rounded-2xl font-black shadow-2xl flex items-center gap-3 hover:scale-105 transition-all active:scale-95"
         >
           <span className="material-symbols-outlined">print</span>
           IMPRIMIR TERMO OFICIAL
         </button>
       </div>
 
-      {/* Document Sheet */}
-      <div className="max-w-4xl mx-auto bg-white print:shadow-none shadow-2xl border border-gray-200 print:border-none p-16 md:p-24 relative overflow-hidden">
-        {/* Background Emblem */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.04] pointer-events-none w-[600px]">
-           <img src="/ceti-logo.png" alt="" className="w-full h-full grayscale" />
-        </div>
+      {/* Document Sheet - Optimized for A4 Portrait */}
+      <div className="w-full max-w-[210mm] mx-auto bg-white shadow-2xl relative print:shadow-none print:m-0" id="printable-term">
+        
+        {/* Absolute Container for Print Scaling */}
+        <div className="p-12 md:p-20 flex flex-col min-h-[297mm] relative overflow-hidden">
+          
+          <div className="relative z-10 flex-1 flex flex-col h-full">
+            {/* Header */}
+            <div className="text-center mb-10 border-b-2 border-gray-950 pb-8">
+              <div className="flex justify-center mb-6">
+                <img src="/ceti-logo.png" alt="CETI Logo" className="h-24 w-auto object-contain" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tight leading-none">
+                  GOVERNO DO ESTADO DA BAHIA
+                </h1>
+                <h2 className="text-base font-bold text-gray-600 uppercase tracking-[0.2em]">
+                  SECRETARIA DA EDUCAÇÃO
+                </h2>
+                <h3 className="text-lg font-black text-primary uppercase tracking-tight">
+                  COLÉGIO ESTADUAL DE TEMPO INTEGRAL DE NOVA ITARANA
+                </h3>
+              </div>
+            </div>
 
-        {/* Header */}
-        <div className="text-center mb-20 relative z-10 border-b-4 border-double border-gray-900 pb-10">
-          <img src="/ceti-logo.png" alt="Logo" className="w-32 h-32 mx-auto mb-8 object-contain" />
-          <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter leading-none mb-2">
-            GOVERNO DO ESTADO DA BAHIA
-          </h1>
-          <h2 className="text-lg font-bold text-gray-700 uppercase tracking-tight mb-4">
-            SECRETARIA DA EDUCAÇÃO
-          </h2>
-          <h3 className="text-xl font-black text-gray-900 uppercase tracking-widest bg-gray-100 py-2 inline-block px-6 rounded-lg">
-            COLÉGIO ESTADUAL DE TEMPO INTEGRAL DE NOVA ITARANA - CETI
-          </h3>
-        </div>
+            {/* Title Section */}
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-black text-gray-900 uppercase tracking-[0.2em] underline underline-offset-8 decoration-4 decoration-primary">
+                TERMO DE AUTORIZAÇÃO
+              </h2>
+              <p className="text-gray-500 font-black text-xs mt-6 uppercase tracking-[0.5em]">Controle de Saída - Almoço Externo</p>
+            </div>
 
-        {/* Title */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-widest decoration-primary decoration-[6px] underline-offset-[12px] underline">
-            TERMO DE AUTORIZAÇÃO
-          </h2>
-          <p className="text-gray-500 font-black text-sm mt-8 uppercase tracking-[0.4em] block">Controle de Saída - Almoço Externo</p>
-        </div>
+            {/* Body Content */}
+            <div className="flex-1 space-y-8 text-gray-950 text-justify leading-relaxed font-serif text-[19px]">
+              <p>
+                Eu, <strong className="text-xl border-b border-gray-400">{student.guardian_name || "__________________________________________________"}</strong>, 
+                portador(a) do CPF nº <strong className="bg-gray-50 px-2">{student.guardian_cpf || "____________________"}</strong>, 
+                na condição de responsável legal pelo(a) aluno(a) <strong className="text-xl text-primary font-black uppercase tracking-tight">{student.full_name}</strong>, 
+                matriculado(a) sob RM nº <strong className="font-mono font-bold">{student.enrollment_id}</strong>, cursando o <strong className="underline decoration-gray-400">{student.grade}</strong>, 
+                nascido(a) em <strong className="font-mono">{student.birth_date ? format(new Date(student.birth_date), "dd/MM/yyyy") : "___/___/______"}</strong>, 
+                inscrito(a) no CPF nº <strong className="bg-gray-50 px-2">{student.cpf || "____________________"}</strong>, 
+                venho por este instrumento:
+              </p>
 
-        {/* Body */}
-        <div className="space-y-10 text-gray-950 text-justify leading-[1.8] font-serif text-xl">
-          <p>
-            Eu, <strong className="text-2xl underline decoration-gray-300">{student.guardian_name || "__________________________________________________"}</strong>, 
-            portador(a) do CPF nº <strong className="bg-gray-50 px-2">{student.guardian_cpf || "____________________"}</strong>, 
-            na condição de responsável legal pelo(a) aluno(a) <strong className="text-2xl text-primary">{student.full_name}</strong>, 
-            devidamente matriculado(a) sob o número de RM <strong className="font-mono">{student.enrollment_id}</strong>, cursando atualmente o <strong className="underline">{student.grade}</strong>, 
-            nascido(a) em <strong className="font-mono">{student.birth_date ? format(new Date(student.birth_date), "dd/MM/yyyy") : "___/___/______"}</strong>, 
-            inscrito(a) no CPF nº <strong className="bg-gray-50 px-2">{student.cpf || "____________________"}</strong>, 
-            venho por este instrumento:
-          </p>
+              <div className="pl-6 space-y-4 border-l-4 border-primary/20 bg-gray-50/50 p-6 rounded-r-2xl">
+                <p>
+                  <strong>1. AUTORIZAR</strong> a saída do(a) discente no horário de almoço (12h às 13h);
+                </p>
+                <p>
+                  <strong>2. DECLARAR</strong> ciência de que a responsabilidade civil e criminal sobre o(a) menor, uma vez fora do ambiente escolar, recai inteiramente sobre os pais/responsáveis;
+                </p>
+                <p>
+                  <strong>3. CIÊNCIA</strong> de que o acesso só será permitido mediante a apresentação obrigatória da <strong>Carteira Estudantil Oficial</strong>.
+                </p>
+              </div>
 
-          <div className="pl-6 space-y-8 border-l-4 border-primary/20">
-            <p>
-              <strong>1. AUTORIZAR</strong> a saída do(a) discente no horário de almoço (12h às 13h);
-            </p>
-            <p>
-              <strong>2. DECLARAR</strong> ciência de que a responsabilidade civil e criminal sobre o(a) menor, uma vez fora do ambiente escolar, recai inteiramente sobre os pais/responsáveis;
-            </p>
-            <p>
-              <strong>3. CIÊNCIA</strong> de que o acesso só será permitido mediante a apresentação da <strong>Carteira Estudantil Digital/Física</strong>.
-            </p>
-          </div>
+              <p className="pt-8 font-sans text-base text-gray-600">
+                Nova Itarana - BA, {today}.
+              </p>
+            </div>
 
-          <p className="pt-10">
-            Nova Itarana - BA, {today}.
-          </p>
-        </div>
+            {/* Signatures */}
+            <div className="mt-16 grid grid-cols-2 gap-20">
+              <div className="text-center">
+                <div className="border-t-2 border-gray-900 pt-4">
+                  <p className="font-black text-gray-900 uppercase text-sm">{student.guardian_name || "Assinatura do Responsável"}</p>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Responsável Legal</p>
+                  <p className="text-[9px] text-gray-400 mt-1">CPF: {student.guardian_cpf || "___.___.___-__"}</p>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="border-t-2 border-gray-900 pt-4">
+                  <p className="font-black text-gray-900 uppercase text-sm">Direção CETI</p>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Assinatura e Carimbo Oficial</p>
+                </div>
+              </div>
+            </div>
 
-        {/* Signature Area */}
-        <div className="mt-32 grid grid-cols-1 md:grid-cols-2 gap-24 relative z-10">
-          <div className="text-center">
-            <div className="border-t-2 border-gray-950 pt-4">
-              <p className="font-black text-gray-900 uppercase text-base">{student.guardian_name || "Assinatura do Responsável"}</p>
-              <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest mt-2">Responsável Legal</p>
+            {/* Footer Text & QR Authenticity */}
+            <div className="mt-12 pt-8 border-t-2 border-gray-100 flex justify-between items-end">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-black">Sistema CETI v2.5</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Documento gerado eletronicamente em {format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest italic text-primary mt-2">Validez supeditada à conferência da identidade escolar</p>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="p-2 border-2 border-gray-100 rounded-xl">
+                  {/* We can use the student's QR ID as a verification token */}
+                  <div className="w-16 h-16 bg-white flex items-center justify-center border border-gray-100">
+                    <QRCodeSVG value={`https://ceti-digital.vercel.app/verify/${student.qr_code_id}`} size={64} level="H" />
+                  </div>
+                </div>
+                <span className="text-[8px] font-mono font-bold text-gray-400">VERIFICAÇÃO: {student.qr_code_id.substring(0, 8).toUpperCase()}</span>
+              </div>
             </div>
           </div>
-          <div className="text-center">
-            <div className="border-t-2 border-gray-950 pt-4">
-              <p className="font-black text-gray-900 uppercase text-base">Direção CETI</p>
-              <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest mt-2">Assinatura e Carimbo Oficial</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Verification Footer */}
-        <div className="mt-32 pt-10 border-t-2 border-gray-100 flex justify-between items-center opacity-40">
-          <p className="text-[10px] font-black uppercase tracking-widest">Sistema CETI v2.0</p>
-          <p className="text-[10px] font-black uppercase tracking-widest italic">Documento Oficial de Registro Escolar</p>
         </div>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          body { background: white; margin: 0; padding: 0; color: black !important; }
+          html, body { 
+            height: 297mm !important;
+            margin: 0 !important; 
+            padding: 0 !important;
+            overflow: hidden !important;
+            background: white !important;
+          }
           .print\\:hidden { display: none !important; }
-          .print\\:shadow-none { box-shadow: none !important; }
-          .print\\:border-none { border: none !important; }
-          @page { margin: 2cm; size: A4; }
-          strong { color: black !important; font-weight: 900 !important; }
+          @page { 
+            margin: 0 !important; 
+            size: A4 portrait; 
+          }
+          #printable-term {
+            width: 210mm !important;
+            height: 297mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            overflow: hidden !important;
+          }
+          #printable-term > div {
+            height: 297mm !important;
+            padding: 20mm !important;
+            overflow: hidden !important;
+          }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}} />
     </div>
