@@ -155,6 +155,13 @@ export const ScannerPage: React.FC = () => {
     }
   };
 
+  const EXIT_TYPE_CONFIG: Record<string, { label: string; sub: string; color: string; icon: string }> = {
+    none:  { label: 'Sem Autorização',          sub: 'Saída NÃO permitida',              color: 'bg-logo-red/10 text-logo-red border border-logo-red/30',    icon: 'block' },
+    lunch: { label: 'Autorizado: Almoço',        sub: 'Saída 12h00 – 13h00',             color: 'bg-logo-green/10 text-logo-green border border-logo-green/30', icon: 'restaurant' },
+    gym:   { label: 'Autorizado: Academia',      sub: 'Saída 14h40 – 16h10',             color: 'bg-logo-blue/10 text-logo-blue border border-logo-blue/30',   icon: 'fitness_center' },
+    both:  { label: 'Autorizado: Almoço + Acad.', sub: 'Saída 12h–13h e 14h40–16h10',  color: 'bg-purple-100 text-purple-700 border border-purple-300',        icon: 'verified_user' },
+  };
+
   const handleValidateStudent = async (qrId: string) => {
     // Prevent multiple simultaneous scans or rapid repeats of the same code
     const now = Date.now();
@@ -183,16 +190,17 @@ export const ScannerPage: React.FC = () => {
 
       setStudent(data);
       
-      // Se for Saída (OUT), verificar se tem autorização ativa
-      if (currentScanType === 'OUT' && !data.is_authorized) {
+      // Para Saída: negar se is_authorized=false OU exit_type='none'
+      const exitType = data.exit_type || 'none';
+      const isExitAllowed = data.is_authorized && exitType !== 'none';
+
+      if (currentScanType === 'OUT' && !isExitAllowed) {
         setStatus('error');
         playBeep('error');
-        // Haptic feedback for error
         if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
       } else {
         setStatus('success');
         playBeep('success');
-        // Haptic feedback for success
         if ('vibrate' in navigator) navigator.vibrate(200);
         
         // Log the access
@@ -357,36 +365,43 @@ export const ScannerPage: React.FC = () => {
         </div>
 
         {/* Student Result Card */}
-        {student && (
-          <div className="glass-card rounded-[2rem] p-6 shadow-lg animate-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-5">
-              <div className="relative">
-                <img 
-                  src={student.photo_url || "https://via.placeholder.com/150"} 
-                  alt="Foto" 
-                  className="w-20 h-20 rounded-2xl object-cover ring-4 ring-white shadow-md"
-                />
-                <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow-sm ${
-                  student.is_authorized ? 'bg-logo-green' : 'bg-logo-red'
-                }`}>
-                  <span className="material-symbols-outlined text-white text-[12px]" style={{fontVariationSettings: "'FILL' 1"}}>
-                    {student.is_authorized ? 'check' : 'close'}
-                  </span>
+        {student && (() => {
+          const exitType = student.exit_type || 'none';
+          const cfg = EXIT_TYPE_CONFIG[exitType] || EXIT_TYPE_CONFIG['none'];
+          return (
+            <div className="glass-card rounded-[2rem] p-6 shadow-lg animate-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center gap-5 mb-4">
+                <div className="relative">
+                  <img 
+                    src={student.photo_url || "https://via.placeholder.com/150"} 
+                    alt="Foto" 
+                    className="w-20 h-20 rounded-2xl object-cover ring-4 ring-white shadow-md"
+                  />
+                  <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow-sm ${
+                    student.is_authorized ? 'bg-logo-green' : 'bg-logo-red'
+                  }`}>
+                    <span className="material-symbols-outlined text-white text-[12px]" style={{fontVariationSettings: "'FILL' 1"}}>
+                      {student.is_authorized ? 'check' : 'close'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-headline font-bold text-xl text-on-surface">{student.full_name}</h3>
+                  <p className="text-sm text-outline font-medium mt-0.5">#{student.enrollment_id} • {student.grade}</p>
                 </div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-headline font-bold text-xl text-on-surface">{student.full_name}</h3>
-                <p className="text-sm text-outline font-medium mt-0.5">#{student.enrollment_id} • {student.grade}</p>
-                <div className={`mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                  student.is_authorized ? 'bg-logo-green/10 text-logo-green' : 'bg-logo-red/10 text-logo-red'
-                }`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${student.is_authorized ? 'bg-logo-green' : 'bg-logo-red'} animate-pulse`}></div>
-                  {student.is_authorized ? 'Liberado para Saída' : 'Saída Bloqueada'}
+
+              {/* Exit Authorization Badge - BIG & CLEAR */}
+              <div className={`w-full p-4 rounded-2xl flex items-center gap-3 ${cfg.color}`}>
+                <span className="material-symbols-outlined text-3xl" style={{fontVariationSettings: "'FILL' 1"}}>{cfg.icon}</span>
+                <div>
+                  <p className="font-black text-base uppercase tracking-wide">{cfg.label}</p>
+                  <p className="text-xs font-bold opacity-70">{cfg.sub}</p>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {!student && !loading && status === 'idle' && (
           <div className="glass-card rounded-[2.5rem] p-8 text-center border-dashed border-2 border-outline/20 bg-white/40">

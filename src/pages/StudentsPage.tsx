@@ -22,7 +22,8 @@ export const StudentsPage: React.FC = () => {
     cpf: '',
     birth_date: '',
     guardian_name: '',
-    guardian_cpf: ''
+    guardian_cpf: '',
+    exit_type: 'none'
   });
   const [importing, setImporting] = useState(false);
 
@@ -110,7 +111,8 @@ export const StudentsPage: React.FC = () => {
       birth_date: student.birth_date || '',
       guardian_name: student.guardian_name || '',
       guardian_cpf: student.guardian_cpf || '',
-      photo_url: student.photo_url || ''
+      photo_url: student.photo_url || '',
+      exit_type: student.exit_type || 'none'
     });
     setPhotoPreview(student.photo_url || null);
     setShowModal(true);
@@ -121,7 +123,7 @@ export const StudentsPage: React.FC = () => {
     setEditingStudentId(null);
     setNewStudent({
       full_name: '', enrollment_id: '', grade: '', photo_url: '',
-      cpf: '', birth_date: '', guardian_name: '', guardian_cpf: ''
+      cpf: '', birth_date: '', guardian_name: '', guardian_cpf: '', exit_type: 'none'
     });
     setPhotoPreview(null);
   };
@@ -740,9 +742,9 @@ export const StudentsPage: React.FC = () => {
               </div>
 
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
-                <p className="text-[10px] font-black uppercase text-primary tracking-widest px-1">Dados do ResponsÃ¡vel</p>
+                <p className="text-[10px] font-black uppercase text-primary tracking-widest px-1">Dados do Responsável</p>
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome do ResponsÃ¡vel</label>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome do Responsável</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">supervisor_account</span>
                     <input 
