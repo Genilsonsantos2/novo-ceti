@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 
 export const StudentsPage: React.FC = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -148,78 +149,78 @@ export const StudentsPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setImporting(true);
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split('\n');
-
-      const parseCSVLine = (str: string) => {
-        const arr = [];
-        let quote = false;
-        let col = "", c;
-        for (let i = 0; i < str.length; i++) {
-          c = str[i];
-          if (c === '"' && str[i + 1] === '"') { col += '"'; i++; }
-          else if (c === '"') { quote = !quote; }
-          else if (c === ',' && !quote) { arr.push(col.trim()); col = ""; }
-          else { col += c; }
-        }
-        arr.push(col.trim());
-        return arr.map(v => v.replace(/^"|"$/g, '').trim());
-      };
-
-      const headers = parseCSVLine(lines[0]) || [];
-      
-      const newStudents = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const values = parseCSVLine(lines[i]);
-        if (!values) continue;
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
         
-        const student: any = {};
-        headers.forEach((header, index) => {
-          // Map CSV headers to database fields
-          const field = header.toLowerCase();
-          if (field.includes('nome') && !field.includes('respons')) student.full_name = values[index];
-          if (field.includes('rm') || field.includes('matri')) student.enrollment_id = values[index];
-          if (field.includes('serie') || field.includes('turma')) student.grade = values[index];
-          if (field.includes('cpf') && !field.includes('respons')) student.cpf = values[index];
-          if (field.includes('nasc') || field.includes('data')) student.birth_date = values[index];
-          if (field.includes('responsavel') || field.includes('pai') || field.includes('mae')) {
-            if (field.includes('cpf')) student.guardian_cpf = values[index];
-            else student.guardian_name = values[index];
+        // Convert sheet to JSON array of arrays, header: 1 means array of arrays
+        const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        
+        if (rows.length < 2) {
+          alert('O arquivo parece estar vazio ou não possui dados suficientes.');
+          setImporting(false);
+          return;
+        }
+
+        // Parse headers to strings and lowercase
+        const headers = (rows[0] || []).map((h: any) => String(h).trim().toLowerCase());
+        
+        const newStudents = [];
+        for (let i = 1; i < rows.length; i++) {
+          const values = rows[i].map((v: any) => String(v).trim());
+          if (!values.join('').trim()) continue; // Skip empty rows
+          
+          const student: any = {};
+          headers.forEach((header: string, index: number) => {
+            const field = header;
+            if (field.includes('nome') && !field.includes('respons')) student.full_name = values[index];
+            if (field.includes('rm') || field.includes('matri')) student.enrollment_id = values[index];
+            if (field.includes('serie') || field.includes('turma')) student.grade = values[index];
+            if (field.includes('cpf') && !field.includes('respons')) student.cpf = values[index];
+            if (field.includes('nasc') || field.includes('data')) student.birth_date = values[index];
+            if (field.includes('responsavel') || field.includes('pai') || field.includes('mae')) {
+              if (field.includes('cpf')) student.guardian_cpf = values[index];
+              else student.guardian_name = values[index];
+            }
+          });
+
+          if (student.full_name && student.enrollment_id) {
+            student.qr_code_id = `QR-${student.enrollment_id}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+            student.is_authorized = true;
+            student.photo_url = `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}&backgroundColor=random`;
+            newStudents.push(student);
           }
-        });
-
-        if (student.full_name && student.enrollment_id) {
-          student.qr_code_id = `QR-${student.enrollment_id}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-          student.is_authorized = true;
-          student.photo_url = `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}&backgroundColor=random`;
-          newStudents.push(student);
         }
-      }
 
-      if (newStudents.length > 0) {
-        const { error } = await supabase.from('students').insert(newStudents);
-        if (error) {
-          console.error(error);
-          alert('Erro ao importar: ' + error.message);
+        if (newStudents.length > 0) {
+          const { error } = await supabase.from('students').insert(newStudents);
+          if (error) {
+            console.error(error);
+            alert('Erro ao importar: ' + error.message);
+          } else {
+            alert(`${newStudents.length} alunos importados com sucesso!`);
+            fetchStudents();
+            setShowImportModal(false);
+          }
         } else {
-          alert(`${newStudents.length} alunos importados com sucesso!`);
-          fetchStudents();
-          setShowImportModal(false);
+          alert('Nenhum aluno válido encontrado no arquivo. Verifique se as colunas estão corretas (Nome e Matrícula são obrigatórios).');
         }
-      } else {
-        alert('Nenhum aluno válido encontrado no arquivo. Verifique se as colunas estão corretas (Nome e Matrícula são obrigatórios).');
+      } catch (error) {
+        console.error('File parsing error', error);
+        alert('Erro ao ler o arquivo. Verifique se é um arquivo Excel (.xlsx/.xls) ou CSV válido.');
       }
       setImporting(false);
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
   return (
@@ -244,7 +245,7 @@ export const StudentsPage: React.FC = () => {
             className="flex-1 lg:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-secondary"
           >
             <span className="material-symbols-outlined text-base">upload_file</span>
-            Importar CSV
+            Importar Dados
           </button>
           <Link 
             to="/exit-report"
@@ -575,7 +576,7 @@ export const StudentsPage: React.FC = () => {
           </div>
         </div>
       )}
-      {/* MODAL IMPORTAÇÃO CSV */}
+      {/* MODAL IMPORTAÇÃO */}
       {showImportModal && (
         <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="glass-panel rounded-[2.5rem] p-8 md:p-10 w-full max-w-md shadow-2xl">
@@ -585,7 +586,7 @@ export const StudentsPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-headline font-extrabold text-xl text-primary tracking-tight">Importar Alunos</h3>
-                <p className="text-xs text-outline font-medium">Use um arquivo CSV ou Excel (CSV)</p>
+                <p className="text-xs text-outline font-medium">Use um arquivo Excel (.xlsx, .xls) ou CSV</p>
               </div>
             </div>
 
@@ -594,7 +595,7 @@ export const StudentsPage: React.FC = () => {
                 <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Instruções:</p>
                 <ul className="text-[10px] text-on-surface-variant space-y-1 font-medium">
                   <li>• O arquivo deve conter cabeçalhos (Nome, RM, Turma, etc)</li>
-                  <li>• Formatos aceitos: .csv</li>
+                  <li>• Formatos aceitos: .xlsx, .xls, .csv</li>
                   <li>• Novos alunos serão autorizados automaticamente</li>
                 </ul>
               </div>
@@ -602,8 +603,8 @@ export const StudentsPage: React.FC = () => {
               <div className="relative">
                 <input 
                   type="file" 
-                  accept=".csv"
-                  onChange={handleImportCSV}
+                  accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                  onChange={handleImportFile}
                   className="hidden" 
                   id="csv-input"
                 />
@@ -614,7 +615,7 @@ export const StudentsPage: React.FC = () => {
                     <span className="material-symbols-outlined text-4xl text-secondary">cloud_upload</span>
                   )}
                   <span className="text-xs font-bold text-secondary">
-                    {importing ? 'Importando dados...' : 'Selecionar arquivo .csv'}
+                    {importing ? 'Importando dados...' : 'Selecionar arquivo Excel ou CSV'}
                   </span>
                 </label>
               </div>
