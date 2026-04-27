@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf';
 import { saveAs } from 'file-saver';
-import DOMPurify from 'dompurify';
 
 export const exportToPDF = async (elementId: string, filename: string) => {
   const element = document.getElementById(elementId);
