@@ -93,6 +93,13 @@ export const DashboardPage: React.FC = () => {
             <span className="material-symbols-outlined text-base">restaurant</span>
             Relatório de Almoço
           </Link>
+          <Link 
+            to="/daily-access-report"
+            className="glass-card px-6 py-3 rounded-2xl flex items-center gap-2 text-sm font-bold text-secondary hover:scale-[1.02] transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined text-base">today</span>
+            Relatório do Dia
+          </Link>
           <div className="glass-card px-5 py-3 rounded-2xl flex items-center gap-3">
             <span className="w-2.5 h-2.5 rounded-full bg-logo-green animate-pulse"></span>
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Ao Vivo</span>

@@ -12,6 +12,8 @@ import { ExitReportPage } from './pages/ExitReportPage';
 import { LunchReportPage } from './pages/LunchReportPage';
 import { AuthorizationTermPage } from './pages/AuthorizationTermPage';
 import { ProvisionalExitReportPage } from './pages/ProvisionalExitReportPage';
+import { PrintTermsPage } from './pages/PrintTermsPage';
+import { DailyAccessReportPage } from './pages/DailyAccessReportPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
 // ...
@@ -43,6 +45,12 @@ function AppRoutes() {
       <Route path="/print-cards" element={
         <ProtectedRoute allowedRoles={['DIRETOR']}>
           <PrintCardsPage />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/print-terms" element={
+        <ProtectedRoute allowedRoles={['DIRETOR']}>
+          <PrintTermsPage />
         </ProtectedRoute>
       } />
 
@@ -113,6 +121,12 @@ function AppRoutes() {
         <Route path="/provisional-report" element={
           <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
             <ProvisionalExitReportPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/daily-access-report" element={
+          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+            <DailyAccessReportPage />
           </ProtectedRoute>
         } />
       </Route>

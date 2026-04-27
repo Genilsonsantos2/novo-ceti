@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -8,6 +8,10 @@ export const StudentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState<string>('');
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  
   const [newStudent, setNewStudent] = useState({ 
     full_name: '', 
     enrollment_id: '', 
@@ -18,7 +22,6 @@ export const StudentsPage: React.FC = () => {
     guardian_name: '',
     guardian_cpf: ''
   });
-  const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -58,7 +61,7 @@ export const StudentsPage: React.FC = () => {
       return (a.full_name || '').localeCompare(b.full_name || '');
     });
 
-    const headers = ['Nome Completo', 'Matrícula (RM)', 'Série/Turma', 'CPF', 'Data de Nascimento', 'Nome do Responsável', 'CPF do Responsável', 'Status Autorização'];
+    const headers = ['Nome Completo', 'MatrÃ­cula (RM)', 'SÃ©rie/Turma', 'CPF', 'Data de Nascimento', 'Nome do ResponsÃ¡vel', 'CPF do ResponsÃ¡vel', 'Status AutorizaÃ§Ã£o'];
     const rows = sortedStudents.map(s => [
       `"${s.full_name || ''}"`,
       `"${s.enrollment_id || ''}"`,
@@ -95,47 +98,89 @@ export const StudentsPage: React.FC = () => {
     }
   };
 
+  const openEditModal = (student: any) => {
+    setEditingStudentId(student.id);
+    setNewStudent({
+      full_name: student.full_name || '',
+      enrollment_id: student.enrollment_id || '',
+      grade: student.grade || '',
+      cpf: student.cpf || '',
+      birth_date: student.birth_date || '',
+      guardian_name: student.guardian_name || '',
+      guardian_cpf: student.guardian_cpf || '',
+      photo_url: student.photo_url || ''
+    });
+    setPhotoPreview(student.photo_url || null);
+    setShowModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowModal(false);
+    setEditingStudentId(null);
+    setNewStudent({
+      full_name: '', enrollment_id: '', grade: '', photo_url: '',
+      cpf: '', birth_date: '', guardian_name: '', guardian_cpf: ''
+    });
+    setPhotoPreview(null);
+  };
+
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     
-    // Generate a simple unique QR Code ID (could be better UUID in prod)
-    const qrCodeId = `QR-${newStudent.enrollment_id}-${Date.now().toString().slice(-4)}`;
-
     // Use uploaded photo or generate placeholder
     const photoUrl = newStudent.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${newStudent.full_name}&backgroundColor=random`;
 
-    const { error } = await supabase.from('students').insert({
-      full_name: newStudent.full_name,
-      enrollment_id: newStudent.enrollment_id,
-      grade: newStudent.grade,
-      cpf: newStudent.cpf,
-      birth_date: newStudent.birth_date,
-      guardian_name: newStudent.guardian_name,
-      guardian_cpf: newStudent.guardian_cpf,
-      qr_code_id: qrCodeId,
-      is_authorized: true,
-      photo_url: photoUrl,
-    });
+    if (editingStudentId) {
+      const { error } = await supabase.from('students').update({
+        full_name: newStudent.full_name,
+        enrollment_id: newStudent.enrollment_id,
+        grade: newStudent.grade,
+        cpf: newStudent.cpf,
+        birth_date: newStudent.birth_date,
+        guardian_name: newStudent.guardian_name,
+        guardian_cpf: newStudent.guardian_cpf,
+        photo_url: photoUrl,
+      }).eq('id', editingStudentId);
 
-    if (error) {
-      console.error(error);
-      alert('Erro ao cadastrar aluno: ' + error.message);
+      if (error) {
+        console.error(error);
+        alert('Erro ao atualizar aluno: ' + error.message);
+      } else {
+        closeEditModal();
+        fetchStudents();
+      }
     } else {
-      setShowModal(false);
-      setNewStudent({ 
-        full_name: '', enrollment_id: '', grade: '', photo_url: '',
-        cpf: '', birth_date: '', guardian_name: '', guardian_cpf: ''
+      // Generate a simple unique QR Code ID
+      const qrCodeId = `QR-${newStudent.enrollment_id}-${Date.now().toString().slice(-4)}`;
+
+      const { error } = await supabase.from('students').insert({
+        full_name: newStudent.full_name,
+        enrollment_id: newStudent.enrollment_id,
+        grade: newStudent.grade,
+        cpf: newStudent.cpf,
+        birth_date: newStudent.birth_date,
+        guardian_name: newStudent.guardian_name,
+        guardian_cpf: newStudent.guardian_cpf,
+        qr_code_id: qrCodeId,
+        is_authorized: true,
+        photo_url: photoUrl,
       });
-      setPhotoPreview(null);
-      fetchStudents();
+
+      if (error) {
+        console.error(error);
+        alert('Erro ao cadastrar aluno: ' + error.message);
+      } else {
+        closeEditModal();
+        fetchStudents();
+      }
     }
     setSaving(false);
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ['Nome Completo', 'Matrícula (RM)', 'Série/Turma', 'CPF', 'Data de Nascimento', 'Nome do Responsável', 'CPF do Responsável'];
-    const example = ['Exemplo Nome', '123456', '3º Ano A', '000.000.000-00', '2005-05-15', 'Responsável Exemplo', '111.111.111-11'];
+    const headers = ['Nome Completo', 'MatrÃ­cula (RM)', 'SÃ©rie/Turma', 'CPF', 'Data de Nascimento', 'Nome do ResponsÃ¡vel', 'CPF do ResponsÃ¡vel'];
+    const example = ['Exemplo Nome', '123456', '3Âº Ano A', '000.000.000-00', '2005-05-15', 'ResponsÃ¡vel Exemplo', '111.111.111-11'];
     
     const csvContent = [headers.join(','), example.map(v => `"${v}"`).join(',')].join('\n');
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -166,7 +211,7 @@ export const StudentsPage: React.FC = () => {
         const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
         
         if (rows.length < 2) {
-          alert('O arquivo parece estar vazio ou não possui dados suficientes.');
+          alert('O arquivo parece estar vazio ou nÃ£o possui dados suficientes.');
           setImporting(false);
           return;
         }
@@ -191,7 +236,7 @@ export const StudentsPage: React.FC = () => {
         }
 
         if (maxScore === 0) {
-           alert('Não foi possível identificar as colunas no arquivo. Certifique-se de ter colunas de "Nome" e "Matrícula/RM".');
+           alert('NÃ£o foi possÃ­vel identificar as colunas no arquivo. Certifique-se de ter colunas de "Nome" e "MatrÃ­cula/RM".');
            setImporting(false);
            return;
         }
@@ -227,7 +272,7 @@ export const StudentsPage: React.FC = () => {
         }
 
         if (nameIdx === -1 || rmIdx === -1) {
-           alert(`Colunas obrigatórias ("Nome" e "Matrícula") não encontradas.\nCabeçalhos lidos pelo sistema:\n${headers.join(' | ')}`);
+           alert(`Colunas obrigatÃ³rias ("Nome" e "MatrÃ­cula") nÃ£o encontradas.\nCabeÃ§alhos lidos pelo sistema:\n${headers.join(' | ')}`);
            setImporting(false);
            return;
         }
@@ -294,11 +339,11 @@ export const StudentsPage: React.FC = () => {
             setShowImportModal(false);
           }
         } else {
-          alert('Nenhum aluno foi importado. Verifique se as colunas estão corretas e se as linhas contêm "Nome" e "Matrícula" preenchidos.');
+          alert('Nenhum aluno foi importado. Verifique se as colunas estÃ£o corretas e se as linhas contÃªm "Nome" e "MatrÃ­cula" preenchidos.');
         }
       } catch (error) {
         console.error('File parsing error', error);
-        alert('Erro ao ler o arquivo. Verifique se é um arquivo Excel (.xlsx/.xls) ou CSV válido.');
+        alert('Erro ao ler o arquivo. Verifique se Ã© um arquivo Excel (.xlsx/.xls) ou CSV vÃ¡lido.');
       }
       setImporting(false);
     };
@@ -309,18 +354,18 @@ export const StudentsPage: React.FC = () => {
     <div className="flex-1 px-6 md:px-10 py-8 min-h-screen relative">
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Administração</p>
-          <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Gestão de Alunos</h2>
-          <p className="text-on-surface-variant font-medium mt-1">Controle de autorizações e matrículas</p>
+          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">AdministraÃ§Ã£o</p>
+          <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">GestÃ£o de Alunos</h2>
+          <p className="text-on-surface-variant font-medium mt-1">Controle de autorizaÃ§Ãµes e matrÃ­culas</p>
         </div>
         <div className="flex flex-wrap gap-3 w-full lg:w-auto">
           <button 
             onClick={handleExportMigrationCSV}
             className="flex-1 lg:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-green-700 border border-green-200"
-            title="Exportar alunos autorizados para migração"
+            title="Exportar alunos autorizados para migraÃ§Ã£o"
           >
             <span className="material-symbols-outlined text-base">download</span>
-            Exportar Migração
+            Exportar MigraÃ§Ã£o
           </button>
           <button 
             onClick={() => setShowImportModal(true)}
@@ -334,17 +379,24 @@ export const StudentsPage: React.FC = () => {
             className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
           >
             <span className="material-symbols-outlined text-base">print</span>
-            Imprimir Cartões
+            Imprimir CartÃµes
+          </Link>
+          <Link 
+            to="/print-terms"
+            className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
+          >
+            <span className="material-symbols-outlined text-base">assignment</span>
+            Imprimir Termos
           </Link>
           <Link 
             to="/exit-report"
             className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
           >
             <span className="material-symbols-outlined text-base">description</span>
-            Relatórios
+            RelatÃ³rios
           </Link>
           <button 
-            onClick={() => setShowModal(true)}
+            onClick={() => { closeEditModal(); setShowModal(true); }}
             className="flex-1 md:flex-none justify-center bg-gradient-to-r from-primary to-primary-container text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm"
           >
             <span className="material-symbols-outlined text-base">person_add</span>
@@ -353,11 +405,46 @@ export const StudentsPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Student count badge */}
-      <div className="mb-6 flex items-center gap-3">
-        <div className="glass-card px-4 py-2 rounded-xl inline-flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-base">group</span>
-          <span className="text-xs font-bold text-on-surface-variant">{students.length} aluno{students.length !== 1 ? 's' : ''} cadastrado{students.length !== 1 ? 's' : ''}</span>
+      {/* Toolbar: Filters and Batch Actions */}
+      <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 glass-card p-4 rounded-[2rem] border border-white/20">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="glass-card px-4 py-2 rounded-xl inline-flex items-center gap-2 border-none bg-primary/5">
+            <span className="material-symbols-outlined text-primary text-base">group</span>
+            <span className="text-xs font-bold text-on-surface-variant">{students.length} Total</span>
+          </div>
+
+          <div className="flex items-center gap-2 px-3 bg-white/60 rounded-xl border border-gray-200 focus-within:border-primary transition-colors">
+            <span className="material-symbols-outlined text-gray-500 text-sm">filter_list</span>
+            <select
+              value={selectedGrade}
+              onChange={(e) => setSelectedGrade(e.target.value)}
+              className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 py-2 w-full md:w-auto outline-none cursor-pointer"
+            >
+              <option value="">Todas as Turmas</option>
+              {Array.from(new Set(students.map(s => s.grade).filter(Boolean))).sort().map(grade => (
+                <option key={grade as string} value={grade as string}>{grade}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {selectedGrade && (
+            <Link 
+              to={`/print-terms?grade=${encodeURIComponent(selectedGrade)}`}
+              className="flex-1 md:flex-none justify-center px-4 py-2 rounded-xl font-bold hover:bg-primary/10 text-primary transition-all active:scale-95 flex items-center gap-2 text-xs border border-primary/20 bg-white/50"
+            >
+              <span className="material-symbols-outlined text-sm">assignment</span>
+              Imprimir Termos ({selectedGrade})
+            </Link>
+          )}
+          <Link 
+            to="/print-cards"
+            className="flex-1 md:flex-none justify-center px-4 py-2 rounded-xl font-bold hover:bg-secondary/10 text-secondary transition-all active:scale-95 flex items-center gap-2 text-xs border border-secondary/20 bg-white/50"
+          >
+            <span className="material-symbols-outlined text-sm">print</span>
+            Imprimir CartÃµes
+          </Link>
         </div>
       </div>
 
@@ -369,9 +456,9 @@ export const StudentsPage: React.FC = () => {
             <thead className="bg-white/50 border-b border-white/30">
               <tr>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Aluno</th>
-                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Matrícula</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">MatrÃ­cula</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Status</th>
-                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Ações</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">AÃ§Ãµes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/30">
@@ -380,12 +467,12 @@ export const StudentsPage: React.FC = () => {
                   <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
                   <span className="text-outline font-medium">Carregando alunos...</span>
                 </td></tr>
-              ) : students.length === 0 ? (
+              ) : (selectedGrade ? students.filter(s => s.grade === selectedGrade) : students).length === 0 ? (
                 <tr><td colSpan={4} className="px-8 py-16 text-center">
                   <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
-                  <span className="text-outline font-medium">Nenhum aluno cadastrado.</span>
+                  <span className="text-outline font-medium">Nenhum aluno encontrado.</span>
                 </td></tr>
-              ) : students.map((s) => (
+              ) : (selectedGrade ? students.filter(s => s.grade === selectedGrade) : students).map((s) => (
                 <tr key={s.id} className="hover:bg-white/40 transition-all duration-200 group">
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
@@ -433,8 +520,15 @@ export const StudentsPage: React.FC = () => {
                         className="text-[10px] font-black uppercase px-3 py-2 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20 transition-all hover:scale-105 flex items-center gap-1.5"
                       >
                         <span className="material-symbols-outlined text-sm">id_card</span>
-                        Cartão
+                        CartÃ£o
                       </Link>
+                      <button 
+                        onClick={() => openEditModal(s)}
+                        className="text-[10px] font-black uppercase px-3 py-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all hover:scale-105 flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-sm">edit</span>
+                        Editar
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -450,12 +544,12 @@ export const StudentsPage: React.FC = () => {
               <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
               <span className="text-outline font-medium">Carregando...</span>
             </div>
-          ) : students.length === 0 ? (
+          ) : (selectedGrade ? students.filter(s => s.grade === selectedGrade) : students).length === 0 ? (
             <div className="p-12 text-center">
               <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
               <span className="text-outline font-medium">Nenhum aluno.</span>
             </div>
-          ) : students.map((s) => (
+          ) : (selectedGrade ? students.filter(s => s.grade === selectedGrade) : students).map((s) => (
             <div key={s.id} className="p-5 flex flex-col gap-4 bg-white/20 active:bg-white/40 transition-all">
               <div className="flex items-center gap-4">
                 <div className="relative">
@@ -499,8 +593,15 @@ export const StudentsPage: React.FC = () => {
                   className="flex-1 py-3 bg-secondary/10 text-secondary rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95"
                 >
                   <span className="material-symbols-outlined text-base">id_card</span>
-                  Cartão
+                  CartÃ£o
                 </Link>
+                <button 
+                  onClick={() => openEditModal(s)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-base">edit</span>
+                  Editar
+                </button>
               </div>
             </div>
           ))}
@@ -563,7 +664,7 @@ export const StudentsPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Matrícula (RM)</label>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">MatrÃ­cula (RM)</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">tag</span>
                     <input 
@@ -575,14 +676,14 @@ export const StudentsPage: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Série / Turma</label>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">SÃ©rie / Turma</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">class</span>
                     <input 
                       type="text" required
                       value={newStudent.grade} onChange={e => setNewStudent({...newStudent, grade: e.target.value})}
                       className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
-                      placeholder="3º Ano A"
+                      placeholder="3Âº Ano A"
                     />
                   </div>
                 </div>
@@ -615,21 +716,21 @@ export const StudentsPage: React.FC = () => {
               </div>
 
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
-                <p className="text-[10px] font-black uppercase text-primary tracking-widest px-1">Dados do Responsável</p>
+                <p className="text-[10px] font-black uppercase text-primary tracking-widest px-1">Dados do ResponsÃ¡vel</p>
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome do Responsável</label>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome do ResponsÃ¡vel</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">supervisor_account</span>
                     <input 
                       type="text"
                       value={newStudent.guardian_name} onChange={e => setNewStudent({...newStudent, guardian_name: e.target.value})}
                       className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
-                      placeholder="Nome do Pai/Mãe"
+                      placeholder="Nome do Pai/MÃ£e"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">CPF do Responsável</label>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">CPF do ResponsÃ¡vel</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">fingerprint</span>
                     <input 
@@ -665,7 +766,7 @@ export const StudentsPage: React.FC = () => {
           </div>
         </div>
       )}
-      {/* MODAL IMPORTAÇÃO */}
+      {/* MODAL IMPORTAÃ‡ÃƒO */}
       {showImportModal && (
         <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="glass-panel rounded-[2.5rem] p-8 md:p-10 w-full max-w-md shadow-2xl">
@@ -681,11 +782,11 @@ export const StudentsPage: React.FC = () => {
 
             <div className="space-y-6">
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Instruções:</p>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">InstruÃ§Ãµes:</p>
                 <ul className="text-[10px] text-on-surface-variant space-y-1 font-medium">
-                  <li>• O arquivo deve conter cabeçalhos (Nome, RM, Turma, etc)</li>
-                  <li>• Formatos aceitos: .xlsx, .xls, .csv</li>
-                  <li>• Novos alunos serão autorizados automaticamente</li>
+                  <li>â€¢ O arquivo deve conter cabeÃ§alhos (Nome, RM, Turma, etc)</li>
+                  <li>â€¢ Formatos aceitos: .xlsx, .xls, .csv</li>
+                  <li>â€¢ Novos alunos serÃ£o autorizados automaticamente</li>
                 </ul>
               </div>
 

@@ -12,6 +12,7 @@ export const AuthorizationTermPage: React.FC = () => {
   const navigate = useNavigate();
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [termType, setTermType] = useState<'lunch' | 'gym'>('lunch');
   
   const today = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
@@ -57,12 +58,22 @@ export const AuthorizationTermPage: React.FC = () => {
           Voltar aos Alunos
         </button>
         
-        <ExportActions 
-          elementId="printable-term" 
-          filename={`Termo_Autorizacao_${student.full_name.replace(/\s+/g, '_')}`}
-          onPrint={handlePrint}
-          className="w-full md:w-auto"
-        />
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <select 
+            value={termType}
+            onChange={(e) => setTermType(e.target.value as 'lunch' | 'gym')}
+            className="px-4 py-2 border-2 border-gray-200 rounded-xl font-bold text-gray-700 bg-white focus:border-primary outline-none"
+          >
+            <option value="lunch">Saída para Almoço</option>
+            <option value="gym">Academia / Transporte (Zona Rural)</option>
+          </select>
+          <ExportActions 
+            elementId="printable-term" 
+            filename={`Termo_Autorizacao_${termType === 'gym' ? 'Academia' : 'Almoco'}_${student.full_name.replace(/\s+/g, '_')}`}
+            onPrint={handlePrint}
+            className="w-full md:w-auto"
+          />
+        </div>
       </div>
 
       {/* Document Sheet - Optimized for A4 Portrait */}
@@ -94,7 +105,9 @@ export const AuthorizationTermPage: React.FC = () => {
               <h2 className="text-2xl font-black inline-block uppercase tracking-tight text-gray-950 border-b-4 border-gray-950 pb-1">
                 Termo de Autorização
               </h2>
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mt-3">Controle de Saída - Almoço Externo</p>
+              <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mt-3">
+                {termType === 'lunch' ? 'Controle de Saída - Almoço Externo' : 'Controle de Saída - Academia e Transporte'}
+              </p>
             </div>
 
             {/* Body Content */}
@@ -110,9 +123,15 @@ export const AuthorizationTermPage: React.FC = () => {
               </p>
 
               <div className="pl-6 space-y-4 border-l-4 border-primary/20 bg-gray-50/50 p-6 rounded-r-2xl">
-                <p>
-                  <strong>1. AUTORIZAR</strong> a saída do(a) discente no horário de almoço (12h às 13h);
-                </p>
+                {termType === 'lunch' ? (
+                  <p>
+                    <strong>1. AUTORIZAR</strong> a saída do(a) discente no horário de almoço (12h às 13h);
+                  </p>
+                ) : (
+                  <p>
+                    <strong>1. AUTORIZAR</strong> a saída do(a) discente no horário de <strong>14h40 às 16h10</strong> para atividades na academia e acesso ao transporte rural;
+                  </p>
+                )}
                 <p>
                   <strong>2. DECLARAR</strong> ciência de que a responsabilidade civil e criminal sobre o(a) menor, uma vez fora do ambiente escolar, recai inteiramente sobre os pais/responsáveis;
                 </p>
