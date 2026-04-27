@@ -330,6 +330,13 @@ export const StudentsPage: React.FC = () => {
             Importar Dados
           </button>
           <Link 
+            to="/print-cards"
+            className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
+          >
+            <span className="material-symbols-outlined text-base">print</span>
+            Imprimir Cartões
+          </Link>
+          <Link 
             to="/exit-report"
             className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
           >
