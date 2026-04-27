@@ -47,6 +47,40 @@ export const StudentsPage: React.FC = () => {
     else fetchStudents();
   };
 
+  const handleExportMigrationCSV = () => {
+    const authorizedStudents = students.filter(s => s.is_authorized);
+    
+    // Sort by grade, then by name
+    const sortedStudents = [...authorizedStudents].sort((a, b) => {
+      const gradeCompare = (a.grade || '').localeCompare(b.grade || '');
+      if (gradeCompare !== 0) return gradeCompare;
+      return (a.full_name || '').localeCompare(b.full_name || '');
+    });
+
+    const headers = ['Nome Completo', 'Matrícula (RM)', 'Série/Turma', 'CPF', 'Data de Nascimento', 'Nome do Responsável', 'CPF do Responsável', 'Status Autorização'];
+    const rows = sortedStudents.map(s => [
+      `"${s.full_name || ''}"`,
+      `"${s.enrollment_id || ''}"`,
+      `"${s.grade || ''}"`,
+      `"${s.cpf || ''}"`,
+      `"${s.birth_date || ''}"`,
+      `"${s.guardian_name || ''}"`,
+      `"${s.guardian_cpf || ''}"`,
+      s.is_authorized ? 'AUTORIZADO' : 'BLOQUEADO'
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Migracao_Alunos_Autorizados_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -158,10 +192,18 @@ export const StudentsPage: React.FC = () => {
           <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Gestão de Alunos</h2>
           <p className="text-on-surface-variant font-medium mt-1">Controle de autorizações e matrículas</p>
         </div>
-        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+          <button 
+            onClick={handleExportMigrationCSV}
+            className="flex-1 lg:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-green-700 border border-green-200"
+            title="Exportar alunos autorizados para migração"
+          >
+            <span className="material-symbols-outlined text-base">download</span>
+            Exportar Migração
+          </button>
           <button 
             onClick={() => setShowImportModal(true)}
-            className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-secondary"
+            className="flex-1 lg:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-secondary"
           >
             <span className="material-symbols-outlined text-base">upload_file</span>
             Importar CSV
