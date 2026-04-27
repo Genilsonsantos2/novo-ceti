@@ -132,6 +132,22 @@ export const StudentsPage: React.FC = () => {
     setSaving(false);
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = ['Nome Completo', 'Matrícula (RM)', 'Série/Turma', 'CPF', 'Data de Nascimento', 'Nome do Responsável', 'CPF do Responsável'];
+    const example = ['Exemplo Nome', '123456', '3º Ano A', '000.000.000-00', '2005-05-15', 'Responsável Exemplo', '111.111.111-11'];
+    
+    const csvContent = [headers.join(','), example.map(v => `"${v}"`).join(',')].join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Modelo_Importacao_Alunos.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -141,23 +157,43 @@ export const StudentsPage: React.FC = () => {
     reader.onload = async (event) => {
       const text = event.target?.result as string;
       const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
+
+      const parseCSVLine = (str: string) => {
+        const arr = [];
+        let quote = false;
+        let col = "", c;
+        for (let i = 0; i < str.length; i++) {
+          c = str[i];
+          if (c === '"' && str[i + 1] === '"') { col += '"'; i++; }
+          else if (c === '"') { quote = !quote; }
+          else if (c === ',' && !quote) { arr.push(col.trim()); col = ""; }
+          else { col += c; }
+        }
+        arr.push(col.trim());
+        return arr.map(v => v.replace(/^"|"$/g, '').trim());
+      };
+
+      const headers = parseCSVLine(lines[0]) || [];
       
       const newStudents = [];
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
-        const values = lines[i].split(',').map(v => v.trim());
+        const values = parseCSVLine(lines[i]);
+        if (!values) continue;
+        
         const student: any = {};
         headers.forEach((header, index) => {
           // Map CSV headers to database fields
           const field = header.toLowerCase();
-          if (field.includes('nome')) student.full_name = values[index];
+          if (field.includes('nome') && !field.includes('respons')) student.full_name = values[index];
           if (field.includes('rm') || field.includes('matri')) student.enrollment_id = values[index];
           if (field.includes('serie') || field.includes('turma')) student.grade = values[index];
-          if (field.includes('cpf')) student.cpf = values[index];
-          if (field.includes('nasc')) student.birth_date = values[index];
-          if (field.includes('responsavel')) student.guardian_name = values[index];
-          if (field.includes('cpf_resp')) student.guardian_cpf = values[index];
+          if (field.includes('cpf') && !field.includes('respons')) student.cpf = values[index];
+          if (field.includes('nasc') || field.includes('data')) student.birth_date = values[index];
+          if (field.includes('responsavel') || field.includes('pai') || field.includes('mae')) {
+            if (field.includes('cpf')) student.guardian_cpf = values[index];
+            else student.guardian_name = values[index];
+          }
         });
 
         if (student.full_name && student.enrollment_id) {
@@ -178,6 +214,8 @@ export const StudentsPage: React.FC = () => {
           fetchStudents();
           setShowImportModal(false);
         }
+      } else {
+        alert('Nenhum aluno válido encontrado no arquivo. Verifique se as colunas estão corretas (Nome e Matrícula são obrigatórios).');
       }
       setImporting(false);
     };
@@ -581,12 +619,21 @@ export const StudentsPage: React.FC = () => {
                 </label>
               </div>
 
-              <button 
-                onClick={() => setShowImportModal(false)}
-                className="w-full py-4 glass-card rounded-2xl font-bold hover:scale-[1.02] transition-all text-on-surface-variant"
-              >
-                Cancelar
-              </button>
+              <div className="flex gap-3">
+                <button 
+                  onClick={handleDownloadTemplate}
+                  className="flex-1 py-4 bg-secondary/10 text-secondary rounded-2xl font-bold hover:bg-secondary/20 transition-all flex items-center justify-center gap-2 text-xs"
+                >
+                  <span className="material-symbols-outlined text-base">download</span>
+                  Baixar Modelo CSV
+                </button>
+                <button 
+                  onClick={() => setShowImportModal(false)}
+                  className="flex-1 py-4 glass-card rounded-2xl font-bold hover:scale-[1.02] transition-all text-on-surface-variant text-xs"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>
