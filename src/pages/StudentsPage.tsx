@@ -196,7 +196,42 @@ export const StudentsPage: React.FC = () => {
            return;
         }
 
-        const headers = rows[headerRowIndex].map(normalize);
+        // Parse headers to strings and normalize
+        let headers = rows[headerRowIndex].map(normalize);
+        
+        // Fallback for CSVs with semicolons that XLSX might parse as a single column
+        if (headers.length === 1 && headers[0].includes(';')) {
+          headers = headers[0].split(';').map(h => h.trim());
+          for (let i = headerRowIndex + 1; i < rows.length; i++) {
+             const rowString = String(rows[i][0] || '');
+             rows[i] = rowString.split(';').map(v => v.trim());
+          }
+        } else if (headers.length === 1 && headers[0].includes(',')) {
+          headers = headers[0].split(',').map(h => h.trim());
+          for (let i = headerRowIndex + 1; i < rows.length; i++) {
+             const rowString = String(rows[i][0] || '');
+             rows[i] = rowString.split(',').map(v => v.trim());
+          }
+        }
+
+        const nameIdx = headers.findIndex(h => (h.includes('nome') || h.includes('aluno')) && !h.includes('respons') && !h.includes('pai') && !h.includes('mae'));
+        const rmIdx = headers.findIndex(h => h === 'rm' || h.includes('matri') || h.includes('matricula') || h.includes('cod'));
+        const gradeIdx = headers.findIndex(h => h.includes('serie') || h.includes('turma') || h.includes('ano') || h.includes('curso'));
+        const cpfIdx = headers.findIndex(h => h === 'cpf' || (h.includes('cpf') && !h.includes('respons') && !h.includes('pai') && !h.includes('mae')));
+        const birthIdx = headers.findIndex(h => h.includes('nasc') || h.includes('data'));
+        let respCpfIdx = headers.findIndex(h => h.includes('cpf') && (h.includes('respons') || h.includes('pai') || h.includes('mae')));
+        let respNameIdx = headers.findIndex((h, idx) => (h.includes('respons') || h.includes('pai') || h.includes('mae')) && idx !== respCpfIdx);
+        // Fallback if the strict condition didn't match respNameIdx
+        if (respNameIdx === -1) {
+            respNameIdx = headers.findIndex((h, idx) => (h.includes('respons') || h.includes('pai') || h.includes('mae')) && idx !== respCpfIdx);
+        }
+
+        if (nameIdx === -1 || rmIdx === -1) {
+           alert(`Colunas obrigatórias ("Nome" e "Matrícula") não encontradas.\nCabeçalhos lidos pelo sistema:\n${headers.join(' | ')}`);
+           setImporting(false);
+           return;
+        }
+
         const newStudents = [];
 
         for (let i = headerRowIndex + 1; i < rows.length; i++) {
@@ -204,28 +239,26 @@ export const StudentsPage: React.FC = () => {
           if (!values.join('').trim()) continue; // Skip empty rows
           
           const student: any = {};
-          headers.forEach((header: string, index: number) => {
-            const field = header;
-            const val = values[index];
-            if (!val) return;
+          
+          const name = values[nameIdx];
+          const rm = values[rmIdx];
+          
+          if (!name || !rm) continue; // Both name and rm are strictly required for a valid row
 
-            if ((field.includes('nome') || field.includes('aluno')) && !field.includes('respons') && !field.includes('pai') && !field.includes('mae')) student.full_name = val;
-            if (field === 'rm' || field.includes('matri') || field.includes('matricula')) student.enrollment_id = val;
-            if (field.includes('serie') || field.includes('turma') || field.includes('ano')) student.grade = val;
-            if (field === 'cpf' || (field.includes('cpf') && !field.includes('respons') && !field.includes('pai') && !field.includes('mae'))) student.cpf = val;
-            if (field.includes('nasc') || field.includes('data')) student.birth_date = val;
-            if (field.includes('responsavel') || field.includes('pai') || field.includes('mae')) {
-              if (field.includes('cpf')) student.guardian_cpf = val;
-              else student.guardian_name = val;
-            }
-          });
+          student.full_name = name;
+          student.enrollment_id = rm;
+          
+          if (gradeIdx !== -1) student.grade = values[gradeIdx];
+          if (cpfIdx !== -1) student.cpf = values[cpfIdx];
+          if (birthIdx !== -1) student.birth_date = values[birthIdx];
+          if (respNameIdx !== -1) student.guardian_name = values[respNameIdx];
+          if (respCpfIdx !== -1) student.guardian_cpf = values[respCpfIdx];
 
-          if (student.full_name && student.enrollment_id) {
-            student.qr_code_id = `QR-${student.enrollment_id}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-            student.is_authorized = true;
-            student.photo_url = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(student.full_name)}&backgroundColor=random`;
-            newStudents.push(student);
-          }
+          student.qr_code_id = `QR-${student.enrollment_id}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+          student.is_authorized = true;
+          student.photo_url = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(student.full_name)}&backgroundColor=random`;
+          
+          newStudents.push(student);
         }
 
         if (newStudents.length > 0) {
