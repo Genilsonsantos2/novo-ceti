@@ -44,7 +44,7 @@ export const PrintCardsPage: React.FC = () => {
           <h1 className="font-headline font-extrabold text-2xl text-on-surface tracking-tight">Impressão de Cartões</h1>
           <p className="text-sm font-medium text-on-surface-variant flex items-center gap-1 mt-1">
             <span className="material-symbols-outlined text-sm">settings</span>
-            Configure para folha A4 e ative "Gráficos de plano de fundo"
+            A4 • Margens: Nenhuma • Escala: 100% • Gráficos de plano de fundo: Ativado
           </p>
         </div>
 
@@ -89,8 +89,8 @@ export const PrintCardsPage: React.FC = () => {
       </div>
 
       {/* Print Grid - Displayed block by block */}
-      <div className="p-8 print:p-0" id="print-cards-grid">
-        <div className={`grid gap-8 print:grid-cols-2 print:gap-4 max-w-full mx-auto print:max-w-none ${
+      <div className="p-8 print:p-0 print:m-0" id="print-cards-grid">
+        <div className={`grid gap-8 print:grid-cols-2 print:gap-x-4 print:gap-y-6 max-w-full mx-auto print:max-w-none ${
           gridView === '2' 
             ? 'grid-cols-1 md:grid-cols-2' 
             : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'

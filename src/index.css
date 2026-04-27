@@ -49,3 +49,20 @@ body {
 .id-gradient {
   background: linear-gradient(135deg, #001e40 0%, #003366 100%);
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+}
