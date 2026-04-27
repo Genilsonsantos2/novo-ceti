@@ -9,22 +9,14 @@ interface StudentBadgeProps {
 export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto = true }) => {
   return (
     <div 
-      className="w-[86mm] h-[54mm] shrink-0 rounded-xl overflow-hidden shadow-2xl mx-auto relative bg-[#fdfdfd] border border-gray-300 flex flex-col group"
+      className="w-[86mm] h-[54mm] shrink-0 rounded-xl overflow-hidden shadow-2xl mx-auto relative bg-white border border-gray-300 flex flex-col group"
       style={{ 
         WebkitPrintColorAdjust: 'exact', 
-        printColorAdjust: 'exact',
-        backgroundImage: `
-          linear-gradient(135deg, rgba(0,30,64,0.02) 25%, transparent 25%), 
-          linear-gradient(225deg, rgba(0,30,64,0.02) 25%, transparent 25%), 
-          linear-gradient(45deg, rgba(0,30,64,0.02) 25%, transparent 25%), 
-          linear-gradient(315deg, rgba(0,30,64,0.02) 25%, transparent 25%)
-        `,
-        backgroundSize: '4px 4px',
-        backgroundPosition: '2px 0, 2px 0, 0 0, 0 0'
+        printColorAdjust: 'exact'
       }}
     >
-      {/* Official Security Pattern Overlay */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none overflow-hidden flex flex-wrap gap-4 p-4 items-center justify-center rotate-[-15deg]">
+      {/* Official Security Pattern Overlay - Extremely subtle to not interfere with legibility */}
+      <div className="absolute inset-0 opacity-[0.015] pointer-events-none select-none overflow-hidden flex flex-wrap gap-4 p-4 items-center justify-center rotate-[-15deg]">
         {Array.from({ length: 20 }).map((_, i) => (
           <span key={i} className="text-[10px] font-black uppercase whitespace-nowrap">CETI NOVA ITARANA • SECRETARIA DA EDUCAÇÃO • BAHIA</span>
         ))}
@@ -94,20 +86,20 @@ export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto =
         <div className="flex-1 flex flex-col justify-between py-1">
           <div className="space-y-3">
             <div>
-              <span className="text-[7px] text-gray-400 font-black uppercase tracking-[0.2em] block mb-0.5">Nome do Discente</span>
-              <h2 className="text-gray-900 font-headline font-black text-[15px] leading-tight uppercase tracking-tight line-clamp-2">
+              <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em] block mb-0.5">Nome do Discente</span>
+              <h2 className="text-black font-headline font-black text-[16px] leading-tight uppercase tracking-tight line-clamp-2">
                 {student.full_name}
               </h2>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-[7px] text-gray-400 font-black uppercase tracking-[0.2em] block mb-0.5">Série/Turma</span>
-                <span className="text-gray-950 font-black text-[12px] uppercase">{student.grade}</span>
+                <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em] block mb-0.5">Série/Turma</span>
+                <span className="text-black font-black text-[13px] uppercase">{student.grade}</span>
               </div>
               <div>
-                <span className="text-[7px] text-gray-400 font-black uppercase tracking-[0.2em] block mb-0.5">Nº Matrícula</span>
-                <span className="text-gray-950 font-mono font-bold text-[12px]">{student.enrollment_id}</span>
+                <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em] block mb-0.5">Nº Matrícula</span>
+                <span className="text-black font-mono font-bold text-[13px]">{student.enrollment_id}</span>
               </div>
             </div>
           </div>

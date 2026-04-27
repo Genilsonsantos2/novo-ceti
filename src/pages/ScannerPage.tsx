@@ -16,6 +16,8 @@ export const ScannerPage: React.FC = () => {
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scanTypeRef = useRef<'IN' | 'OUT'>('OUT');
+  const lastScannedIdRef = useRef<string | null>(null);
+  const lastScannedTimeRef = useRef<number>(0);
 
   // Sync ref with state for the scanner callback
   useEffect(() => {
@@ -154,10 +156,20 @@ export const ScannerPage: React.FC = () => {
   };
 
   const handleValidateStudent = async (qrId: string) => {
-    // Prevent multiple simultaneous scans
+    // Prevent multiple simultaneous scans or rapid repeats of the same code
+    const now = Date.now();
+    const cooldownMs = 5000; // 5 seconds cooldown for the same code
+    
     if (loading || status !== 'idle') return;
+    
+    if (qrId === lastScannedIdRef.current && (now - lastScannedTimeRef.current) < cooldownMs) {
+      return;
+    }
 
     setLoading(true);
+    lastScannedIdRef.current = qrId;
+    lastScannedTimeRef.current = now;
+    
     const currentScanType = scanTypeRef.current;
     
     try {
