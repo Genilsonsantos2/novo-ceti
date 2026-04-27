@@ -162,7 +162,7 @@ export const StudentsPage: React.FC = () => {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
-        // Convert sheet to JSON array of arrays, header: 1 means array of arrays
+        // Convert sheet to JSON array of arrays
         const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
         
         if (rows.length < 2) {
@@ -171,32 +171,59 @@ export const StudentsPage: React.FC = () => {
           return;
         }
 
-        // Parse headers to strings and lowercase
-        const headers = (rows[0] || []).map((h: any) => String(h).trim().toLowerCase());
-        
+        const normalize = (str: any) => String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+        // Find the header row (scan first 10 rows for keywords)
+        let headerRowIndex = 0;
+        let maxScore = -1;
+        for (let i = 0; i < Math.min(10, rows.length); i++) {
+          const rowText = rows[i].map(normalize).join(' ');
+          let score = 0;
+          if (rowText.includes('nome') || rowText.includes('aluno')) score++;
+          if (rowText.includes('rm') || rowText.includes('matri')) score++;
+          if (rowText.includes('serie') || rowText.includes('turma')) score++;
+          if (rowText.includes('cpf')) score++;
+          
+          if (score > maxScore) {
+            maxScore = score;
+            headerRowIndex = i;
+          }
+        }
+
+        if (maxScore === 0) {
+           alert('Não foi possível identificar as colunas no arquivo. Certifique-se de ter colunas de "Nome" e "Matrícula/RM".');
+           setImporting(false);
+           return;
+        }
+
+        const headers = rows[headerRowIndex].map(normalize);
         const newStudents = [];
-        for (let i = 1; i < rows.length; i++) {
+
+        for (let i = headerRowIndex + 1; i < rows.length; i++) {
           const values = rows[i].map((v: any) => String(v).trim());
           if (!values.join('').trim()) continue; // Skip empty rows
           
           const student: any = {};
           headers.forEach((header: string, index: number) => {
             const field = header;
-            if (field.includes('nome') && !field.includes('respons')) student.full_name = values[index];
-            if (field.includes('rm') || field.includes('matri')) student.enrollment_id = values[index];
-            if (field.includes('serie') || field.includes('turma')) student.grade = values[index];
-            if (field.includes('cpf') && !field.includes('respons')) student.cpf = values[index];
-            if (field.includes('nasc') || field.includes('data')) student.birth_date = values[index];
+            const val = values[index];
+            if (!val) return;
+
+            if ((field.includes('nome') || field.includes('aluno')) && !field.includes('respons') && !field.includes('pai') && !field.includes('mae')) student.full_name = val;
+            if (field === 'rm' || field.includes('matri') || field.includes('matricula')) student.enrollment_id = val;
+            if (field.includes('serie') || field.includes('turma') || field.includes('ano')) student.grade = val;
+            if (field === 'cpf' || (field.includes('cpf') && !field.includes('respons') && !field.includes('pai') && !field.includes('mae'))) student.cpf = val;
+            if (field.includes('nasc') || field.includes('data')) student.birth_date = val;
             if (field.includes('responsavel') || field.includes('pai') || field.includes('mae')) {
-              if (field.includes('cpf')) student.guardian_cpf = values[index];
-              else student.guardian_name = values[index];
+              if (field.includes('cpf')) student.guardian_cpf = val;
+              else student.guardian_name = val;
             }
           });
 
           if (student.full_name && student.enrollment_id) {
             student.qr_code_id = `QR-${student.enrollment_id}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
             student.is_authorized = true;
-            student.photo_url = `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}&backgroundColor=random`;
+            student.photo_url = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(student.full_name)}&backgroundColor=random`;
             newStudents.push(student);
           }
         }
@@ -205,14 +232,14 @@ export const StudentsPage: React.FC = () => {
           const { error } = await supabase.from('students').insert(newStudents);
           if (error) {
             console.error(error);
-            alert('Erro ao importar: ' + error.message);
+            alert('Erro ao salvar no banco de dados: ' + error.message);
           } else {
             alert(`${newStudents.length} alunos importados com sucesso!`);
             fetchStudents();
             setShowImportModal(false);
           }
         } else {
-          alert('Nenhum aluno válido encontrado no arquivo. Verifique se as colunas estão corretas (Nome e Matrícula são obrigatórios).');
+          alert('Nenhum aluno foi importado. Verifique se as colunas estão corretas e se as linhas contêm "Nome" e "Matrícula" preenchidos.');
         }
       } catch (error) {
         console.error('File parsing error', error);
