@@ -250,7 +250,29 @@ export const StudentsPage: React.FC = () => {
           
           if (gradeIdx !== -1) student.grade = values[gradeIdx];
           if (cpfIdx !== -1) student.cpf = values[cpfIdx];
-          if (birthIdx !== -1) student.birth_date = values[birthIdx];
+          
+          if (birthIdx !== -1) {
+            let dateStr = values[birthIdx];
+            // Format DD/MM/YYYY or D/M/YY to YYYY-MM-DD for PostgreSQL
+            if (dateStr.includes('/')) {
+              const parts = dateStr.split('/');
+              if (parts.length === 3) {
+                const day = parts[0].padStart(2, '0');
+                const month = parts[1].padStart(2, '0');
+                let year = parts[2];
+                if (year.length === 2) {
+                  // Assume 1900s for 30-99 and 2000s for 00-29
+                  year = parseInt(year) > 30 ? `19${year}` : `20${year}`;
+                }
+                dateStr = `${year}-${month}-${day}`;
+              }
+            }
+            // Check if it's a valid date string before sending to DB
+            if (!isNaN(Date.parse(dateStr))) {
+               student.birth_date = dateStr;
+            }
+          }
+
           if (respNameIdx !== -1) student.guardian_name = values[respNameIdx];
           if (respCpfIdx !== -1) student.guardian_cpf = values[respCpfIdx];
 
