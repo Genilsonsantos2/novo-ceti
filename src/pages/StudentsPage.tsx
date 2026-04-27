@@ -1,7 +1,8 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { TermDevolutivaModal } from '../components/TermDevolutivaModal';
 
 export const StudentsPage: React.FC = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -11,6 +12,7 @@ export const StudentsPage: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [devolutivaStudent, setDevolutivaStudent] = useState<any | null>(null);
   
   const [newStudent, setNewStudent] = useState({ 
     full_name: '', 
@@ -529,6 +531,13 @@ export const StudentsPage: React.FC = () => {
                         <span className="material-symbols-outlined text-sm">edit</span>
                         Editar
                       </button>
+                      <button 
+                        onClick={() => setDevolutivaStudent(s)}
+                        className="text-[10px] font-black uppercase px-3 py-2 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all hover:scale-105 flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-sm">attach_file</span>
+                        Devolutiva
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -602,11 +611,26 @@ export const StudentsPage: React.FC = () => {
                   <span className="material-symbols-outlined text-base">edit</span>
                   Editar
                 </button>
+                <button 
+                  onClick={() => setDevolutivaStudent(s)}
+                  className="flex-1 py-3 bg-amber-50 text-amber-600 rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-base">attach_file</span>
+                  Devolutiva
+                </button>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* DEVOLUTIVA MODAL */}
+      {devolutivaStudent && (
+        <TermDevolutivaModal
+          student={devolutivaStudent}
+          onClose={() => setDevolutivaStudent(null)}
+        />
+      )}
 
       {/* MODAL NOVO ALUNO */}
       {showModal && (
