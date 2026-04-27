@@ -10,6 +10,7 @@ export const PrintCardsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showPhoto, setShowPhoto] = useState(true);
   const [gridView, setGridView] = useState<'2' | '3'>('2');
+  const [selectedGrade, setSelectedGrade] = useState<string>('');
 
   useEffect(() => {
     fetchStudents();
@@ -35,6 +36,9 @@ export const PrintCardsPage: React.FC = () => {
     </div>
   );
 
+  const uniqueGrades = Array.from(new Set(students.map(s => s.grade).filter(Boolean))).sort();
+  const filteredStudents = selectedGrade ? students.filter(s => s.grade === selectedGrade) : students;
+
   return (
     <div className="min-h-screen bg-surface">
       {/* Print Controls - Hidden during actual printing */}
@@ -50,8 +54,22 @@ export const PrintCardsPage: React.FC = () => {
 
         {/* Controls */}
         <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
-          {/* Display Options */}
-          <div className="flex gap-2 glass-card rounded-2xl p-3 items-center border border-gray-200 bg-white/50">
+          {/* Display Options & Filters */}
+          <div className="flex flex-wrap gap-2 glass-card rounded-2xl p-3 items-center border border-gray-200 bg-white/50">
+            <div className="flex items-center gap-2 px-2 bg-gray-100 rounded-xl border border-gray-200">
+              <span className="material-symbols-outlined text-gray-500 text-sm">filter_list</span>
+              <select
+                value={selectedGrade}
+                onChange={(e) => setSelectedGrade(e.target.value)}
+                className="bg-transparent border-none text-sm font-bold text-gray-600 focus:ring-0 py-2 w-full md:w-auto outline-none cursor-pointer"
+              >
+                <option value="">Todas as Turmas</option>
+                {uniqueGrades.map(grade => (
+                  <option key={grade as string} value={grade as string}>{grade}</option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={() => setShowPhoto(!showPhoto)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${
@@ -81,7 +99,7 @@ export const PrintCardsPage: React.FC = () => {
             
             <ExportActions 
               elementId="print-cards-grid" 
-              filename={`Lote_Cartoes_${students.length}_alunos`}
+              filename={`Lote_Cartoes_${selectedGrade ? selectedGrade.replace(/[^a-zA-Z0-9]/g, '_') : 'Todas_Turmas'}_${filteredStudents.length}_alunos`}
               className="flex-1 md:flex-initial"
             />
           </div>
@@ -95,11 +113,17 @@ export const PrintCardsPage: React.FC = () => {
             ? 'grid-cols-1 md:grid-cols-2' 
             : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
         }`}>
-          {students.map((s) => (
-            <div key={s.id} className="print:break-inside-avoid flex justify-center">
-              <StudentBadge student={s} showPhoto={showPhoto} />
+          {filteredStudents.length > 0 ? (
+            filteredStudents.map((s) => (
+              <div key={s.id} className="print:break-inside-avoid flex justify-center">
+                <StudentBadge student={s} showPhoto={showPhoto} />
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full py-12 text-center text-gray-500">
+              Nenhum aluno encontrado para esta turma.
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>
