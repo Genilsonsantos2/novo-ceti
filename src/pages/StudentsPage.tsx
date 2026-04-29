@@ -605,7 +605,7 @@ export const StudentsPage: React.FC = () => {
                         className="text-[10px] font-black uppercase px-3 py-2 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20 transition-all hover:scale-105 flex items-center gap-1.5"
                       >
                         <span className="material-symbols-outlined text-sm">id_card</span>
-                        CartÃ£o
+                        Cartão
                       </Link>
                       <button 
                         onClick={() => openEditModal(s)}
@@ -685,7 +685,7 @@ export const StudentsPage: React.FC = () => {
                   className="flex-1 py-3 bg-secondary/10 text-secondary rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95"
                 >
                   <span className="material-symbols-outlined text-base">id_card</span>
-                  CartÃ£o
+                  Cartão
                 </Link>
                 <button 
                   onClick={() => openEditModal(s)}
@@ -790,7 +790,7 @@ export const StudentsPage: React.FC = () => {
                       type="text" required
                       value={newStudent.grade} onChange={e => setNewStudent({...newStudent, grade: e.target.value})}
                       className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
-                      placeholder="3Âº Ano A"
+                      placeholder="3º Ano A"
                     />
                   </div>
                 </div>
@@ -873,7 +873,7 @@ export const StudentsPage: React.FC = () => {
           </div>
         </div>
       )}
-      {/* MODAL IMPORTAÃ‡ÃƒO */}
+      {/* MODAL IMPORTAÇÃO */}
       {showImportModal && (
         <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="glass-panel rounded-[2.5rem] p-8 md:p-10 w-full max-w-md shadow-2xl">
@@ -891,9 +891,9 @@ export const StudentsPage: React.FC = () => {
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
                 <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Instruções:</p>
                 <ul className="text-[10px] text-on-surface-variant space-y-1 font-medium">
-                  <li>â€¢ O arquivo deve conter cabeÃ§alhos (Nome, RM, Turma, etc)</li>
-                  <li>â€¢ Formatos aceitos: .xlsx, .xls, .csv</li>
-                  <li>â€¢ Novos alunos serÃ£o autorizados automaticamente</li>
+                  <li>• O arquivo deve conter cabeçalhos (Nome, RM, Turma, etc)</li>
+                  <li>• Formatos aceitos: .xlsx, .xls, .csv</li>
+                  <li>• Novos alunos serão autorizados automaticamente</li>
                 </ul>
               </div>
 

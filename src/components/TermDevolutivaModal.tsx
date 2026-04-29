@@ -22,7 +22,10 @@ export const TermDevolutivaModal: React.FC<TermDevolutivaModalProps> = ({ studen
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [termType, setTermType] = useState<'lunch' | 'gym'>('lunch');
   const [viewingAttachment, setViewingAttachment] = useState<any | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     fetchAttachments();
@@ -50,6 +53,66 @@ export const TermDevolutivaModal: React.FC<TermDevolutivaModalProps> = ({ studen
     setSelectedFile(file);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
+  };
+
+  const startCamera = async () => {
+    setIsCameraActive(true);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Erro ao acessar câmera:", err);
+      alert("Não foi possível acessar a câmera.");
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Create a File object from the dataUrl
+        const blob = dataURItoBlob(dataUrl);
+        const file = new File([blob], `scanned_term_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        
+        setSelectedFile(file);
+        setPreviewUrl(dataUrl);
+        stopCamera();
+      }
+    }
+  };
+
+  const dataURItoBlob = (dataURI: string) => {
+    const byteString = atob(dataURI.split(',')[1]);
+    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeString });
   };
 
   const handleUpload = async () => {
@@ -137,25 +200,60 @@ export const TermDevolutivaModal: React.FC<TermDevolutivaModalProps> = ({ studen
                 </select>
               </div>
 
-              <div className="flex-1">
+               <div className="flex-1">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Arquivo (Imagem ou PDF)</label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="devolutiva-upload"
-                />
-                <label
-                  htmlFor="devolutiva-upload"
-                  className="w-full px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-xl font-bold text-gray-500 bg-white hover:border-primary hover:text-primary transition-colors text-sm flex items-center gap-2 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-base">attach_file</span>
-                  {selectedFile ? selectedFile.name : 'Selecionar arquivo...'}
-                </label>
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="devolutiva-upload"
+                  />
+                  <label
+                    htmlFor="devolutiva-upload"
+                    className="flex-1 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-xl font-bold text-gray-500 bg-white hover:border-primary hover:text-primary transition-colors text-sm flex items-center gap-2 cursor-pointer whitespace-nowrap overflow-hidden"
+                  >
+                    <span className="material-symbols-outlined text-base">attach_file</span>
+                    <span className="truncate">{selectedFile ? selectedFile.name : 'Selecionar...'}</span>
+                  </label>
+                  
+                  <button
+                    onClick={isCameraActive ? stopCamera : startCamera}
+                    className={`px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${
+                      isCameraActive ? 'bg-red-500 text-white' : 'bg-secondary text-white shadow-lg shadow-secondary/20'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">{isCameraActive ? 'videocam_off' : 'photo_camera'}</span>
+                    {isCameraActive ? 'Fechar' : 'Digitalizar'}
+                  </button>
+                </div>
               </div>
             </div>
+
+            {/* Camera View */}
+            {isCameraActive && (
+              <div className="relative rounded-2xl overflow-hidden bg-black aspect-[3/4] sm:aspect-video shadow-2xl border-4 border-white">
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4 px-4">
+                  <button
+                    onClick={capturePhoto}
+                    className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-2xl active:scale-90 transition-all border-4 border-primary"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
+                      <span className="material-symbols-outlined text-white text-3xl">photo_camera</span>
+                    </div>
+                  </button>
+                </div>
+                <canvas ref={canvasRef} className="hidden" />
+              </div>
+            )}
 
             {/* Preview */}
             {previewUrl && selectedFile?.type.startsWith('image/') && (
