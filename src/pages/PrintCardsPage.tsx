@@ -11,8 +11,14 @@ export const PrintCardsPage: React.FC = () => {
   const [showPhoto, setShowPhoto] = useState(true);
   const [gridView, setGridView] = useState<'2' | '3'>('2');
   const [selectedGrade, setSelectedGrade] = useState<string>('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ids = params.get('ids');
+    if (ids) {
+      setSelectedIds(ids.split(','));
+    }
     fetchStudents();
   }, []);
 
@@ -37,7 +43,12 @@ export const PrintCardsPage: React.FC = () => {
   );
 
   const uniqueGrades = Array.from(new Set(students.map(s => s.grade).filter(Boolean))).sort();
-  const filteredStudents = selectedGrade ? students.filter(s => s.grade === selectedGrade) : students;
+  
+  const filteredStudents = students.filter(s => {
+    const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+    const matchesIds = selectedIds.length === 0 || selectedIds.includes(s.id);
+    return matchesGrade && matchesIds;
+  });
 
   return (
     <div className="min-h-screen bg-surface">

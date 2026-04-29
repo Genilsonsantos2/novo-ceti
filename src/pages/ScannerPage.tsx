@@ -160,6 +160,7 @@ export const ScannerPage: React.FC = () => {
     lunch: { label: 'Autorizado: Almoço',        sub: 'Saída 12h00 – 13h00',             color: 'bg-logo-green/10 text-logo-green border border-logo-green/30', icon: 'restaurant' },
     gym:   { label: 'Autorizado: Academia',      sub: 'Saída 14h40 – 16h10',             color: 'bg-logo-blue/10 text-logo-blue border border-logo-blue/30',   icon: 'fitness_center' },
     both:  { label: 'Autorizado: Almoço + Acad.', sub: 'Saída 12h–13h e 14h40–16h10',  color: 'bg-purple-100 text-purple-700 border border-purple-300',        icon: 'verified_user' },
+    term:  { label: 'Termo Assinado',            sub: 'Saída Autorizada pelos Pais',     color: 'bg-emerald-100 text-emerald-700 border border-emerald-300',     icon: 'assignment_turned_in' },
   };
 
   const handleValidateStudent = async (qrId: string) => {
@@ -190,9 +191,10 @@ export const ScannerPage: React.FC = () => {
 
       setStudent(data);
       
-      // Para Saída: negar se is_authorized=false OU exit_type='none'
+      // Para Saída: negar se is_authorized=false OU (exit_type='none' E não tem termo ativo)
       const exitType = data.exit_type || 'none';
-      const isExitAllowed = data.is_authorized && exitType !== 'none';
+      const hasActiveTerm = data.student_authorizations && data.student_authorizations.length > 0;
+      const isExitAllowed = data.is_authorized && (exitType !== 'none' || hasActiveTerm);
 
       if (currentScanType === 'OUT' && !isExitAllowed) {
         setStatus('error');
@@ -203,6 +205,11 @@ export const ScannerPage: React.FC = () => {
         playBeep('success');
         if ('vibrate' in navigator) navigator.vibrate(200);
         
+        // Se for sucesso por causa do termo, garantimos que o UI mostre isso
+        if (currentScanType === 'OUT' && hasActiveTerm && exitType === 'none') {
+          data.exit_type = 'term';
+        }
+
         // Log the access
         await supabase.from('access_logs').insert({
           student_id: data.id,

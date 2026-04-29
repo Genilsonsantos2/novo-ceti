@@ -13,6 +13,8 @@ export const StudentsPage: React.FC = () => {
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [devolutivaStudent, setDevolutivaStudent] = useState<any | null>(null);
+  const [photoFilter, setPhotoFilter] = useState<'all' | 'withPhoto' | 'withoutPhoto'>('all');
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   
   const [newStudent, setNewStudent] = useState({ 
     full_name: '', 
@@ -379,11 +381,11 @@ export const StudentsPage: React.FC = () => {
             Importar Dados
           </button>
           <Link 
-            to="/print-cards"
+            to={`/print-cards${selectedStudents.length > 0 ? `?ids=${selectedStudents.join(',')}` : ''}`}
             className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
           >
             <span className="material-symbols-outlined text-base">print</span>
-            Imprimir CartÃµes
+            Imprimir Cartões
           </Link>
           <Link 
             to="/print-terms"
@@ -397,7 +399,7 @@ export const StudentsPage: React.FC = () => {
             className="flex-1 md:flex-none justify-center glass-card px-5 py-3 rounded-2xl font-bold hover:scale-[1.02] transition-all duration-300 active:scale-95 flex items-center gap-2 text-sm text-primary"
           >
             <span className="material-symbols-outlined text-base">description</span>
-            RelatÃ³rios
+            Relatórios
           </Link>
           <button 
             onClick={() => { closeEditModal(); setShowModal(true); }}
@@ -430,6 +432,44 @@ export const StudentsPage: React.FC = () => {
               ))}
             </select>
           </div>
+
+          <div className="flex p-1 bg-white/60 rounded-xl border border-gray-200">
+            <button 
+              onClick={() => setPhotoFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${photoFilter === 'all' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-white/50'}`}
+            >
+              Todos
+            </button>
+            <button 
+              onClick={() => setPhotoFilter('withPhoto')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${photoFilter === 'withPhoto' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-white/50'}`}
+            >
+              Com Foto
+            </button>
+            <button 
+              onClick={() => setPhotoFilter('withoutPhoto')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${photoFilter === 'withoutPhoto' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-white/50'}`}
+            >
+              Sem Foto
+            </button>
+          </div>
+
+          <button 
+            onClick={() => {
+              const withPhotos = students
+                .filter(s => s.photo_url && !s.photo_url.includes('dicebear.com'))
+                .map(s => s.id);
+              setSelectedStudents(prev => {
+                const allSelected = withPhotos.every(id => prev.includes(id));
+                if (allSelected) return prev.filter(id => !withPhotos.includes(id));
+                return Array.from(new Set([...prev, ...withPhotos]));
+              });
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-secondary/10 text-secondary hover:bg-secondary/20 transition-all active:scale-95 border border-secondary/20"
+          >
+            <span className="material-symbols-outlined text-sm">photo_library</span>
+            Selecionar todos com foto
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -443,11 +483,11 @@ export const StudentsPage: React.FC = () => {
             </Link>
           )}
           <Link 
-            to="/print-cards"
+            to={`/print-cards${selectedStudents.length > 0 ? `?ids=${selectedStudents.join(',')}` : ''}`}
             className="flex-1 md:flex-none justify-center px-4 py-2 rounded-xl font-bold hover:bg-secondary/10 text-secondary transition-all active:scale-95 flex items-center gap-2 text-xs border border-secondary/20 bg-white/50"
           >
             <span className="material-symbols-outlined text-sm">print</span>
-            Imprimir CartÃµes
+            Imprimir Cartões
           </Link>
         </div>
       </div>
@@ -459,8 +499,22 @@ export const StudentsPage: React.FC = () => {
           <table className="w-full text-left">
             <thead className="bg-white/50 border-b border-white/30">
               <tr>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline w-10">
+                  <input 
+                    type="checkbox" 
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedStudents(students.map(s => s.id));
+                      } else {
+                        setSelectedStudents([]);
+                      }
+                    }}
+                    checked={selectedStudents.length === students.length && students.length > 0}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                </th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Aluno</th>
-                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">MatrÃ­cula</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Matrícula</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Status</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">AÃ§Ãµes</th>
               </tr>
@@ -471,17 +525,44 @@ export const StudentsPage: React.FC = () => {
                   <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
                   <span className="text-outline font-medium">Carregando alunos...</span>
                 </td></tr>
-              ) : (selectedGrade ? students.filter(s => s.grade === selectedGrade) : students).length === 0 ? (
+              ) : students.filter(s => {
+                const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+                const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
+                const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
+                return matchesGrade && matchesPhoto;
+              }).length === 0 ? (
                 <tr><td colSpan={4} className="px-8 py-16 text-center">
                   <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
                   <span className="text-outline font-medium">Nenhum aluno encontrado.</span>
                 </td></tr>
-              ) : (selectedGrade ? students.filter(s => s.grade === selectedGrade) : students).map((s) => (
-                <tr key={s.id} className="hover:bg-white/40 transition-all duration-200 group">
+              ) : students.filter(s => {
+                const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+                const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
+                const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
+                return matchesGrade && matchesPhoto;
+              }).map((s) => (
+                <tr key={s.id} className={`hover:bg-white/40 transition-all duration-200 group ${selectedStudents.includes(s.id) ? 'bg-primary/5' : ''}`}>
+                  <td className="px-8 py-5">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedStudents.includes(s.id)}
+                      onChange={() => {
+                        setSelectedStudents(prev => 
+                          prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]
+                        );
+                      }}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                  </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
                       <div className="relative">
-                        <img src={s.photo_url} className="w-11 h-11 rounded-xl object-cover ring-2 ring-white shadow-sm group-hover:shadow-md transition-all" alt="" />
+                        <img src={s.photo_url} className={`w-11 h-11 rounded-xl object-cover ring-2 ring-white shadow-sm group-hover:shadow-md transition-all ${(!s.photo_url || s.photo_url.includes('dicebear.com')) ? 'opacity-40 grayscale' : ''}`} alt="" />
+                        {(!s.photo_url || s.photo_url.includes('dicebear.com')) && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-primary text-lg" title="Foto Pendente">add_a_photo</span>
+                          </div>
+                        )}
                         <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${s.is_authorized ? 'bg-tertiary-fixed' : 'bg-error'}`}></div>
                       </div>
                       <div>
