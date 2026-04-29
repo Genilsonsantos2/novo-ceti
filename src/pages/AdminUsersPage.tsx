@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 export const AdminUsersPage: React.FC = () => {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'PORTEIRO' });
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchProfiles();
@@ -34,6 +37,54 @@ export const AdminUsersPage: React.FC = () => {
     }
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+
+    try {
+      // Use a temporary client to avoid logging out the current admin
+      const tempSupabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false } }
+      );
+
+      const { data: authData, error: authError } = await tempSupabase.auth.signUp({
+        email: newUser.email,
+        password: newUser.password,
+        options: {
+          data: {
+            full_name: newUser.name,
+          }
+        }
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // The profile is usually created via trigger in Supabase, 
+        // but we need to update the role since the default might be 'ALUNO'
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ role: newUser.role, full_name: newUser.name })
+          .eq('id', authData.user.id);
+
+        if (profileError) {
+          console.warn('User created but profile role update failed:', profileError);
+        }
+        
+        alert('Usuário cadastrado com sucesso!');
+        setShowAddModal(false);
+        setNewUser({ name: '', email: '', password: '', role: 'PORTEIRO' });
+        fetchProfiles();
+      }
+    } catch (err: any) {
+      alert('Erro ao criar usuário: ' + err.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="flex-1 px-6 md:px-10 py-8 min-h-screen">
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -42,9 +93,18 @@ export const AdminUsersPage: React.FC = () => {
           <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Gestão de Usuários</h2>
           <p className="text-on-surface-variant font-medium mt-1">Controle de acessos e papéis do sistema</p>
         </div>
-        <div className="glass-card px-4 py-2 rounded-xl inline-flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-base">shield_person</span>
-          <span className="text-xs font-bold text-on-surface-variant">{profiles.length} usuário{profiles.length !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="flex-1 md:flex-none justify-center bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-base">person_add</span>
+            Novo Operador
+          </button>
+          <div className="glass-card px-4 py-3 rounded-xl hidden lg:flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-base">shield_person</span>
+            <span className="text-xs font-bold text-on-surface-variant">{profiles.length} usuários</span>
+          </div>
         </div>
       </header>
 
@@ -156,6 +216,83 @@ export const AdminUsersPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* MODAL NOVO USUÁRIO */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="glass-panel rounded-[2.5rem] p-8 md:p-10 w-full max-w-md shadow-2xl">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-container rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
+                <span className="material-symbols-outlined text-white text-xl">person_add</span>
+              </div>
+              <div>
+                <h3 className="font-headline font-extrabold text-xl text-primary tracking-tight">Novo Operador</h3>
+                <p className="text-xs text-outline font-medium">Cadastre um novo porteiro ou diretor</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome Completo</label>
+                <input 
+                  type="text" required
+                  value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})}
+                  className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary outline-none transition-all"
+                  placeholder="Ex: João Silva"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">E-mail de Acesso</label>
+                <input 
+                  type="email" required
+                  value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})}
+                  className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary outline-none transition-all"
+                  placeholder="porteiro@ceti.com"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Senha Temporária</label>
+                <input 
+                  type="password" required minLength={6}
+                  value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})}
+                  className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary outline-none transition-all"
+                  placeholder="Mínimo 6 caracteres"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Papel do Sistema</label>
+                <select 
+                  value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}
+                  className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary outline-none transition-all"
+                >
+                  <option value="PORTEIRO">🚪 PORTEIRO</option>
+                  <option value="DIRETOR">🛡 DIRETOR</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 py-3.5 glass-card rounded-xl font-bold hover:scale-[1.02] transition-all text-on-surface-variant"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" disabled={creating}
+                  className="flex-1 bg-primary text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {creating ? (
+                    <><span className="material-symbols-outlined text-base animate-spin">progress_activity</span> Criando...</>
+                  ) : (
+                    <><span className="material-symbols-outlined text-base">person_add</span> Cadastrar</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
