@@ -566,7 +566,7 @@ export const StudentsPage: React.FC = () => {
                         <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${s.is_authorized ? 'bg-tertiary-fixed' : 'bg-error'}`}></div>
                       </div>
                       <div>
-                        <div className="font-bold text-on-surface text-sm">{s.full_name}</div>
+                        <div className="font-bold text-on-surface text-sm notranslate" translate="no">{s.full_name}</div>
                         <div className="text-[11px] text-outline font-medium">{s.grade}</div>
                       </div>
                     </div>
@@ -649,7 +649,7 @@ export const StudentsPage: React.FC = () => {
                   <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${s.is_authorized ? 'bg-logo-green' : 'bg-logo-red'}`}></div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-on-surface text-base truncate">{s.full_name}</div>
+                  <div className="font-bold text-on-surface text-base truncate notranslate" translate="no">{s.full_name}</div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-outline font-medium">{s.grade}</span>
                     <span className="w-1 h-1 rounded-full bg-outline/30"></span>

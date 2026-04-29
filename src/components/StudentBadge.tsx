@@ -27,7 +27,7 @@ export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto =
           <div className="bg-white p-0.5 rounded shadow-sm">
             <img src="/ceti-logo.png" alt="Logo" className="w-7 h-7 object-contain" />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col notranslate" translate="no">
             <h3 className="font-black text-[11px] leading-none uppercase tracking-tight">CETI - NOVA ITARANA</h3>
             <span className="text-[6px] font-bold uppercase tracking-[0.1em] text-blue-200 mt-0.5">Colégio Estadual de Tempo Integral</span>
           </div>
@@ -69,7 +69,7 @@ export const StudentBadge: React.FC<StudentBadgeProps> = ({ student, showPhoto =
         <div className="flex-1 flex flex-col justify-center min-w-0">
           <div className="mb-2">
             <span className="text-[7px] text-[#001e40] font-black uppercase tracking-wider block mb-0.5 opacity-50">Nome do Discente</span>
-            <h2 className="text-[#001e40] font-black text-[14px] leading-[1.1] uppercase line-clamp-2">
+            <h2 className="text-[#001e40] font-black text-[14px] leading-[1.1] uppercase line-clamp-2 notranslate" translate="no">
               {student.full_name}
             </h2>
           </div>

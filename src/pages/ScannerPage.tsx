@@ -393,7 +393,9 @@ export const ScannerPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-headline font-bold text-xl text-on-surface">{student.full_name}</h3>
+                  <h2 className="text-[#001e40] font-black text-[14px] leading-[1.1] uppercase line-clamp-2 notranslate" translate="no">
+                    {student.full_name}
+                  </h2>
                   <p className="text-sm text-outline font-medium mt-0.5">#{student.enrollment_id} • {student.grade}</p>
                 </div>
               </div>
@@ -401,7 +403,7 @@ export const ScannerPage: React.FC = () => {
               {/* Exit Authorization Badge - BIG & CLEAR */}
               <div className={`w-full p-4 rounded-2xl flex items-center gap-3 ${cfg.color}`}>
                 <span className="material-symbols-outlined text-3xl" style={{fontVariationSettings: "'FILL' 1"}}>{cfg.icon}</span>
-                <div>
+                <div className="flex flex-col notranslate" translate="no">
                   <p className="font-black text-base uppercase tracking-wide">{cfg.label}</p>
                   <p className="text-xs font-bold opacity-70">{cfg.sub}</p>
                 </div>
