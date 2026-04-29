@@ -66,7 +66,7 @@ export const StudentsPage: React.FC = () => {
       return (a.full_name || '').localeCompare(b.full_name || '');
     });
 
-    const headers = ['Nome Completo', 'MatrÃ­cula (RM)', 'SÃ©rie/Turma', 'CPF', 'Data de Nascimento', 'Nome do ResponsÃ¡vel', 'CPF do ResponsÃ¡vel', 'Status AutorizaÃ§Ã£o'];
+    const headers = ['Nome Completo', 'Matrícula (RM)', 'Série/Turma', 'CPF', 'Data de Nascimento', 'Nome do Responsável', 'CPF do Responsável', 'Status AutorizaÃ§Ã£o'];
     const rows = sortedStudents.map(s => [
       `"${s.full_name || ''}"`,
       `"${s.enrollment_id || ''}"`,
@@ -185,8 +185,8 @@ export const StudentsPage: React.FC = () => {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ['Nome Completo', 'MatrÃ­cula (RM)', 'SÃ©rie/Turma', 'CPF', 'Data de Nascimento', 'Nome do ResponsÃ¡vel', 'CPF do ResponsÃ¡vel'];
-    const example = ['Exemplo Nome', '123456', '3Âº Ano A', '000.000.000-00', '2005-05-15', 'ResponsÃ¡vel Exemplo', '111.111.111-11'];
+    const headers = ['Nome Completo', 'Matrícula (RM)', 'Série/Turma', 'CPF', 'Data de Nascimento', 'Nome do Responsável', 'CPF do Responsável'];
+    const example = ['Exemplo Nome', '123456', '3Âº Ano A', '000.000.000-00', '2005-05-15', 'Responsável Exemplo', '111.111.111-11'];
     
     const csvContent = [headers.join(','), example.map(v => `"${v}"`).join(',')].join('\n');
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -217,7 +217,7 @@ export const StudentsPage: React.FC = () => {
         const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
         
         if (rows.length < 2) {
-          alert('O arquivo parece estar vazio ou nÃ£o possui dados suficientes.');
+          alert('O arquivo parece estar vazio ou não possui dados suficientes.');
           setImporting(false);
           return;
         }
@@ -242,7 +242,7 @@ export const StudentsPage: React.FC = () => {
         }
 
         if (maxScore === 0) {
-           alert('NÃ£o foi possÃ­vel identificar as colunas no arquivo. Certifique-se de ter colunas de "Nome" e "MatrÃ­cula/RM".');
+           alert('Não foi possível identificar as colunas no arquivo. Certifique-se de ter colunas de "Nome" e "Matrícula/RM".');
            setImporting(false);
            return;
         }
@@ -278,7 +278,7 @@ export const StudentsPage: React.FC = () => {
         }
 
         if (nameIdx === -1 || rmIdx === -1) {
-           alert(`Colunas obrigatÃ³rias ("Nome" e "MatrÃ­cula") nÃ£o encontradas.\nCabeÃ§alhos lidos pelo sistema:\n${headers.join(' | ')}`);
+           alert(`Colunas obrigatÃ³rias ("Nome" e "Matrícula") não encontradas.\nCabeÃ§alhos lidos pelo sistema:\n${headers.join(' | ')}`);
            setImporting(false);
            return;
         }
@@ -345,7 +345,7 @@ export const StudentsPage: React.FC = () => {
             setShowImportModal(false);
           }
         } else {
-          alert('Nenhum aluno foi importado. Verifique se as colunas estÃ£o corretas e se as linhas contÃªm "Nome" e "MatrÃ­cula" preenchidos.');
+          alert('Nenhum aluno foi importado. Verifique se as colunas estÃ£o corretas e se as linhas contÃªm "Nome" e "Matrícula" preenchidos.');
         }
       } catch (error) {
         console.error('File parsing error', error);
@@ -360,9 +360,9 @@ export const StudentsPage: React.FC = () => {
     <div className="flex-1 px-6 md:px-10 py-8 min-h-screen relative">
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">AdministraÃ§Ã£o</p>
-          <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">GestÃ£o de Alunos</h2>
-          <p className="text-on-surface-variant font-medium mt-1">Controle de autorizaÃ§Ãµes e matrÃ­culas</p>
+          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Administração</p>
+          <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Gestão de Alunos</h2>
+          <p className="text-on-surface-variant font-medium mt-1">Controle de autorizações e matrículas</p>
         </div>
         <div className="flex flex-wrap gap-3 w-full lg:w-auto">
           <button 
@@ -371,7 +371,7 @@ export const StudentsPage: React.FC = () => {
             title="Exportar alunos autorizados para migraÃ§Ã£o"
           >
             <span className="material-symbols-outlined text-base">download</span>
-            Exportar MigraÃ§Ã£o
+            Exportar Migração
           </button>
           <button 
             onClick={() => setShowImportModal(true)}
@@ -516,7 +516,7 @@ export const StudentsPage: React.FC = () => {
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Aluno</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Matrícula</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Status</th>
-                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">AÃ§Ãµes</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/30">
@@ -771,7 +771,7 @@ export const StudentsPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">MatrÃ­cula (RM)</label>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Matrícula (RM)</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">tag</span>
                     <input 
@@ -783,7 +783,7 @@ export const StudentsPage: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">SÃ©rie / Turma</label>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Série / Turma</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">class</span>
                     <input 
@@ -832,12 +832,12 @@ export const StudentsPage: React.FC = () => {
                       type="text"
                       value={newStudent.guardian_name} onChange={e => setNewStudent({...newStudent, guardian_name: e.target.value})}
                       className="w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary focus:bg-white outline-none transition-all text-on-surface font-medium"
-                      placeholder="Nome do Pai/MÃ£e"
+                      placeholder="Nome do Pai/Mãe"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">CPF do ResponsÃ¡vel</label>
+                  <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">CPF do Responsável</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/40 text-lg">fingerprint</span>
                     <input 
@@ -889,7 +889,7 @@ export const StudentsPage: React.FC = () => {
 
             <div className="space-y-6">
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">InstruÃ§Ãµes:</p>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Instruções:</p>
                 <ul className="text-[10px] text-on-surface-variant space-y-1 font-medium">
                   <li>â€¢ O arquivo deve conter cabeÃ§alhos (Nome, RM, Turma, etc)</li>
                   <li>â€¢ Formatos aceitos: .xlsx, .xls, .csv</li>
