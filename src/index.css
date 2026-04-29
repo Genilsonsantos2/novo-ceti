@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface;
+    background-color: #f7f9fc;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(18, 90%, 94%, 1) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(145, 90%, 94%, 1) 0, transparent 50%),
+      radial-gradient(at 50% 100%, hsla(202, 90%, 94%, 1) 0, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.glass-panel {
+  @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)];
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur-[20px] shadow-sm border border-white/60 hover:shadow-lg transition-all duration-300;
+}
+
+.id-gradient {
+  background: linear-gradient(135deg, #001e40 0%, #003366 100%);
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+}
