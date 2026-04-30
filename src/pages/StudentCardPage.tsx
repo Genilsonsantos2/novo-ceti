@@ -18,7 +18,7 @@ export const StudentCardPage: React.FC = () => {
   }, [user, studentId]);
 
   const fetchStudentData = async () => {
-    let query = supabase.from('students').select('*, student_authorizations(*)');
+    let query = supabase.from('students').select('*, student_authorizations(*), term_attachments(id)');
     
     if (studentId) {
       query = query.eq('id', studentId);
@@ -47,6 +47,28 @@ export const StudentCardPage: React.FC = () => {
       <div className="glass-card rounded-3xl p-10 text-center max-w-sm">
         <span className="material-symbols-outlined text-5xl text-error/30 block mb-3">person_off</span>
         <p className="text-error font-bold">Estudante não encontrado.</p>
+      </div>
+    </div>
+  );
+
+  const hasReturnedTerm = student.term_attachments && student.term_attachments.length > 0;
+
+  if (!hasReturnedTerm) return (
+    <div className="flex-1 flex items-center justify-center min-h-[50vh] p-6">
+      <div className="glass-card rounded-[2.5rem] p-10 text-center max-w-md border-amber-200 bg-amber-50/50 shadow-xl">
+        <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-600">
+          <span className="material-symbols-outlined text-4xl">history_edu</span>
+        </div>
+        <h2 className="text-2xl font-headline font-extrabold text-amber-900 mb-2">Termo Pendente</h2>
+        <p className="text-amber-800 font-medium leading-relaxed">
+          A carteirinha digital só estará disponível após a <strong>devolutiva do termo de autorização</strong> assinado.
+        </p>
+        <div className="mt-8 pt-6 border-t border-amber-200">
+          <p className="text-xs text-amber-600 font-bold uppercase tracking-widest">Procedimento</p>
+          <p className="text-sm text-amber-700 mt-2">
+            Entregue o termo na secretaria para que a coordenação realize o upload e libere seu acesso.
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -25,7 +25,7 @@ export const PrintCardsPage: React.FC = () => {
   const fetchStudents = async () => {
     const { data, error } = await supabase
       .from('students')
-      .select('*')
+      .select('*, term_attachments(id)')
       .order('full_name');
 
     if (error) console.error(error);
@@ -47,7 +47,8 @@ export const PrintCardsPage: React.FC = () => {
   const filteredStudents = students.filter(s => {
     const matchesGrade = !selectedGrade || s.grade === selectedGrade;
     const matchesIds = selectedIds.length === 0 || selectedIds.includes(s.id);
-    return matchesGrade && matchesIds;
+    const hasReturnedTerm = s.term_attachments && s.term_attachments.length > 0;
+    return matchesGrade && matchesIds && hasReturnedTerm;
   });
 
   return (
