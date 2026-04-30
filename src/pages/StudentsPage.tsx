@@ -534,10 +534,16 @@ export const StudentsPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-white/30">
               {loading ? (
-                <tr><td colSpan={4} className="px-8 py-16 text-center">
+                <tr><td colSpan={6} className="px-8 py-16 text-center">
                   <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
                   <span className="text-outline font-medium">Carregando alunos...</span>
                 </td></tr>
+              ) : students.filter(s => {
+                const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+                const matchesSearch = !searchTerm || s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment_id.includes(searchTerm);
+                const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
+                const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
+                return matchesGrade && matchesSearch && matchesPhoto;
               }).length === 0 ? (
                 <tr><td colSpan={6} className="px-8 py-16 text-center">
                   <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
