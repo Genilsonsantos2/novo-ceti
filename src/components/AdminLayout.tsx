@@ -31,7 +31,7 @@ export const AdminLayout: React.FC = () => {
         </div>
 
         <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">
-          {profile?.role === 'DIRETOR' && (
+          {(profile?.role === 'ADM' || profile?.role === 'DIRETOR') && (
             <>
               <NavLink 
                 to="/dashboard" 
@@ -59,7 +59,7 @@ export const AdminLayout: React.FC = () => {
             </>
           )}
 
-          {(profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
+          {(profile?.role === 'ADM' || profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
             <>
               <NavLink 
                 to="/scanner" 
@@ -142,14 +142,14 @@ export const AdminLayout: React.FC = () => {
 
         {/* Mobile Bottom Navigation */}
         <nav className="md:hidden fixed bottom-6 left-4 right-4 h-20 glass-panel rounded-[2rem] border border-white/40 shadow-2xl z-50 flex items-center justify-around px-2 print:hidden">
-          {profile?.role === 'DIRETOR' && (
+          {(profile?.role === 'ADM' || profile?.role === 'DIRETOR') && (
             <NavLink to="/dashboard" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
               <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>space_dashboard</span>
               <span className="text-[8px] font-black uppercase tracking-tighter">Início</span>
             </NavLink>
           )}
 
-          {(profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
+          {(profile?.role === 'ADM' || profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
             <NavLink 
               to="/scanner" 
               className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}
@@ -165,7 +165,7 @@ export const AdminLayout: React.FC = () => {
             </NavLink>
           )}
 
-          {profile?.role === 'DIRETOR' && (
+          {(profile?.role === 'ADM' || profile?.role === 'DIRETOR') && (
             <NavLink to="/students" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
               <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>groups</span>
               <span className="text-[8px] font-black uppercase tracking-tighter">Alunos</span>

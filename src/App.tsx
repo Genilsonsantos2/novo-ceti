@@ -16,19 +16,13 @@ import { PrintTermsPage } from './pages/PrintTermsPage';
 import { DailyAccessReportPage } from './pages/DailyAccessReportPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
-// ...
-          <Route path="/provisional-report" element={
-            <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
-              <ProvisionalExitReportPage />
-            </ProtectedRoute>
-          } />
   const { user, profile, loading } = useAuth();
 
-  if (loading) return <div>Carregando...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-transparent"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
   if (!user) return <Navigate to="/login" />;
   
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
-    return <Navigate to="/unauthorized" />;
+    return <Navigate to="/" />;
   }
 
   return children;
@@ -43,13 +37,13 @@ function AppRoutes() {
       
       {/* Independent full-screen routes */}
       <Route path="/print-cards" element={
-        <ProtectedRoute allowedRoles={['DIRETOR']}>
+        <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
           <PrintCardsPage />
         </ProtectedRoute>
       } />
       
       <Route path="/print-terms" element={
-        <ProtectedRoute allowedRoles={['DIRETOR']}>
+        <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
           <PrintTermsPage />
         </ProtectedRoute>
       } />
@@ -58,20 +52,20 @@ function AppRoutes() {
       <Route element={<AdminLayout />}>
         <Route path="/" element={
           <ProtectedRoute>
-            {profile?.role === 'DIRETOR' ? <DashboardPage /> : 
+            {profile?.role === 'ADM' || profile?.role === 'DIRETOR' ? <DashboardPage /> : 
              profile?.role === 'PORTEIRO' ? <ScannerPage /> : 
              <StudentCardPage />}
           </ProtectedRoute>
         } />
 
         <Route path="/dashboard" element={
-          <ProtectedRoute allowedRoles={['DIRETOR']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
             <DashboardPage />
           </ProtectedRoute>
         } />
 
         <Route path="/scanner" element={
-          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <ScannerPage />
           </ProtectedRoute>
         } />
@@ -89,43 +83,43 @@ function AppRoutes() {
         } />
 
         <Route path="/students" element={
-          <ProtectedRoute allowedRoles={['DIRETOR']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
             <StudentsPage />
           </ProtectedRoute>
         } />
 
         <Route path="/admin/users" element={
-          <ProtectedRoute allowedRoles={['DIRETOR']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
             <AdminUsersPage />
           </ProtectedRoute>
         } />
 
         <Route path="/exit-report" element={
-          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <ExitReportPage />
           </ProtectedRoute>
         } />
 
         <Route path="/lunch-report" element={
-          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <LunchReportPage />
           </ProtectedRoute>
         } />
 
         <Route path="/auth-term/:studentId" element={
-          <ProtectedRoute allowedRoles={['DIRETOR']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
             <AuthorizationTermPage />
           </ProtectedRoute>
         } />
 
         <Route path="/provisional-report" element={
-          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <ProvisionalExitReportPage />
           </ProtectedRoute>
         } />
         
         <Route path="/daily-access-report" element={
-          <ProtectedRoute allowedRoles={['DIRETOR', 'PORTEIRO']}>
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <DailyAccessReportPage />
           </ProtectedRoute>
         } />

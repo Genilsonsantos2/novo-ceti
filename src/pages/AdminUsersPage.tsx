@@ -1,39 +1,77 @@
+import React from 'react';
 import { supabase } from '../lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 
 export const AdminUsersPage: React.FC = () => {
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'PORTEIRO' });
-  const [creating, setCreating] = useState(false);
+  const [profiles, setProfiles] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [showAddModal, setShowAddModal] = React.useState(false);
+  const [showEditModal, setShowEditModal] = React.useState(false);
+  const [newUser, setNewUser] = React.useState({ name: '', email: '', password: '', role: 'PORTEIRO' });
+  const [editingUser, setEditingUser] = React.useState<any>(null);
+  const [creating, setCreating] = React.useState(false);
+  const [updating, setUpdating] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchProfiles();
   }, []);
 
   const fetchProfiles = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('updated_at', { ascending: false });
 
-    if (error) console.error(error);
-    else setProfiles(data || []);
-    setLoading(false);
+      if (error) throw error;
+      setProfiles(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar perfis:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateRole = async (userId: string, newRole: string) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', userId);
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setUpdating(true);
 
-    if (error) {
-      console.error(error);
-      alert('Erro ao atualizar papel.');
-    } else {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: editingUser.full_name,
+          role: editingUser.role 
+        })
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+      
+      setShowEditModal(false);
+      setEditingUser(null);
       fetchProfiles();
+    } catch (error: any) {
+      alert('Erro ao atualizar usuário: ' + error.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja remover o acesso deste usuário?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+      fetchProfiles();
+    } catch (error: any) {
+      alert('Erro ao excluir usuário: ' + error.message);
     }
   };
 
@@ -42,7 +80,6 @@ export const AdminUsersPage: React.FC = () => {
     setCreating(true);
 
     try {
-      // Use a temporary client to avoid logging out the current admin
       const tempSupabase = createClient(
         import.meta.env.VITE_SUPABASE_URL,
         import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -62,12 +99,16 @@ export const AdminUsersPage: React.FC = () => {
       if (authError) throw authError;
 
       if (authData.user) {
-        // The profile is usually created via trigger in Supabase, 
-        // but we need to update the role since the default might be 'ALUNO'
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({ role: newUser.role, full_name: newUser.name })
-          .eq('id', authData.user.id);
+          .upsert({ 
+            id: authData.user.id,
+            full_name: newUser.name,
+            role: newUser.role,
+            updated_at: new Date().toISOString()
+          });
 
         if (profileError) {
           console.warn('User created but profile role update failed:', profileError);
@@ -95,11 +136,18 @@ export const AdminUsersPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button 
-            onClick={() => setShowAddModal(true)}
-            className="flex-1 md:flex-none justify-center bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2"
+            onClick={fetchProfiles}
+            className="p-3 bg-white/50 rounded-2xl text-primary hover:bg-white transition-all active:scale-95 border border-white/20"
+            title="Atualizar Lista"
           >
-            <span className="material-symbols-outlined text-base">person_add</span>
-            Novo Operador
+            <span className="material-symbols-outlined text-base">refresh</span>
+          </button>
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="flex-1 md:flex-none justify-center bg-primary text-white px-6 py-4 rounded-2xl font-bold shadow-xl shadow-primary/30 hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-3 border-b-4 border-primary-container"
+          >
+            <span className="material-symbols-outlined text-xl">person_add</span>
+            <span className="tracking-tight">Cadastrar Usuário</span>
           </button>
           <div className="glass-card px-4 py-3 rounded-xl hidden lg:flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-base">shield_person</span>
@@ -108,16 +156,14 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Users List - Responsive Layout */}
       <div className="glass-card rounded-[2rem] overflow-hidden border border-white/20">
-        {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-white/50 border-b border-white/30">
               <tr>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Usuário</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Papel Atual</th>
-                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Definir Papel</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/30">
@@ -146,26 +192,32 @@ export const AdminUsersPage: React.FC = () => {
                   </td>
                   <td className="px-8 py-5">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider
-                      ${p.role === 'DIRETOR' ? 'bg-logo-red/10 text-logo-red' : 
+                      ${p.role === 'ADM' ? 'bg-primary/10 text-primary' : 
+                        p.role === 'DIRETOR' ? 'bg-logo-red/10 text-logo-red' : 
                         p.role === 'PORTEIRO' ? 'bg-secondary/10 text-secondary' : 
                         'bg-outline/10 text-outline'
                       }`}>
                       <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>
-                        {p.role === 'DIRETOR' ? 'shield' : p.role === 'PORTEIRO' ? 'door_front' : 'person'}
+                        {p.role === 'ADM' ? 'workspace_premium' : p.role === 'DIRETOR' ? 'shield' : p.role === 'PORTEIRO' ? 'door_front' : 'person'}
                       </span>
                       {p.role || 'ALUNO'}
                     </span>
                   </td>
                   <td className="px-8 py-5">
-                    <select 
-                      className="bg-white/50 border border-white/80 rounded-xl px-4 py-2.5 text-xs font-black uppercase text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all cursor-pointer hover:bg-white/70"
-                      value={p.role || 'ALUNO'}
-                      onChange={(e) => updateRole(p.id, e.target.value)}
-                    >
-                      <option value="ALUNO">👁 ALUNO</option>
-                      <option value="PORTEIRO">🚪 PORTEIRO</option>
-                      <option value="DIRETOR">🛡 DIRETOR</option>
-                    </select>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => { setEditingUser(p); setShowEditModal(true); }}
+                        className="p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all"
+                      >
+                        <span className="material-symbols-outlined text-sm">edit</span>
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteUser(p.id)}
+                        className="p-2 rounded-xl bg-logo-red/10 text-logo-red hover:bg-logo-red hover:text-white transition-all"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -173,43 +225,29 @@ export const AdminUsersPage: React.FC = () => {
           </table>
         </div>
 
-        {/* Mobile Card List */}
         <div className="md:hidden divide-y divide-white/30">
           {loading ? (
             <div className="p-12 text-center text-outline font-medium">Carregando...</div>
           ) : profiles.map((p) => (
             <div key={p.id} className="p-5 flex flex-col gap-4 bg-white/20">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl">
-                  {p.full_name?.charAt(0) || '?'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-on-surface text-base truncate">{p.full_name || 'Sem nome'}</div>
-                  <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl">
+                    {p.full_name?.charAt(0) || '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-on-surface text-base truncate">{p.full_name || 'Sem nome'}</div>
                     <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      p.role === 'ADM' ? 'bg-primary/10 text-primary' :
                       p.role === 'DIRETOR' ? 'bg-logo-red/10 text-logo-red' : 'bg-secondary/10 text-secondary'
                     }`}>
                       {p.role || 'ALUNO'}
                     </span>
                   </div>
                 </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black uppercase text-outline tracking-widest ml-2">Alterar Cargo:</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['ALUNO', 'PORTEIRO', 'DIRETOR'].map((role) => (
-                    <button
-                      key={role}
-                      onClick={() => updateRole(p.id, role)}
-                      className={`py-2.5 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 ${
-                        (p.role || 'ALUNO') === role 
-                          ? 'bg-primary text-white shadow-md shadow-primary/20' 
-                          : 'bg-white/50 text-outline border border-white'
-                      }`}
-                    >
-                      {role}
-                    </button>
-                  ))}
+                <div className="flex gap-2">
+                  <button onClick={() => { setEditingUser(p); setShowEditModal(true); }} className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><span className="material-symbols-outlined text-base">edit</span></button>
+                  <button onClick={() => handleDeleteUser(p.id)} className="w-10 h-10 rounded-xl bg-logo-red/10 text-logo-red flex items-center justify-center"><span className="material-symbols-outlined text-base">delete</span></button>
                 </div>
               </div>
             </div>
@@ -217,7 +255,6 @@ export const AdminUsersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* MODAL NOVO USUÁRIO */}
       {showAddModal && (
         <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="glass-panel rounded-[2.5rem] p-8 md:p-10 w-full max-w-md shadow-2xl">
@@ -226,68 +263,71 @@ export const AdminUsersPage: React.FC = () => {
                 <span className="material-symbols-outlined text-white text-xl">person_add</span>
               </div>
               <div>
-                <h3 className="font-headline font-extrabold text-xl text-primary tracking-tight">Novo Operador</h3>
-                <p className="text-xs text-outline font-medium">Cadastre um novo porteiro ou diretor</p>
+                <h3 className="font-headline font-extrabold text-xl text-primary tracking-tight">Cadastrar Novo Usuário</h3>
+                <p className="text-xs text-outline font-medium">Crie uma conta para um novo colaborador</p>
               </div>
             </div>
 
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
                 <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome Completo</label>
-                <input 
-                  type="text" required
-                  value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})}
-                  className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary outline-none transition-all"
-                  placeholder="Ex: João Silva"
-                />
+                <input type="text" required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 outline-none transition-all" />
               </div>
               <div>
                 <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">E-mail de Acesso</label>
-                <input 
-                  type="email" required
-                  value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})}
-                  className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary outline-none transition-all"
-                  placeholder="porteiro@ceti.com"
-                />
+                <input type="email" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 outline-none transition-all" />
               </div>
               <div>
                 <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Senha Temporária</label>
-                <input 
-                  type="password" required minLength={6}
-                  value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})}
-                  className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary outline-none transition-all"
-                  placeholder="Mínimo 6 caracteres"
-                />
+                <input type="password" required minLength={6} value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 outline-none transition-all" />
               </div>
               <div>
                 <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Papel do Sistema</label>
-                <select 
-                  value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}
-                  className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 focus:ring-2 focus:ring-primary outline-none transition-all"
-                >
+                <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})} className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 outline-none transition-all">
                   <option value="PORTEIRO">🚪 PORTEIRO</option>
                   <option value="DIRETOR">🛡 DIRETOR</option>
+                  <option value="ADM">👑 ADMINISTRADOR</option>
                 </select>
               </div>
-
               <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-3.5 glass-card rounded-xl font-bold hover:scale-[1.02] transition-all text-on-surface-variant"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" disabled={creating}
-                  className="flex-1 bg-primary text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                >
-                  {creating ? (
-                    <><span className="material-symbols-outlined text-base animate-spin">progress_activity</span> Criando...</>
-                  ) : (
-                    <><span className="material-symbols-outlined text-base">person_add</span> Cadastrar</>
-                  )}
-                </button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3.5 glass-card rounded-xl font-bold">Cancelar</button>
+                <button type="submit" disabled={creating} className="flex-1 bg-primary text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/20 disabled:opacity-50">{creating ? 'Criando...' : 'Cadastrar'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editingUser && (
+        <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="glass-panel rounded-[2.5rem] p-8 md:p-10 w-full max-w-md shadow-2xl">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-container rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
+                <span className="material-symbols-outlined text-white text-xl">edit</span>
+              </div>
+              <div>
+                <h3 className="font-headline font-extrabold text-xl text-primary tracking-tight">Editar Usuário</h3>
+                <p className="text-xs text-outline font-medium">Atualize os dados do operador</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateUser} className="space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Nome Completo</label>
+                <input type="text" required value={editingUser.full_name} onChange={e => setEditingUser({...editingUser, full_name: e.target.value})} className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 outline-none transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-outline tracking-wider mb-2 ml-3">Papel do Sistema</label>
+                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value})} className="w-full px-5 py-3.5 bg-white/50 rounded-xl border border-white/80 outline-none transition-all">
+                  <option value="ALUNO">👁 ALUNO</option>
+                  <option value="PORTEIRO">🚪 PORTEIRO</option>
+                  <option value="DIRETOR">🛡 DIRETOR</option>
+                  <option value="ADM">👑 ADMINISTRADOR</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-3.5 glass-card rounded-xl font-bold">Cancelar</button>
+                <button type="submit" disabled={updating} className="flex-1 bg-primary text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/20 disabled:opacity-50">{updating ? 'Salvando...' : 'Salvar'}</button>
               </div>
             </form>
           </div>
