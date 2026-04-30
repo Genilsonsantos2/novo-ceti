@@ -183,7 +183,7 @@ export const ScannerPage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('students')
-        .select('*, student_authorizations(*)')
+        .select('*, student_authorizations(*), term_attachments(id)')
         .eq('qr_code_id', qrId)
         .single();
 
@@ -191,12 +191,11 @@ export const ScannerPage: React.FC = () => {
 
       setStudent(data);
       
-      // Para Saída: negar se is_authorized=false OU (exit_type='none' E não tem termo ativo)
-      const exitType = data.exit_type || 'none';
-      const hasActiveTerm = data.student_authorizations && data.student_authorizations.length > 0;
-      const isExitAllowed = data.is_authorized && (exitType !== 'none' || hasActiveTerm);
+      // Restrição Global: Só libera se is_authorized=true E tem o termo devolvido
+      const hasReturnedTerm = data.term_attachments && data.term_attachments.length > 0;
+      const isAccessAllowed = data.is_authorized && hasReturnedTerm;
 
-      if (currentScanType === 'OUT' && !isExitAllowed) {
+      if (!isAccessAllowed) {
         setStatus('error');
         playBeep('error');
         if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
@@ -205,7 +204,10 @@ export const ScannerPage: React.FC = () => {
         playBeep('success');
         if ('vibrate' in navigator) navigator.vibrate(200);
         
-        // Se for sucesso por causa do termo, garantimos que o UI mostre isso
+        const exitType = data.exit_type || 'none';
+        const hasActiveTerm = data.student_authorizations && data.student_authorizations.length > 0;
+        
+        // Se for Saída e for sucesso por causa do termo, garantimos que o UI mostre isso
         if (currentScanType === 'OUT' && hasActiveTerm && exitType === 'none') {
           data.exit_type = 'term';
         }
@@ -357,7 +359,11 @@ export const ScannerPage: React.FC = () => {
                     {status === 'success' ? (scanType === 'IN' ? 'Entrada Registrada' : 'Saída Permitida') : 'Acesso Negado'}
                   </h2>
                   <p className="text-sm opacity-90 font-medium mb-6">
-                    {status === 'success' ? 'Registro salvo com sucesso' : (student ? 'Aluno sem autorização de saída' : 'Código não reconhecido')}
+                    {status === 'success' 
+                      ? 'Registro salvo com sucesso' 
+                      : (student 
+                          ? (!student.is_authorized ? 'Aluno bloqueado pelo sistema' : 'Termo de autorização pendente') 
+                          : 'Código não reconhecido')}
                   </p>
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-12 h-1 bg-white/30 rounded-full overflow-hidden">

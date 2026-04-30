@@ -15,6 +15,7 @@ export const StudentsPage: React.FC = () => {
   const [devolutivaStudent, setDevolutivaStudent] = useState<any | null>(null);
   const [photoFilter, setPhotoFilter] = useState<'all' | 'withPhoto' | 'withoutPhoto'>('all');
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [newStudent, setNewStudent] = useState({ 
     full_name: '', 
@@ -39,7 +40,7 @@ export const StudentsPage: React.FC = () => {
   const fetchStudents = async () => {
     const { data, error } = await supabase
       .from('students')
-      .select('*, student_authorizations(*)');
+      .select('*, student_authorizations(*), term_attachments(id)');
 
     if (error) console.error(error);
     else setStudents(data || []);
@@ -419,6 +420,17 @@ export const StudentsPage: React.FC = () => {
             <span className="text-xs font-bold text-on-surface-variant">{students.length} Total</span>
           </div>
 
+          <div className="flex items-center gap-2 px-3 bg-white/60 rounded-xl border border-gray-200 focus-within:border-primary transition-colors flex-1 md:flex-none min-w-[200px]">
+            <span className="material-symbols-outlined text-gray-500 text-sm">search</span>
+            <input
+              type="text"
+              placeholder="Pesquisar aluno..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 py-2 w-full outline-none"
+            />
+          </div>
+
           <div className="flex items-center gap-2 px-3 bg-white/60 rounded-xl border border-gray-200 focus-within:border-primary transition-colors">
             <span className="material-symbols-outlined text-gray-500 text-sm">filter_list</span>
             <select
@@ -516,6 +528,7 @@ export const StudentsPage: React.FC = () => {
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Aluno</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Matrícula</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Status</th>
+                <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Termo</th>
                 <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Ações</th>
               </tr>
             </thead>
@@ -525,21 +538,17 @@ export const StudentsPage: React.FC = () => {
                   <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
                   <span className="text-outline font-medium">Carregando alunos...</span>
                 </td></tr>
-              ) : students.filter(s => {
-                const matchesGrade = !selectedGrade || s.grade === selectedGrade;
-                const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
-                const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
-                return matchesGrade && matchesPhoto;
               }).length === 0 ? (
-                <tr><td colSpan={4} className="px-8 py-16 text-center">
+                <tr><td colSpan={6} className="px-8 py-16 text-center">
                   <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
                   <span className="text-outline font-medium">Nenhum aluno encontrado.</span>
                 </td></tr>
               ) : students.filter(s => {
                 const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+                const matchesSearch = !searchTerm || s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment_id.includes(searchTerm);
                 const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
                 const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
-                return matchesGrade && matchesPhoto;
+                return matchesGrade && matchesSearch && matchesPhoto;
               }).map((s) => (
                 <tr key={s.id} className={`hover:bg-white/40 transition-all duration-200 group ${selectedStudents.includes(s.id) ? 'bg-primary/5' : ''}`}>
                   <td className="px-8 py-5">
@@ -579,6 +588,19 @@ export const StudentsPage: React.FC = () => {
                       <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>{s.is_authorized ? 'check_circle' : 'block'}</span>
                       {s.is_authorized ? 'Ativo' : 'Bloqueado'}
                     </span>
+                  </td>
+                  <td className="px-8 py-5">
+                    {s.term_attachments && s.term_attachments.length > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
+                        <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>verified</span>
+                        Devolvido
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500">
+                        <span className="material-symbols-outlined text-xs">history_edu</span>
+                        Pendente
+                      </span>
+                    )}
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex gap-2 items-center">
@@ -636,17 +658,34 @@ export const StudentsPage: React.FC = () => {
               <span className="material-symbols-outlined text-4xl text-outline animate-spin block mb-3">progress_activity</span>
               <span className="text-outline font-medium">Carregando...</span>
             </div>
-          ) : (selectedGrade ? students.filter(s => s.grade === selectedGrade) : students).length === 0 ? (
+          ) : students.filter(s => {
+            const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+            const matchesSearch = !searchTerm || s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment_id.includes(searchTerm);
+            const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
+            const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
+            return matchesGrade && matchesSearch && matchesPhoto;
+          }).length === 0 ? (
             <div className="p-12 text-center">
               <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
               <span className="text-outline font-medium">Nenhum aluno.</span>
             </div>
-          ) : (selectedGrade ? students.filter(s => s.grade === selectedGrade) : students).map((s) => (
+          ) : students.filter(s => {
+            const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+            const matchesSearch = !searchTerm || s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment_id.includes(searchTerm);
+            const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
+            const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
+            return matchesGrade && matchesSearch && matchesPhoto;
+          }).map((s) => (
             <div key={s.id} className="p-5 flex flex-col gap-4 bg-white/20 active:bg-white/40 transition-all">
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <img src={s.photo_url} className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white shadow-sm" alt="" />
                   <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${s.is_authorized ? 'bg-logo-green' : 'bg-logo-red'}`}></div>
+                  {s.term_attachments && s.term_attachments.length > 0 && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-sm border-2 border-white">
+                      <span className="material-symbols-outlined text-[10px] font-bold">verified</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-on-surface text-base truncate notranslate" translate="no">{s.full_name}</div>
