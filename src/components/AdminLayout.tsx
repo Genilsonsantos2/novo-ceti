@@ -50,6 +50,14 @@ export const AdminLayout: React.FC = () => {
               </NavLink>
 
               <NavLink 
+                to="/devolutiva" 
+                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
+              >
+                <span className="material-symbols-outlined text-lg">attach_file</span>
+                Devolutiva
+              </NavLink>
+
+              <NavLink 
                 to="/admin/users" 
                 className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
               >

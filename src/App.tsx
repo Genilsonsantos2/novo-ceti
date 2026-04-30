@@ -14,6 +14,7 @@ import { AuthorizationTermPage } from './pages/AuthorizationTermPage';
 import { ProvisionalExitReportPage } from './pages/ProvisionalExitReportPage';
 import { PrintTermsPage } from './pages/PrintTermsPage';
 import { DailyAccessReportPage } from './pages/DailyAccessReportPage';
+import { DevolutivaPage } from './pages/DevolutivaPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
   const { user, profile, loading } = useAuth();
@@ -121,6 +122,12 @@ function AppRoutes() {
         <Route path="/daily-access-report" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <DailyAccessReportPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/devolutiva" element={
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
+            <DevolutivaPage />
           </ProtectedRoute>
         } />
       </Route>
