@@ -189,13 +189,12 @@ export const ScannerPage: React.FC = () => {
 
       if (error || !data) throw new Error('Estudante não encontrado');
 
-      setStudent(data);
-      
       // Restrição Global: Só libera se is_authorized=true E tem o termo devolvido
       const hasReturnedTerm = data.term_attachments && data.term_attachments.length > 0;
       const isAccessAllowed = data.is_authorized && hasReturnedTerm;
 
       if (!isAccessAllowed) {
+        setStudent(data);
         setStatus('error');
         playBeep('error');
         if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
@@ -205,12 +204,14 @@ export const ScannerPage: React.FC = () => {
         if ('vibrate' in navigator) navigator.vibrate(200);
         
         const exitType = data.exit_type || 'none';
-        const hasActiveTerm = data.student_authorizations && data.student_authorizations.length > 0;
+        const hasActiveAuth = (data.student_authorizations && data.student_authorizations.length > 0) || hasReturnedTerm;
         
         // Se for Saída e for sucesso por causa do termo, garantimos que o UI mostre isso
-        if (currentScanType === 'OUT' && hasActiveTerm && exitType === 'none') {
+        if (currentScanType === 'OUT' && hasActiveAuth && exitType === 'none') {
           data.exit_type = 'term';
         }
+
+        setStudent(data);
 
         // Log the access
         await supabase.from('access_logs').insert({
