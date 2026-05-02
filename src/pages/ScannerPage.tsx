@@ -217,6 +217,7 @@ export const ScannerPage: React.FC = () => {
         await supabase.from('access_logs').insert({
           student_id: data.id,
           type: currentScanType,
+          timestamp: new Date().toISOString(),
         });
       }
 
