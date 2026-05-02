@@ -214,11 +214,20 @@ export const ScannerPage: React.FC = () => {
         setStudent(data);
 
         // Log the access
-        await supabase.from('access_logs').insert({
-          student_id: data.id,
-          type: currentScanType,
-          timestamp: new Date().toISOString(),
-        });
+        try {
+          const { error: logError } = await supabase.from('access_logs').insert({
+            student_id: data.id,
+            type: currentScanType,
+            timestamp: new Date().toISOString(),
+            user_id: user?.id
+          });
+          
+          if (logError) {
+            console.error('Erro ao registrar log de acesso:', logError);
+          }
+        } catch (err) {
+          console.error('Falha crítica ao registrar log:', err);
+        }
       }
 
       // Auto-reset status after 3 seconds to allow next scan
