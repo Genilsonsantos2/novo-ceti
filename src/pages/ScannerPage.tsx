@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const ScannerPage: React.FC = () => {
+  const { user } = useAuth();
   const [student, setStudent] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'success' | 'error' | 'idle'>('idle');
