@@ -86,25 +86,6 @@ export const DashboardPage: React.FC = () => {
           <p className="text-on-surface-variant font-body mt-1">Visão em tempo real do tráfego discente autorizado.</p>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={async () => {
-              const { error } = await supabase.from('access_logs').insert({
-                student_id: (await supabase.from('students').select('id').limit(1).single()).data?.id,
-                type: 'OUT',
-                notes: 'LOG DE TESTE SISTEMA'
-              });
-              if (error) alert('Erro no Banco: ' + error.message);
-              else {
-                alert('Registro de teste OK! Se não aparecer no painel, o problema é o filtro de data.');
-                fetchStats();
-                fetchLogs();
-              }
-            }}
-            className="glass-card px-4 py-3 rounded-2xl flex items-center gap-2 text-xs font-bold text-logo-orange hover:bg-logo-orange/10 transition-all"
-          >
-            <span className="material-symbols-outlined text-sm">bug_report</span>
-            Testar Banco
-          </button>
           <Link 
             to="/lunch-report"
             className="glass-card px-6 py-3 rounded-2xl flex items-center gap-2 text-sm font-bold text-primary hover:scale-[1.02] transition-all active:scale-95"
