@@ -195,6 +195,19 @@ export const ScannerPage: React.FC = () => {
       const hasReturnedTerm = data.term_attachments && data.term_attachments.length > 0;
       const isAccessAllowed = data.is_authorized && hasReturnedTerm;
 
+      // Log the scan attempt (both allowed and denied)
+      try {
+        await supabase.from('access_logs').insert({
+          student_id: data.id,
+          type: currentScanType,
+          timestamp: new Date().toISOString(),
+          user_id: user?.id,
+          status: isAccessAllowed ? 'ALLOWED' : 'DENIED'
+        });
+      } catch (err) {
+        console.error('Erro ao registrar log:', err);
+      }
+
       if (!isAccessAllowed) {
         setStudent(data);
         setStatus('error');
@@ -214,22 +227,6 @@ export const ScannerPage: React.FC = () => {
         }
 
         setStudent(data);
-
-        // Log the access
-        try {
-          const { error: logError } = await supabase.from('access_logs').insert({
-            student_id: data.id,
-            type: currentScanType,
-            timestamp: new Date().toISOString(),
-            user_id: user?.id
-          });
-          
-          if (logError) {
-            console.error('Erro ao registrar log de acesso:', logError);
-          }
-        } catch (err) {
-          console.error('Falha crítica ao registrar log:', err);
-        }
       }
 
       // Auto-reset status after 3 seconds to allow next scan
