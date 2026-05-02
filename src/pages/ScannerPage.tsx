@@ -201,8 +201,8 @@ export const ScannerPage: React.FC = () => {
           student_id: data.id,
           type: currentScanType,
           timestamp: new Date().toISOString(),
-          user_id: user?.id,
-          status: isAccessAllowed ? 'ALLOWED' : 'DENIED'
+          gatekeeper_id: user?.id,
+          notes: isAccessAllowed ? 'Acesso Permitido' : 'Acesso Negado: Termo ou Autorização Pendente'
         });
       } catch (err) {
         console.error('Erro ao registrar log:', err);

@@ -19,7 +19,7 @@ export const DailyAccessReportPage: React.FC = () => {
 
     const { data, error } = await supabase
       .from('access_logs')
-      .select('*, students(full_name, enrollment_id, grade, photo_url, exit_type)')
+      .select('*, students(full_name, enrollment_id, grade, photo_url)')
       .gte('timestamp', start.toISOString())
       .order('timestamp', { ascending: true });
 
@@ -134,10 +134,7 @@ export const DailyAccessReportPage: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3">
                       <span className="text-[10px] font-bold text-gray-500 uppercase">
-                        {log.students?.exit_type === 'lunch' ? 'Almoço' : 
-                         log.students?.exit_type === 'gym' ? 'Academia' : 
-                         log.students?.exit_type === 'both' ? 'Almoço+Acad' : 
-                         log.students?.exit_type === 'term' ? 'Termo Assinado' : '—'}
+                        {log.notes || '—'}
                       </span>
                     </td>
                   </tr>

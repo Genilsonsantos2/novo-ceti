@@ -180,12 +180,6 @@ export const DashboardPage: React.FC = () => {
                 <h4 className="font-headline font-bold text-on-surface text-sm truncate">{log.students?.full_name}</h4>
                 <p className="text-[11px] text-outline font-medium truncate">
                   #{log.students?.enrollment_id} • {log.students?.grade}
-                  {log.students?.exit_type && ` • ${
-                    log.students?.exit_type === 'lunch' ? 'Almoço' : 
-                    log.students?.exit_type === 'gym' ? 'Academia' : 
-                    log.students?.exit_type === 'both' ? 'Almoço+Acad' : 
-                    log.students?.exit_type === 'term' ? 'Termo' : log.students?.exit_type
-                  }`}
                 </p>
               </div>
               <div className="text-right shrink-0">
