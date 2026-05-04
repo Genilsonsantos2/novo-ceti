@@ -20,64 +20,67 @@ export const StudentCardPage: React.FC = () => {
     try {
       setUploading(true);
 
-      // Create an image object to resize
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
+      const base64Url = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        
+        img.onload = () => {
+          try {
+            const MAX_WIDTH = 400;
+            const MAX_HEIGHT = 400;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width = Math.round((width * MAX_HEIGHT) / height);
+                height = MAX_HEIGHT;
+              }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Falha ao processar a imagem');
+            
+            ctx.drawImage(img, 0, 0, width, height);
+            const result = canvas.toDataURL('image/jpeg', 0.8);
+            URL.revokeObjectURL(objectUrl);
+            resolve(result);
+          } catch (err) {
+            reject(err);
+          }
+        };
+
+        img.onerror = () => {
+          reject(new Error('Falha ao carregar a imagem selecionada'));
+        };
+
+        img.src = objectUrl;
+      });
+
+      // Save directly to the database
+      const { error: dbError } = await supabase
+        .from('students')
+        .update({ photo_url: base64Url })
+        .eq('id', student.id);
+        
+      if (dbError) throw dbError;
       
-      img.onload = async () => {
-        // Resize parameters
-        const MAX_WIDTH = 400;
-        const MAX_HEIGHT = 400;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width = Math.round((width * MAX_HEIGHT) / height);
-            height = MAX_HEIGHT;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          throw new Error('Falha ao processar a imagem');
-        }
-        
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Convert to base64 jpeg
-        const base64Url = canvas.toDataURL('image/jpeg', 0.8);
-        URL.revokeObjectURL(objectUrl);
-
-        // Save directly to the database
-        const { error: dbError } = await supabase
-          .from('students')
-          .update({ photo_url: base64Url })
-          .eq('id', student.id);
-          
-        if (dbError) throw dbError;
-        
-        setStudent({ ...student, photo_url: base64Url });
-        setUploading(false);
-      };
-
-      img.onerror = () => {
-        throw new Error('Falha ao carregar a imagem selecionada');
-      };
-
-      img.src = objectUrl;
-    } catch (err) {
+      setStudent({ ...student, photo_url: base64Url });
+      alert('Foto salva com sucesso!');
+    } catch (err: any) {
       console.error('Erro ao processar e salvar a foto:', err);
-      alert('Erro ao salvar a foto. Tente novamente.');
+      alert('Erro ao salvar a foto: ' + (err.message || 'Verifique sua conexão ou formato da imagem.'));
+    } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
