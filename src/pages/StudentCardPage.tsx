@@ -44,6 +44,10 @@ export const StudentCardPage: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  useEffect(() => {
+    if (user) fetchStudentData();
+  }, [user, studentId]);
+
   const fetchStudentData = async () => {
     let query = supabase.from('students').select('*, student_authorizations(*), term_attachments(id)');
     
