@@ -26,8 +26,8 @@ export const StudentCardPage: React.FC = () => {
         
         img.onload = () => {
           try {
-            const MAX_WIDTH = 400;
-            const MAX_HEIGHT = 400;
+            const MAX_WIDTH = 150;
+            const MAX_HEIGHT = 150;
             let width = img.width;
             let height = img.height;
 
@@ -50,7 +50,7 @@ export const StudentCardPage: React.FC = () => {
             if (!ctx) throw new Error('Falha ao processar a imagem');
             
             ctx.drawImage(img, 0, 0, width, height);
-            const result = canvas.toDataURL('image/jpeg', 0.8);
+            const result = canvas.toDataURL('image/jpeg', 0.5);
             URL.revokeObjectURL(objectUrl);
             resolve(result);
           } catch (err) {
@@ -66,12 +66,17 @@ export const StudentCardPage: React.FC = () => {
       });
 
       // Save directly to the database
-      const { error: dbError } = await supabase
+      const { data: updatedRows, error: dbError } = await supabase
         .from('students')
         .update({ photo_url: base64Url })
-        .eq('id', student.id);
+        .eq('id', student.id)
+        .select();
         
       if (dbError) throw dbError;
+      
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error('Permissão negada ou aluno não encontrado no banco de dados. A foto não foi salva.');
+      }
       
       setStudent({ ...student, photo_url: base64Url });
       alert('Foto salva com sucesso!');
