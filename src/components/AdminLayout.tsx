@@ -78,11 +78,11 @@ export const AdminLayout: React.FC = () => {
               </NavLink>
 
               <NavLink 
-                to="/exit-report" 
+                to="/daily-access-report" 
                 className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
               >
                 <span className="material-symbols-outlined text-lg">description</span>
-                Relatório Geral
+                Histórico de Acessos
               </NavLink>
 
               <NavLink 
@@ -180,7 +180,7 @@ export const AdminLayout: React.FC = () => {
             </NavLink>
           )}
 
-          <NavLink to="/exit-report" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
+          <NavLink to="/daily-access-report" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
             <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>description</span>
             <span className="text-[8px] font-black uppercase tracking-tighter">Relatos</span>
           </NavLink>
