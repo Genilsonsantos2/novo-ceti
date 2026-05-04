@@ -26,8 +26,8 @@ export const StudentCardPage: React.FC = () => {
         
         img.onload = () => {
           try {
-            const MAX_WIDTH = 150;
-            const MAX_HEIGHT = 150;
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
             let width = img.width;
             let height = img.height;
 
@@ -50,7 +50,7 @@ export const StudentCardPage: React.FC = () => {
             if (!ctx) throw new Error('Falha ao processar a imagem');
             
             ctx.drawImage(img, 0, 0, width, height);
-            const result = canvas.toDataURL('image/jpeg', 0.5);
+            const result = canvas.toDataURL('image/jpeg', 0.85);
             URL.revokeObjectURL(objectUrl);
             resolve(result);
           } catch (err) {
