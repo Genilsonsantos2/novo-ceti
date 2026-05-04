@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useParams } from 'react-router-dom';
 import { StudentBadge } from '../components/StudentBadge';
-
 import { ExportActions } from '../components/ExportActions';
 
 export const StudentCardPage: React.FC = () => {
@@ -12,10 +11,38 @@ export const StudentCardPage: React.FC = () => {
   const [student, setStudent] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPhoto, setShowPhoto] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (user) fetchStudentData();
-  }, [user, studentId]);
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !student) return;
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const filePath = `student-photos/${student.id}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('student-photos')
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicData } = supabase.storage.from('student-photos').getPublicUrl(filePath);
+      const publicUrl = publicData.publicUrl;
+      const { error: dbError } = await supabase
+        .from('students')
+        .update({ photo_url: publicUrl })
+        .eq('id', student.id);
+      if (dbError) throw dbError;
+      setStudent({ ...student, photo_url: publicUrl });
+    } catch (err) {
+      console.error('Erro ao fazer upload da foto:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
 
   const fetchStudentData = async () => {
     let query = supabase.from('students').select('*, student_authorizations(*), term_attachments(id)');
@@ -80,6 +107,23 @@ export const StudentCardPage: React.FC = () => {
         <h1 className="font-headline text-3xl font-extrabold tracking-tight text-on-surface">Cartão de {student.full_name}</h1>
         <p className="text-on-surface-variant font-medium mt-1">Versão para impressão física - Padrão PVC (86×54mm)</p>
       </div>
+
+        {/* Photo Upload Section */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={triggerFileSelect}
+            className="px-4 py-2 bg-primary text-white rounded-lg font-bold"
+          >
+            {uploading ? 'Enviando...' : 'Upload Foto'}
+          </button>
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handlePhotoUpload}
+            className="hidden"
+          />
+        </div>
 
       {/* Preview Section */}
       <div className="bg-gradient-to-br from-surface-container to-surface/50 rounded-3xl p-8 mb-8">
