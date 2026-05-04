@@ -91,14 +91,50 @@ export const StudentsPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (base64Str: string, maxWidth = 400, maxHeight = 400): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+    });
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit for raw file
+        alert('Arquivo muito grande. Por favor, escolha uma imagem menor que 10MB.');
+        return;
+      }
+      
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64 = reader.result as string;
-        setPhotoPreview(base64);
-        setNewStudent({ ...newStudent, photo_url: base64 });
+        const compressed = await compressImage(base64);
+        setPhotoPreview(compressed);
+        setNewStudent(prev => ({ ...prev, photo_url: compressed }));
       };
       reader.readAsDataURL(file);
     }
@@ -135,54 +171,58 @@ export const StudentsPage: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     
-    // Use uploaded photo or generate placeholder
-    const photoUrl = newStudent.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${newStudent.full_name}&backgroundColor=random`;
+    try {
+      // Use uploaded photo or generate placeholder
+      const photoUrl = newStudent.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(newStudent.full_name)}&backgroundColor=random`;
 
-    if (editingStudentId) {
-      const { error } = await supabase.from('students').update({
-        full_name: newStudent.full_name,
-        enrollment_id: newStudent.enrollment_id,
-        grade: newStudent.grade,
-        cpf: newStudent.cpf,
-        birth_date: newStudent.birth_date,
-        guardian_name: newStudent.guardian_name,
-        guardian_cpf: newStudent.guardian_cpf,
-        photo_url: photoUrl,
-      }).eq('id', editingStudentId);
+      if (editingStudentId) {
+        const { error } = await supabase.from('students').update({
+          full_name: newStudent.full_name,
+          enrollment_id: newStudent.enrollment_id,
+          grade: newStudent.grade,
+          cpf: newStudent.cpf,
+          birth_date: newStudent.birth_date,
+          guardian_name: newStudent.guardian_name,
+          guardian_cpf: newStudent.guardian_cpf,
+          photo_url: photoUrl,
+          exit_type: newStudent.exit_type
+        }).eq('id', editingStudentId);
 
-      if (error) {
-        console.error(error);
-        alert('Erro ao atualizar aluno: ' + error.message);
+        if (error) throw error;
+        
+        alert('Aluno atualizado com sucesso!');
+        closeEditModal();
+        fetchStudents();
       } else {
+        // Generate a simple unique QR Code ID
+        const qrCodeId = `QR-${newStudent.enrollment_id}-${Date.now().toString().slice(-4)}`;
+
+        const { error } = await supabase.from('students').insert({
+          full_name: newStudent.full_name,
+          enrollment_id: newStudent.enrollment_id,
+          grade: newStudent.grade,
+          cpf: newStudent.cpf,
+          birth_date: newStudent.birth_date,
+          guardian_name: newStudent.guardian_name,
+          guardian_cpf: newStudent.guardian_cpf,
+          qr_code_id: qrCodeId,
+          is_authorized: true,
+          photo_url: photoUrl,
+          exit_type: newStudent.exit_type
+        });
+
+        if (error) throw error;
+        
+        alert('Aluno cadastrado com sucesso!');
         closeEditModal();
         fetchStudents();
       }
-    } else {
-      // Generate a simple unique QR Code ID
-      const qrCodeId = `QR-${newStudent.enrollment_id}-${Date.now().toString().slice(-4)}`;
-
-      const { error } = await supabase.from('students').insert({
-        full_name: newStudent.full_name,
-        enrollment_id: newStudent.enrollment_id,
-        grade: newStudent.grade,
-        cpf: newStudent.cpf,
-        birth_date: newStudent.birth_date,
-        guardian_name: newStudent.guardian_name,
-        guardian_cpf: newStudent.guardian_cpf,
-        qr_code_id: qrCodeId,
-        is_authorized: true,
-        photo_url: photoUrl,
-      });
-
-      if (error) {
-        console.error(error);
-        alert('Erro ao cadastrar aluno: ' + error.message);
-      } else {
-        closeEditModal();
-        fetchStudents();
-      }
+    } catch (error: any) {
+      console.error('Erro ao salvar aluno:', error);
+      alert('Erro ao salvar aluno: ' + (error.message || 'Erro desconhecido. Verifique o console.'));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleDownloadTemplate = () => {
