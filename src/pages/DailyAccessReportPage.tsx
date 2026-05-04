@@ -174,7 +174,7 @@ export const DailyAccessReportPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-10">
-              {Object.entries(groupedLogs).map(([groupName, groupItems]) => (
+              {(Object.entries(groupedLogs) as [string, any[]][]).map(([groupName, groupItems]) => (
                 <div key={groupName} className="break-inside-avoid">
                   {groupByGrade && (
                     <div className="flex items-center gap-4 mb-4">
