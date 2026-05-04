@@ -19,23 +19,64 @@ export const StudentCardPage: React.FC = () => {
     if (!file || !student) return;
     try {
       setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const filePath = `student-photos/${student.id}_${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('student-photos')
-        .upload(filePath, file, { upsert: true });
-      if (uploadError) throw uploadError;
-      const { data: publicData } = supabase.storage.from('student-photos').getPublicUrl(filePath);
-      const publicUrl = publicData.publicUrl;
-      const { error: dbError } = await supabase
-        .from('students')
-        .update({ photo_url: publicUrl })
-        .eq('id', student.id);
-      if (dbError) throw dbError;
-      setStudent({ ...student, photo_url: publicUrl });
+
+      // Create an image object to resize
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      
+      img.onload = async () => {
+        // Resize parameters
+        const MAX_WIDTH = 400;
+        const MAX_HEIGHT = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Falha ao processar a imagem');
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to base64 jpeg
+        const base64Url = canvas.toDataURL('image/jpeg', 0.8);
+        URL.revokeObjectURL(objectUrl);
+
+        // Save directly to the database
+        const { error: dbError } = await supabase
+          .from('students')
+          .update({ photo_url: base64Url })
+          .eq('id', student.id);
+          
+        if (dbError) throw dbError;
+        
+        setStudent({ ...student, photo_url: base64Url });
+        setUploading(false);
+      };
+
+      img.onerror = () => {
+        throw new Error('Falha ao carregar a imagem selecionada');
+      };
+
+      img.src = objectUrl;
     } catch (err) {
-      console.error('Erro ao fazer upload da foto:', err);
-    } finally {
+      console.error('Erro ao processar e salvar a foto:', err);
+      alert('Erro ao salvar a foto. Tente novamente.');
       setUploading(false);
     }
   };
