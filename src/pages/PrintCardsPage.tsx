@@ -114,6 +114,26 @@ export const PrintCardsPage: React.FC = () => {
               filename={`Lote_Cartoes_${selectedGrade ? selectedGrade.replace(/[^a-zA-Z0-9]/g, '_') : 'Todas_Turmas'}_${filteredStudents.length}_alunos`}
               className="flex-1 md:flex-initial"
             />
+
+            <button
+              onClick={async () => {
+                if (!window.confirm(`Deseja marcar os ${filteredStudents.length} alunos deste lote como "Impressos"?`)) return;
+                const { error } = await supabase
+                  .from('students')
+                  .update({ is_printed: true })
+                  .in('id', filteredStudents.map(s => s.id));
+                
+                if (error) alert('Erro ao atualizar: ' + error.message);
+                else {
+                  alert('Status de impressão atualizado com sucesso!');
+                  fetchStudents();
+                }
+              }}
+              className="px-6 py-3.5 rounded-2xl bg-green-600 text-white font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-200"
+            >
+              <span className="material-symbols-outlined">done_all</span>
+              Confirmar Impressão
+            </button>
           </div>
         </div>
       </div>

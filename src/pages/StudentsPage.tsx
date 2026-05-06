@@ -18,6 +18,7 @@ export const StudentsPage: React.FC = () => {
   const [photoFilter, setPhotoFilter] = useState<'all' | 'withPhoto' | 'withoutPhoto'>('all');
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'pending'>('all');
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
   
   const [newStudent, setNewStudent] = useState({ 
@@ -54,6 +55,16 @@ export const StudentsPage: React.FC = () => {
     const { error } = await supabase
       .from('students')
       .update({ is_authorized: !currentStatus })
+      .eq('id', studentId);
+
+    if (error) console.error(error);
+    else fetchStudents();
+  };
+
+  const togglePrintStatus = async (studentId: string, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from('students')
+      .update({ is_printed: !currentStatus })
       .eq('id', studentId);
 
     if (error) console.error(error);
@@ -590,6 +601,30 @@ export const StudentsPage: React.FC = () => {
             </button>
           </div>
 
+          <div className="flex p-1 bg-white/60 rounded-xl border border-gray-200">
+            <button 
+              onClick={() => setPrintFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${printFilter === 'all' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-white/50'}`}
+              title="Todos os alunos"
+            >
+              Impr: Tudo
+            </button>
+            <button 
+              onClick={() => setPrintFilter('printed')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${printFilter === 'printed' ? 'bg-green-600 text-white shadow-sm' : 'text-on-surface-variant hover:bg-white/50'}`}
+              title="Apenas carteirinhas já impressas"
+            >
+              Impressas
+            </button>
+            <button 
+              onClick={() => setPrintFilter('pending')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${printFilter === 'pending' ? 'bg-orange-600 text-white shadow-sm' : 'text-on-surface-variant hover:bg-white/50'}`}
+              title="Carteirinhas pendentes de impressão"
+            >
+              Pendentes
+            </button>
+          </div>
+
           <button 
             onClick={() => {
               const withPhotos = students
@@ -638,7 +673,8 @@ export const StudentsPage: React.FC = () => {
               const matchesSearch = !debouncedSearchTerm || s.full_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || s.enrollment_id.includes(debouncedSearchTerm);
               const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
               const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
-              return matchesGrade && matchesSearch && matchesPhoto;
+              const matchesPrint = printFilter === 'all' || (printFilter === 'printed' ? s.is_printed : !s.is_printed);
+              return matchesGrade && matchesSearch && matchesPhoto && matchesPrint;
             });
 
             const parentRef = useRef<HTMLDivElement>(null);
@@ -665,6 +701,7 @@ export const StudentsPage: React.FC = () => {
                       <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Aluno</th>
                       <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Matrícula</th>
                       <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Status</th>
+                      <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Impresso</th>
                       <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Termo</th>
                       <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-outline">Ações</th>
                     </tr>
@@ -725,6 +762,19 @@ export const StudentsPage: React.FC = () => {
                                 <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>{s.is_authorized ? 'check_circle' : 'block'}</span>
                                 {s.is_authorized ? 'Ativo' : 'Bloqueado'}
                               </span>
+                            </td>
+                            <td className="px-8 py-5">
+                              <button 
+                                onClick={() => togglePrintStatus(s.id, s.is_printed)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all hover:scale-105
+                                ${s.is_printed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400 opacity-60'}`}
+                                title={s.is_printed ? 'Carteirinha impressa' : 'Clique para marcar como impressa'}
+                              >
+                                <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: s.is_printed ? "'FILL' 1" : ""}}>
+                                  {s.is_printed ? 'print' : 'print_disabled'}
+                                </span>
+                                {s.is_printed ? 'Sim' : 'Não'}
+                              </button>
                             </td>
                             <td className="px-8 py-5">
                               {s.term_attachments && s.term_attachments.length > 0 ? (
@@ -815,7 +865,8 @@ export const StudentsPage: React.FC = () => {
             const matchesSearch = !searchTerm || s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment_id.includes(searchTerm);
             const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
             const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
-            return matchesGrade && matchesSearch && matchesPhoto;
+            const matchesPrint = printFilter === 'all' || (printFilter === 'printed' ? s.is_printed : !s.is_printed);
+            return matchesGrade && matchesSearch && matchesPhoto && matchesPrint;
           }).length === 0 ? (
             <div className="p-12 text-center">
               <span className="material-symbols-outlined text-5xl text-outline/30 block mb-3">school</span>
@@ -826,7 +877,8 @@ export const StudentsPage: React.FC = () => {
             const matchesSearch = !searchTerm || s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment_id.includes(searchTerm);
             const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
             const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
-            return matchesGrade && matchesSearch && matchesPhoto;
+            const matchesPrint = printFilter === 'all' || (printFilter === 'printed' ? s.is_printed : !s.is_printed);
+            return matchesGrade && matchesSearch && matchesPhoto && matchesPrint;
           }).map((s) => (
             <div key={s.id} className="p-5 flex flex-col gap-4 bg-white/20 active:bg-white/40 transition-all">
               <div className="flex items-center gap-4">
@@ -847,11 +899,22 @@ export const StudentsPage: React.FC = () => {
                     <span className="text-xs font-mono font-bold text-outline">#{s.enrollment_id}</span>
                   </div>
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                  s.is_authorized ? 'bg-logo-green/10 text-logo-green' : 'bg-logo-red/10 text-logo-red'
-                }`}>
-                  {s.is_authorized ? 'Ativo' : 'Bloq'}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                    s.is_authorized ? 'bg-logo-green/10 text-logo-green' : 'bg-logo-red/10 text-logo-red'
+                  }`}>
+                    {s.is_authorized ? 'Ativo' : 'Bloq'}
+                  </span>
+                  <button 
+                    onClick={(e) => { e.preventDefault(); togglePrintStatus(s.id, s.is_printed); }}
+                    className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 ${
+                      s.is_printed ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400 border border-gray-200'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[10px]">{s.is_printed ? 'print' : 'print_disabled'}</span>
+                    {s.is_printed ? 'Impresso' : 'Pendente'}
+                  </button>
+                </div>
               </div>
               
               <div className="flex gap-2">
