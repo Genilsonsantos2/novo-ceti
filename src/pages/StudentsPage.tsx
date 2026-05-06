@@ -41,6 +41,23 @@ export const StudentsPage: React.FC = () => {
     fetchStudents();
   }, []);
 
+  const filteredData = students.filter(s => {
+    const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+    const matchesSearch = !debouncedSearchTerm || s.full_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || s.enrollment_id.includes(debouncedSearchTerm);
+    const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
+    const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
+    const matchesPrint = printFilter === 'all' || (printFilter === 'printed' ? s.is_printed : !s.is_printed);
+    return matchesGrade && matchesSearch && matchesPhoto && matchesPrint;
+  });
+
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredData.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 85,
+    overscan: 5,
+  });
+
   const fetchStudents = async () => {
     const { data, error } = await supabase
       .from('students')
@@ -684,26 +701,7 @@ export const StudentsPage: React.FC = () => {
       <div className="glass-card rounded-[2rem] overflow-hidden border border-white/20">
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
-          {(() => {
-            const filteredData = students.filter(s => {
-              const matchesGrade = !selectedGrade || s.grade === selectedGrade;
-              const matchesSearch = !debouncedSearchTerm || s.full_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || s.enrollment_id.includes(debouncedSearchTerm);
-              const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
-              const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
-              const matchesPrint = printFilter === 'all' || (printFilter === 'printed' ? s.is_printed : !s.is_printed);
-              return matchesGrade && matchesSearch && matchesPhoto && matchesPrint;
-            });
-
-            const parentRef = useRef<HTMLDivElement>(null);
-            const rowVirtualizer = useVirtualizer({
-              count: filteredData.length,
-              getScrollElement: () => parentRef.current,
-              estimateSize: () => 85,
-              overscan: 5,
-            });
-
-            return (
-              <div ref={parentRef} className="max-h-[60vh] overflow-auto relative">
+          <div ref={parentRef} className="max-h-[60vh] overflow-auto relative">
                 <table className="w-full text-left">
                   <thead className="bg-white/50 border-b border-white/30 sticky top-0 z-10 backdrop-blur-md">
                     <tr>
@@ -878,8 +876,6 @@ export const StudentsPage: React.FC = () => {
                   )}
                 </table>
               </div>
-            );
-          })()}
         </div>
         {/* Mobile Card List View */}
         <div className="md:hidden divide-y divide-white/30">
