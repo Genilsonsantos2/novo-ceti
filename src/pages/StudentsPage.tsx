@@ -62,9 +62,16 @@ export const StudentsPage: React.FC = () => {
   };
 
   const toggleTermPhysical = async (studentId: string, currentStatus: boolean) => {
+    const updates: any = { term_returned_physical: !currentStatus };
+    
+    // Se estiver marcando como entregue, libera o aluno automaticamente
+    if (!currentStatus) {
+      updates.is_authorized = true;
+    }
+
     const { error } = await supabase
       .from('students')
-      .update({ term_returned_physical: !currentStatus })
+      .update(updates)
       .eq('id', studentId);
 
     if (error) console.error(error);
