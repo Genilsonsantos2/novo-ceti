@@ -835,7 +835,7 @@ export const StudentsPage: React.FC = () => {
                                   <span className="material-symbols-outlined text-sm">assignment</span>
                                   Termo
                                 </Link>
-                                {s.term_attachments && s.term_attachments.length > 0 ? (
+                                {(s.term_attachments && s.term_attachments.length > 0) || s.term_returned_physical ? (
                                   <Link 
                                     to={`/id/${s.id}`} 
                                     className="text-[10px] font-black uppercase px-3 py-2 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary/20 transition-all hover:scale-105 flex items-center gap-1.5"
@@ -974,7 +974,7 @@ export const StudentsPage: React.FC = () => {
                   <span className="material-symbols-outlined text-base">assignment</span>
                   Termo
                 </Link>
-                {s.term_attachments && s.term_attachments.length > 0 ? (
+                {(s.term_attachments && s.term_attachments.length > 0) || s.term_returned_physical ? (
                   <Link 
                     to={`/id/${s.id}`}
                     className="flex-1 py-3 bg-secondary/10 text-secondary rounded-xl font-black uppercase text-[10px] flex items-center justify-center gap-1.5 transition-all active:scale-95"
