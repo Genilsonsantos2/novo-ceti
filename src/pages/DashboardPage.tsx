@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({ ausentes: 0, ativas: 0, atrasos: 0 });
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hourlyData, setHourlyData] = useState<any[]>([]);
+  const [authData, setAuthData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStats();
@@ -57,6 +60,12 @@ export const DashboardPage: React.FC = () => {
       .eq('type', 'OUT')
       .gte('timestamp', today.toISOString());
     
+    // Pie chart data
+    setAuthData([
+      { name: 'Autorizados', value: ativasData?.length || 0, color: '#0071bc' },
+      { name: 'Sem Autorização', value: 100 - (ativasData?.length || 0), color: '#cbd5e1' } // Exemplo simplificado
+    ]);
+
     setStats({
       ausentes: ausentes || 0,
       ativas: ativasData?.length || 0,
@@ -72,7 +81,36 @@ export const DashboardPage: React.FC = () => {
       .limit(10);
 
     if (error) console.error(error);
-    else setLogs(data || []);
+    else {
+      setLogs(data || []);
+      
+      // Process for Bar Chart
+      const hoursMap: Record<string, { in: number, out: number }> = {};
+      
+      // Initialize hours from 7 to 18
+      for (let i = 7; i <= 18; i++) {
+        hoursMap[`${i}h`] = { in: 0, out: 0 };
+      }
+
+      if (data) {
+        data.forEach(log => {
+          const d = new Date(log.timestamp);
+          const hourKey = `${d.getHours()}h`;
+          if (hoursMap[hourKey]) {
+            if (log.type === 'IN') hoursMap[hourKey].in += 1;
+            else hoursMap[hourKey].out += 1;
+          }
+        });
+      }
+
+      const formattedHourly = Object.keys(hoursMap).map(key => ({
+        name: key,
+        Entradas: hoursMap[key].in,
+        Saídas: hoursMap[key].out
+      }));
+      
+      setHourlyData(formattedHourly);
+    }
     setLoading(false);
   };
 
@@ -145,6 +183,57 @@ export const DashboardPage: React.FC = () => {
           <div>
             <p className="text-5xl font-headline font-extrabold text-logo-red">{stats.atrasos}</p>
             <p className="text-on-surface-variant text-sm font-medium mt-1">Retornos Atrasados</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Gráficos Analíticos */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+        <div className="lg:col-span-2 glass-card rounded-[2rem] p-6">
+          <h3 className="font-headline font-bold text-lg text-on-surface mb-6">Fluxo de Acesso por Horário</h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                <Tooltip 
+                  cursor={{ fill: '#f1f5f9' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Bar dataKey="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="Saídas" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="glass-card rounded-[2rem] p-6 flex flex-col items-center justify-center">
+          <h3 className="font-headline font-bold text-lg text-on-surface mb-2 w-full text-left">Termos Ativos</h3>
+          <div className="h-48 w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={authData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {authData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+              <span className="text-3xl font-extrabold text-logo-blue">{stats.ativas}</span>
+              <span className="text-[10px] uppercase font-bold text-outline tracking-widest">Alunos</span>
+            </div>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 
 export const ScannerPage: React.FC = () => {
   const { user } = useAuth();
@@ -15,6 +16,9 @@ export const ScannerPage: React.FC = () => {
   const [hasFlash, setHasFlash] = useState(false);
   const [isFlashOn, setIsFlashOn] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [ecoMode, setEcoMode] = useState(false);
+
+  const { isOnline, pendingLogs, saveLogOffline, syncLogs, syncing } = useOfflineSync();
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scanTypeRef = useRef<'IN' | 'OUT'>('OUT');
@@ -68,7 +72,7 @@ export const ScannerPage: React.FC = () => {
       await scanner.start(
         cameraId,
         {
-          fps: 15,
+          fps: ecoMode ? 5 : 15,
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0
         },
@@ -124,7 +128,7 @@ export const ScannerPage: React.FC = () => {
     if (activeCameraId && !isScannerStarted) {
       startScanner(activeCameraId);
     }
-  }, [activeCameraId]);
+  }, [activeCameraId, ecoMode]); // Restart scanner if eco mode changes to adjust fps
 
   const playBeep = (type: 'success' | 'error') => {
     try {
@@ -195,16 +199,31 @@ export const ScannerPage: React.FC = () => {
       const hasReturnedTerm = data.term_attachments && data.term_attachments.length > 0;
       const isAccessAllowed = data.is_authorized && hasReturnedTerm;
 
-      // Log the scan attempt (both allowed and denied)
-      try {
-        await supabase.from('access_logs').insert({
+      // Log the scan attempt
+      if (isOnline) {
+        try {
+          await supabase.from('access_logs').insert({
+            student_id: data.id,
+            type: currentScanType,
+            gatekeeper_id: user?.id,
+            notes: isAccessAllowed ? 'Acesso Permitido' : 'Acesso Negado: Termo ou Autorização Pendente'
+          });
+        } catch (err) {
+          console.error('Erro ao registrar log online, tentando offline:', err);
+          saveLogOffline({
+            student_id: data.id,
+            type: currentScanType,
+            gatekeeper_id: user?.id,
+            notes: isAccessAllowed ? 'Acesso Permitido' : 'Acesso Negado: Termo ou Autorização Pendente'
+          });
+        }
+      } else {
+        saveLogOffline({
           student_id: data.id,
           type: currentScanType,
           gatekeeper_id: user?.id,
-          notes: isAccessAllowed ? 'Acesso Permitido' : 'Acesso Negado: Termo ou Autorização Pendente'
+          notes: isAccessAllowed ? 'Acesso Permitido (Offline)' : 'Acesso Negado: Termo Pendente (Offline)'
         });
-      } catch (err) {
-        console.error('Erro ao registrar log:', err);
       }
 
       if (!isAccessAllowed) {
@@ -255,10 +274,53 @@ export const ScannerPage: React.FC = () => {
 
   return (
     <div className="min-h-screen p-6 pb-32">
-      <header className="mb-8 text-center">
-        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Portaria Digital</p>
-        <h1 className="font-headline text-3xl font-extrabold text-on-surface tracking-tight">Controle de Acesso</h1>
-        <p className="text-on-surface-variant font-medium mt-1">Scanner de QR Code inteligente</p>
+      <header className="mb-6 flex flex-col md:flex-row items-center justify-between text-center md:text-left gap-4">
+        <div>
+          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1 opacity-70">Portaria Digital</p>
+          <h1 className="font-headline text-2xl md:text-3xl font-extrabold text-on-surface tracking-tight">Controle de Acesso</h1>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Offline/Sync Indicator */}
+          {!isOnline ? (
+            <div className="flex items-center gap-2 bg-orange-100 text-orange-700 px-3 py-1.5 rounded-xl border border-orange-200">
+              <span className="material-symbols-outlined text-sm">wifi_off</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Offline ({pendingLogs.length} salvos)</span>
+            </div>
+          ) : pendingLogs.length > 0 ? (
+            <button 
+              onClick={syncLogs}
+              disabled={syncing}
+              className="flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-200 hover:bg-blue-200 transition-all"
+            >
+              <span className={`material-symbols-outlined text-sm ${syncing ? 'animate-spin' : ''}`}>sync</span>
+              <span className="text-xs font-bold uppercase tracking-wider">
+                {syncing ? 'Sincronizando...' : `Sincronizar (${pendingLogs.length})`}
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-200">
+              <span className="material-symbols-outlined text-sm">wifi</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Online</span>
+            </div>
+          )}
+
+          {/* Eco Mode Toggle */}
+          <button
+            onClick={() => setEcoMode(!ecoMode)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
+              ecoMode 
+                ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' 
+                : 'bg-white/60 text-gray-600 border-gray-200 hover:bg-white/80'
+            }`}
+            title="Modo Economia de Bateria (Reduz quadros e brilho)"
+          >
+            <span className="material-symbols-outlined text-sm">battery_saver</span>
+            <span className="text-xs font-bold uppercase tracking-wider hidden md:block">
+              Eco Mode
+            </span>
+          </button>
+        </div>
       </header>
 
       <div className="max-w-md mx-auto space-y-6">
@@ -286,7 +348,7 @@ export const ScannerPage: React.FC = () => {
         </div>
 
         {/* Scanner Viewport */}
-        <div className="glass-card rounded-[2.5rem] overflow-hidden p-2 shadow-xl relative">
+        <div className={`glass-card rounded-[2.5rem] overflow-hidden p-2 shadow-xl relative transition-all duration-500 ${ecoMode ? 'brightness-50' : 'brightness-100'}`}>
           <div className="rounded-[2rem] overflow-hidden aspect-square relative bg-black">
             <div id="reader" className="w-full h-full object-cover"></div>
             
