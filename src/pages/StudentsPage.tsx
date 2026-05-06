@@ -61,6 +61,16 @@ export const StudentsPage: React.FC = () => {
     else fetchStudents();
   };
 
+  const toggleTermPhysical = async (studentId: string, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from('students')
+      .update({ term_returned_physical: !currentStatus })
+      .eq('id', studentId);
+
+    if (error) console.error(error);
+    else fetchStudents();
+  };
+
   const togglePrintStatus = async (studentId: string, currentStatus: boolean) => {
     const { error } = await supabase
       .from('students')
@@ -780,13 +790,24 @@ export const StudentsPage: React.FC = () => {
                               {s.term_attachments && s.term_attachments.length > 0 ? (
                                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
                                   <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>verified</span>
-                                  Devolvido
+                                  Digitalizado
                                 </span>
+                              ) : s.term_returned_physical ? (
+                                <button 
+                                  onClick={() => toggleTermPhysical(s.id, s.term_returned_physical)}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 transition-all hover:scale-105"
+                                >
+                                  <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>description</span>
+                                  Entregue
+                                </button>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500">
+                                <button 
+                                  onClick={() => toggleTermPhysical(s.id, s.term_returned_physical)}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all hover:scale-105"
+                                >
                                   <span className="material-symbols-outlined text-xs">history_edu</span>
                                   Pendente
-                                </span>
+                                </button>
                               )}
                             </td>
                             <td className="px-8 py-5">
@@ -885,9 +906,25 @@ export const StudentsPage: React.FC = () => {
                 <div className="relative">
                   <img src={s.photo_url} className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white shadow-sm" alt="" />
                   <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${s.is_authorized ? 'bg-logo-green' : 'bg-logo-red'}`}></div>
-                  {s.term_attachments && s.term_attachments.length > 0 && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-sm border-2 border-white">
+                  {s.term_attachments && s.term_attachments.length > 0 ? (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-sm border-2 border-white" title="Termo Digitalizado">
                       <span className="material-symbols-outlined text-[10px] font-bold">verified</span>
+                    </div>
+                  ) : s.term_returned_physical ? (
+                    <div 
+                      onClick={(e) => { e.preventDefault(); toggleTermPhysical(s.id, s.term_returned_physical); }}
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-sm border-2 border-white cursor-pointer" 
+                      title="Termo Entregue (Físico)"
+                    >
+                      <span className="material-symbols-outlined text-[10px] font-bold">description</span>
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={(e) => { e.preventDefault(); toggleTermPhysical(s.id, s.term_returned_physical); }}
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gray-300 text-white flex items-center justify-center shadow-sm border-2 border-white cursor-pointer" 
+                      title="Termo Pendente"
+                    >
+                      <span className="material-symbols-outlined text-[10px] font-bold">history_edu</span>
                     </div>
                   )}
                 </div>

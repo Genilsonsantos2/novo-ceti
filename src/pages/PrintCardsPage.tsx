@@ -47,7 +47,7 @@ export const PrintCardsPage: React.FC = () => {
   const filteredStudents = students.filter(s => {
     const matchesGrade = !selectedGrade || s.grade === selectedGrade;
     const matchesIds = selectedIds.length === 0 || selectedIds.includes(s.id);
-    const hasReturnedTerm = s.term_attachments && s.term_attachments.length > 0;
+    const hasReturnedTerm = (s.term_attachments && s.term_attachments.length > 0) || s.term_returned_physical;
     return matchesGrade && matchesIds && hasReturnedTerm;
   });
 
