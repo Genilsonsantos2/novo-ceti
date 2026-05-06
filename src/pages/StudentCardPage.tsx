@@ -69,12 +69,12 @@ export const StudentCardPage: React.FC = () => {
 
       // Upload to Supabase Storage
       const fileName = `student_${student.id}_${Date.now()}.jpg`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('student-photos')
-        .upload(fileName, blob, {
-          contentType: 'image/jpeg',
-          upsert: true
-        });
+      const { error: uploadError } = await supabase.storage
+          .from('student-photos')
+          .upload(fileName, blob, {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
 
       if (uploadError) throw uploadError;
 
