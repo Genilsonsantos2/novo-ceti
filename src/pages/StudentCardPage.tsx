@@ -20,7 +20,7 @@ export const StudentCardPage: React.FC = () => {
     try {
       setUploading(true);
 
-      const base64Url = await new Promise<string>((resolve, reject) => {
+      const blob = await new Promise<Blob>((resolve, reject) => {
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
         
@@ -50,9 +50,11 @@ export const StudentCardPage: React.FC = () => {
             if (!ctx) throw new Error('Falha ao processar a imagem');
             
             ctx.drawImage(img, 0, 0, width, height);
-            const result = canvas.toDataURL('image/jpeg', 0.85);
+            canvas.toBlob((b) => {
+              if (b) resolve(b);
+              else reject(new Error('Erro ao converter imagem para blob'));
+            }, 'image/jpeg', 0.85);
             URL.revokeObjectURL(objectUrl);
-            resolve(result);
           } catch (err) {
             reject(err);
           }
@@ -65,10 +67,28 @@ export const StudentCardPage: React.FC = () => {
         img.src = objectUrl;
       });
 
-      // Save directly to the database
+      // Upload to Supabase Storage
+      const fileName = `student_${student.id}_${Date.now()}.jpg`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('student-photos')
+        .upload(fileName, blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('student-photos')
+        .getPublicUrl(fileName);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      // Update student table with new public URL
       const { data: updatedRows, error: dbError } = await supabase
         .from('students')
-        .update({ photo_url: base64Url })
+        .update({ photo_url: publicUrl })
         .eq('id', student.id)
         .select();
         
@@ -78,7 +98,7 @@ export const StudentCardPage: React.FC = () => {
         throw new Error('Permissão negada ou aluno não encontrado no banco de dados. A foto não foi salva.');
       }
       
-      setStudent({ ...student, photo_url: base64Url });
+      setStudent({ ...student, photo_url: publicUrl });
       alert('Foto salva com sucesso!');
     } catch (err: any) {
       console.error('Erro ao processar e salvar a foto:', err);
