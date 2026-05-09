@@ -5,9 +5,7 @@ interface StudentActionButtonsProps {
   onExportMigration: () => void;
   onShowImport: () => void;
   onNewStudent: () => void;
-  selectedStudentsCount: number;
   selectedStudents: string[];
-  selectedGrade?: string;
   isMigrating: boolean;
   onMigratePhotos: () => void;
 }
@@ -16,9 +14,7 @@ export const StudentActionButtons: React.FC<StudentActionButtonsProps> = ({
   onExportMigration,
   onShowImport,
   onNewStudent,
-  selectedStudentsCount,
   selectedStudents,
-  selectedGrade,
   isMigrating,
   onMigratePhotos,
 }) => {

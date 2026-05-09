@@ -381,9 +381,7 @@ export const StudentsPage: React.FC = () => {
         onExportMigration={handleExportMigrationCSV}
         onShowImport={() => setShowImportModal(true)}
         onNewStudent={() => { closeEditModal(); setShowModal(true); }}
-        selectedStudentsCount={selectedStudents.length}
         selectedStudents={selectedStudents}
-        selectedGrade={selectedGrade}
         isMigrating={isMigrating}
         onMigratePhotos={handleMigratePhotos}
       />
