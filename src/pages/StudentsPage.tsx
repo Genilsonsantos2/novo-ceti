@@ -52,8 +52,8 @@ export const StudentsPage: React.FC = () => {
     return students.filter(s => {
       const matchesGrade = !selectedGrade || s.grade === selectedGrade;
       const matchesSearch = !debouncedSearchTerm || 
-        s.full_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-        s.enrollment_id.includes(debouncedSearchTerm);
+        (s.full_name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) || 
+        (s.enrollment_id?.includes(debouncedSearchTerm));
       
       const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
       const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);
@@ -426,10 +426,12 @@ export const StudentsPage: React.FC = () => {
         />
       </div>
 
-      <TermDevolutivaModal 
-        student={devolutivaStudent} 
-        onClose={() => setDevolutivaStudent(null)} 
-      />
+      {devolutivaStudent && (
+        <TermDevolutivaModal 
+          student={devolutivaStudent} 
+          onClose={() => setDevolutivaStudent(null)} 
+        />
+      )}
 
       <StudentFormModal 
         show={showModal}
