@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 export const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,6 +19,9 @@ export const LoginPage: React.FC = () => {
     if (error) {
       setError(error.message);
       setLoading(false);
+    } else {
+      setLoading(false);
+      navigate('/');
     }
   };
 
