@@ -3,18 +3,18 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DarkModeProvider } from './contexts/DarkModeContext';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { ScannerPage } from './pages/ScannerPage';
+// import { ScannerPage } from './pages/ScannerPage';
 import { StudentCardPage } from './pages/StudentCardPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { PrintCardsPage } from './pages/PrintCardsPage';
 import { AdminLayout } from './components/AdminLayout';
-import { ExitReportPage } from './pages/ExitReportPage';
-import { LunchReportPage } from './pages/LunchReportPage';
+// import { ExitReportPage } from './pages/ExitReportPage';
+// import { LunchReportPage } from './pages/LunchReportPage';
 import { AuthorizationTermPage } from './pages/AuthorizationTermPage';
-import { ProvisionalExitReportPage } from './pages/ProvisionalExitReportPage';
+// import { ProvisionalExitReportPage } from './pages/ProvisionalExitReportPage';
 import { PrintTermsPage } from './pages/PrintTermsPage';
-import { DailyAccessReportPage } from './pages/DailyAccessReportPage';
+// import { DailyAccessReportPage } from './pages/DailyAccessReportPage';
 import { DevolutivaPage } from './pages/DevolutivaPage';
 import { AbsencesReportPage } from './pages/AbsencesReportPage';
 
@@ -56,7 +56,6 @@ function AppRoutes() {
         <Route path="/" element={
           <ProtectedRoute>
             {profile?.role === 'ADM' || profile?.role === 'DIRETOR' ? <DashboardPage /> : 
-             profile?.role === 'PORTEIRO' ? <ScannerPage /> : 
              <StudentCardPage />}
           </ProtectedRoute>
         } />
@@ -67,11 +66,13 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
+        {/* 
         <Route path="/scanner" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <ScannerPage />
           </ProtectedRoute>
         } />
+        */}
 
         <Route path="/id" element={
           <ProtectedRoute>
@@ -97,6 +98,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
+        {/*
         <Route path="/exit-report" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <ExitReportPage />
@@ -108,6 +110,7 @@ function AppRoutes() {
             <LunchReportPage />
           </ProtectedRoute>
         } />
+        */}
 
         <Route path="/auth-term/:studentId" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
@@ -115,6 +118,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
+        {/*
         <Route path="/provisional-report" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
             <ProvisionalExitReportPage />
@@ -126,6 +130,7 @@ function AppRoutes() {
             <DailyAccessReportPage />
           </ProtectedRoute>
         } />
+        */}
 
         <Route path="/devolutiva" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>

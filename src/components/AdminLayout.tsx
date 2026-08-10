@@ -87,49 +87,14 @@ export const AdminLayout: React.FC = () => {
             </>
           )}
 
+          {/* Ocultado a pedido do usuário
           {(profile?.role === 'ADM' || profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
             <>
-              <NavLink 
-                to="/scanner" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
-                <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
-                Portaria
-              </NavLink>
-
-              <NavLink 
-                to="/daily-access-report" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
-                <span className="material-symbols-outlined text-lg">history</span>
-                Histórico de Acessos
-              </NavLink>
-
-              <NavLink 
-                to="/exit-report" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
-                <span className="material-symbols-outlined text-lg">fact_check</span>
-                Folha de Assinaturas
-              </NavLink>
-
-              <NavLink 
-                to="/lunch-report" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
-                <span className="material-symbols-outlined text-lg">restaurant</span>
-                Relatório Almoço
-              </NavLink>
-
-              <NavLink 
-                to="/provisional-report" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
-                <span className="material-symbols-outlined text-lg">edit_note</span>
-                Relatório Provisório
-              </NavLink>
+              <NavLink to="/scanner" ... />
+              ...
             </>
           )}
+          */}
 
           <NavLink 
             to="/id" 
@@ -201,21 +166,11 @@ export const AdminLayout: React.FC = () => {
             </NavLink>
           )}
 
+          {/* Ocultado
           {(profile?.role === 'ADM' || profile?.role === 'DIRETOR' || profile?.role === 'PORTEIRO') && (
-            <NavLink 
-              to="/scanner" 
-              className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}
-            >
-              {({ isActive }) => (
-                <>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center -mt-8 shadow-lg border-4 border-[#f7f9fc] ${isActive ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
-                    <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>qr_code_scanner</span>
-                  </div>
-                  <span className="text-[8px] font-black uppercase tracking-tighter mt-1">Portaria</span>
-                </>
-              )}
-            </NavLink>
+            <NavLink to="/scanner" ... />
           )}
+          */}
 
           {(profile?.role === 'ADM' || profile?.role === 'DIRETOR') && (
             <NavLink to="/students" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
@@ -224,10 +179,12 @@ export const AdminLayout: React.FC = () => {
             </NavLink>
           )}
 
+          {/* Ocultado
           <NavLink to="/daily-access-report" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
             <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>description</span>
             <span className="text-[8px] font-black uppercase tracking-tighter">Relatos</span>
           </NavLink>
+          */}
 
           <NavLink to="/id" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
             <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>account_circle</span>
