@@ -33,7 +33,7 @@ export const AbsencesReportPage: React.FC = () => {
     // Subscribe to real-time changes
     const subscription = supabase
       .channel('public:student_absences')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_absences' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_absences' }, () => {
         fetchAbsences();
       })
       .subscribe();
