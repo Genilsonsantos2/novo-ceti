@@ -1,9 +1,13 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useDarkMode } from '../contexts/DarkModeContext';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 
 export const AdminLayout: React.FC = () => {
   const { profile, signOut } = useAuth();
+  const { darkMode, toggleDarkMode } = useDarkMode();
+  const { isOnline, pendingLogs } = useOfflineSync();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -25,8 +29,16 @@ export const AdminLayout: React.FC = () => {
               <p className="text-[10px] text-outline font-bold uppercase tracking-widest mt-1 opacity-80">Nova Itarana</p>
             </div>
           </div>
-          <div className="px-1 py-0.5 bg-primary/5 rounded-full inline-block border border-primary/10">
-            <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] px-2">{profile?.role}</p>
+          <div className="flex flex-col gap-1.5 mt-3">
+            <div className="px-1 py-0.5 bg-primary/5 rounded-full inline-block border border-primary/10 w-fit">
+              <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] px-2">{profile?.role}</p>
+            </div>
+            {!isOnline && (
+              <div className="flex items-center gap-1 text-[8px] font-black text-orange-600 bg-orange-100 rounded-full px-2 py-0.5 border border-orange-200 uppercase w-fit tracking-wider animate-pulse">
+                <span className="material-symbols-outlined text-[10px]">wifi_off</span>
+                Offline ({pendingLogs.length})
+              </div>
+            )}
           </div>
         </div>
 
@@ -55,6 +67,14 @@ export const AdminLayout: React.FC = () => {
               >
                 <span className="material-symbols-outlined text-lg">attach_file</span>
                 Devolutiva
+              </NavLink>
+
+              <NavLink 
+                to="/absences" 
+                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
+              >
+                <span className="material-symbols-outlined text-lg">event_busy</span>
+                Faltas e Abonos
               </NavLink>
 
               <NavLink 
@@ -120,7 +140,15 @@ export const AdminLayout: React.FC = () => {
           </NavLink>
         </nav>
 
-        <div className="p-4 border-t border-white/20">
+        <div className="p-4 border-t border-white/20 space-y-2">
+          <button 
+            onClick={toggleDarkMode}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/5 hover:bg-primary/10 text-primary transition-all font-bold text-xs"
+          >
+            <span className="material-symbols-outlined text-base">{darkMode ? 'light_mode' : 'dark_mode'}</span>
+            {darkMode ? 'Tema Claro' : 'Tema Escuro'}
+          </button>
+          
           <button 
             onClick={handleSignOut}
             className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-error-container/50 text-on-error-container font-bold hover:bg-error-container transition-all"
@@ -141,15 +169,23 @@ export const AdminLayout: React.FC = () => {
              </div>
              <h1 className="font-headline font-extrabold text-lg text-primary tracking-tight">CETI</h1>
            </div>
-           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
              <div className="text-right">
                <p className="text-[8px] font-black uppercase text-primary tracking-widest leading-none">{profile?.role}</p>
                <p className="text-[10px] font-bold text-outline leading-tight">{profile?.full_name?.split(' ')[0]}</p>
              </div>
+             {!isOnline && (
+               <div className="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-lg animate-pulse" title={`Offline (${pendingLogs.length} salvos)`}>
+                 <span className="material-symbols-outlined text-base">wifi_off</span>
+               </div>
+             )}
+             <button onClick={toggleDarkMode} className="w-8 h-8 flex items-center justify-center bg-primary/10 text-primary rounded-lg">
+               <span className="material-symbols-outlined text-base">{darkMode ? 'light_mode' : 'dark_mode'}</span>
+             </button>
              <button onClick={handleSignOut} className="w-8 h-8 flex items-center justify-center bg-logo-red/10 text-logo-red rounded-lg">
                <span className="material-symbols-outlined text-base">logout</span>
              </button>
-           </div>
+            </div>
         </div>
         
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 w-full h-full pb-24 md:pb-0 print:p-0 print:m-0 print:animate-none">

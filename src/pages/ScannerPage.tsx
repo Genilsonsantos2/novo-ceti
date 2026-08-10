@@ -17,6 +17,7 @@ export const ScannerPage: React.FC = () => {
   const [isFlashOn, setIsFlashOn] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [ecoMode, setEcoMode] = useState(false);
+  const [cardReleased, setCardReleased] = useState(false);
 
   const { isOnline, pendingLogs, saveLogOffline, syncLogs, syncing } = useOfflineSync();
 
@@ -436,6 +437,22 @@ export const ScannerPage: React.FC = () => {
                           ? (!student.is_authorized ? 'Aluno bloqueado pelo sistema' : 'Termo de autorização pendente') 
                           : 'Código não reconhecido')}
                   </p>
+                  {status === 'success' && !cardReleased && (
+                    <button
+                      onClick={() => {
+                        setCardReleased(true);
+                        console.log('Carteirinha liberada para', student?.full_name);
+                        setTimeout(() => {
+                          setCardReleased(false);
+                          setStatus('idle');
+                          setStudent(null);
+                        }, 2000);
+                      }}
+                      className="px-6 py-2 bg-white text-logo-green rounded-xl font-bold uppercase text-xs shadow-md hover:bg-gray-100 transition mb-6"
+                    >
+                      Entregar Carteirinha
+                    </button>
+                  )}
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-12 h-1 bg-white/30 rounded-full overflow-hidden">
                       <div className="h-full bg-white animate-progress-shrink origin-left"></div>

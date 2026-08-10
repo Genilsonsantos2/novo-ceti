@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DarkModeProvider } from './contexts/DarkModeContext';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ScannerPage } from './pages/ScannerPage';
@@ -15,6 +16,7 @@ import { ProvisionalExitReportPage } from './pages/ProvisionalExitReportPage';
 import { PrintTermsPage } from './pages/PrintTermsPage';
 import { DailyAccessReportPage } from './pages/DailyAccessReportPage';
 import { DevolutivaPage } from './pages/DevolutivaPage';
+import { AbsencesReportPage } from './pages/AbsencesReportPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
   const { user, profile, loading } = useAuth();
@@ -130,6 +132,12 @@ function AppRoutes() {
             <DevolutivaPage />
           </ProtectedRoute>
         } />
+        
+        <Route path="/absences" element={
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
+            <AbsencesReportPage />
+          </ProtectedRoute>
+        } />
       </Route>
 
       <Route path="*" element={<Navigate to="/" />} />
@@ -139,13 +147,15 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen font-body selection:bg-primary/20">
-          <AppRoutes />
-        </div>
-      </Router>
-    </AuthProvider>
+    <DarkModeProvider>
+      <AuthProvider>
+        <Router>
+          <div className="min-h-screen font-body selection:bg-primary/20 transition-colors duration-300 dark:bg-zinc-950">
+            <AppRoutes />
+          </div>
+        </Router>
+      </AuthProvider>
+    </DarkModeProvider>
   );
 }
 

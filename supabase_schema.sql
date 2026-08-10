@@ -57,3 +57,21 @@ ALTER TABLE access_logs ENABLE ROW LEVEL SECURITY;
 -- Diretores podem ler/escrever tudo
 -- Porteiros podem ler alunos e escrever logs
 -- Alunos podem ler seus prprios dados e autorizaes
+
+-- Tabela de Faltas e Abonos
+CREATE TABLE student_absences (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE NOT NULL,
+  type TEXT CHECK (type IN ('FALTA_JUSTIFICADA', 'ABONO')) NOT NULL,
+  date DATE NOT NULL,
+  reason TEXT,
+  sigeduc_synced BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  created_by UUID REFERENCES auth.users(id)
+);
+
+-- Habilitar Realtime para faltas e abonos
+ALTER PUBLICATION supabase_realtime ADD TABLE student_absences;
+
+-- Segurança
+ALTER TABLE student_absences ENABLE ROW LEVEL SECURITY;

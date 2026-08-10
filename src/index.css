@@ -4,13 +4,21 @@
 
 @layer base {
   body {
-    @apply bg-surface text-on-surface;
+    @apply bg-surface text-on-surface transition-colors duration-300;
     background-color: #f7f9fc;
     background-image: 
       radial-gradient(at 0% 0%, hsla(18, 90%, 94%, 1) 0, transparent 50%), 
       radial-gradient(at 100% 0%, hsla(145, 90%, 94%, 1) 0, transparent 50%),
       radial-gradient(at 50% 100%, hsla(202, 90%, 94%, 1) 0, transparent 50%);
     background-attachment: fixed;
+  }
+
+  .dark body {
+    background-color: #0b0f19;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(220, 40%, 10%, 1) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(145, 35%, 8%, 1) 0, transparent 50%),
+      radial-gradient(at 50% 100%, hsla(202, 40%, 10%, 1) 0, transparent 50%);
   }
 }
 
@@ -28,12 +36,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
@@ -44,6 +46,70 @@ body {
 
 .glass-card {
   @apply bg-white/80 backdrop-blur-[20px] shadow-sm border border-white/60 hover:shadow-lg transition-all duration-300;
+}
+
+.dark .glass-panel {
+  @apply bg-zinc-900/60 border-zinc-800/80 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] backdrop-blur-xl;
+}
+
+.dark .glass-card {
+  @apply bg-zinc-900/70 border-zinc-800/70 shadow-sm hover:shadow-lg hover:bg-zinc-900/90 transition-all duration-300 backdrop-blur-[20px];
+}
+
+/* Global Dark Mode Overrides */
+.dark {
+  color-scheme: dark;
+}
+.dark .text-on-surface {
+  color: #f4f4f5 !important;
+}
+.dark .text-on-surface-variant {
+  color: #a1a1aa !important;
+}
+.dark .text-gray-700 {
+  color: #e4e4e7 !important;
+}
+.dark .text-[#001e40] {
+  color: #cbd5e1 !important;
+}
+.dark .text-primary {
+  color: #60a5fa !important;
+}
+.dark .text-secondary {
+  color: #94a3b8 !important;
+}
+.dark .text-outline {
+  color: #71717a !important;
+}
+.dark .bg-white {
+  background-color: #18181b !important;
+}
+.dark .bg-white\/60 {
+  background-color: rgba(24, 24, 27, 0.6) !important;
+}
+.dark .bg-white\/50 {
+  background-color: rgba(24, 24, 27, 0.5) !important;
+}
+.dark .bg-white\/30 {
+  background-color: rgba(24, 24, 27, 0.3) !important;
+}
+.dark .border-gray-200 {
+  border-color: #27272a !important;
+}
+.dark .border-white\/80 {
+  border-color: rgba(39, 39, 42, 0.8) !important;
+}
+.dark .border-white\/20 {
+  border-color: rgba(39, 39, 42, 0.2) !important;
+}
+.dark .border-white\/50 {
+  border-color: rgba(39, 39, 42, 0.5) !important;
+}
+.dark input, .dark select, .dark textarea {
+  color: #f4f4f5 !important;
+}
+.dark input::placeholder {
+  color: #52525b !important;
 }
 
 .id-gradient {
