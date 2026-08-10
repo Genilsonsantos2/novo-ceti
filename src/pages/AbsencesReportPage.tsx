@@ -118,13 +118,57 @@ export const AbsencesReportPage: React.FC = () => {
     }
   };
 
+  const pendentesCount = absences.filter(a => !a.sigeduc_synced).length;
+  const faltasCount = absences.filter(a => a.type === 'FALTA_JUSTIFICADA').length;
+  const abonosCount = absences.filter(a => a.type === 'ABONO').length;
+
   return (
     <div className="flex-1 px-6 md:px-10 py-8 min-h-screen pb-32">
-      <header className="mb-10">
-        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Secretaria</p>
-        <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Faltas e Abonos</h2>
-        <p className="text-on-surface-variant font-medium mt-1">Registre faltas e controle a baixa no Sigeduc</p>
+      <header className="mb-8">
+        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Controle Operacional</p>
+        <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Gestão de Faltas e Abonos</h2>
+        <p className="text-on-surface-variant font-medium mt-1">Monitore e garanta a sincronização com o Sigeduc</p>
       </header>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="glass-card rounded-[2rem] p-6 border-l-4 border-l-rose-500 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-rose-500/5 group-hover:bg-rose-500/10 transition-colors"></div>
+          <div className="relative z-10 flex items-center justify-between">
+            <div>
+              <p className="text-outline text-[10px] font-bold uppercase tracking-widest">Pendentes Sigeduc</p>
+              <p className="text-4xl font-headline font-extrabold text-rose-500 mt-1">{pendentesCount}</p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center">
+              <span className="material-symbols-outlined text-rose-500 text-2xl">sync_problem</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card rounded-[2rem] p-6 border-l-4 border-l-blue-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-outline text-[10px] font-bold uppercase tracking-widest">Faltas no Período</p>
+              <p className="text-4xl font-headline font-extrabold text-blue-500 mt-1">{faltasCount}</p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+              <span className="material-symbols-outlined text-blue-500 text-2xl">person_off</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card rounded-[2rem] p-6 border-l-4 border-l-emerald-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-outline text-[10px] font-bold uppercase tracking-widest">Abonos no Período</p>
+              <p className="text-4xl font-headline font-extrabold text-emerald-500 mt-1">{abonosCount}</p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+              <span className="material-symbols-outlined text-emerald-500 text-2xl">event_available</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
@@ -281,7 +325,9 @@ export const AbsencesReportPage: React.FC = () => {
                             <img src={record.students?.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${record.students?.full_name}`} alt="" className="w-8 h-8 rounded-lg object-cover" />
                             <div>
                               <p className="text-sm font-bold text-gray-800 line-clamp-1">{record.students?.full_name}</p>
-                              <p className="text-[10px] text-gray-500">{record.students?.grade}</p>
+                              <p className="text-[10px] text-gray-500">
+                                {record.students?.grade} {record.auth_users?.email ? `• Reg: ${record.auth_users.email.split('@')[0]}` : ''}
+                              </p>
                             </div>
                           </div>
                         </td>

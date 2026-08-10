@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState({ ausentes: 0, ativas: 0, atrasos: 0 });
+  const [stats, setStats] = useState({ ausentes: 0, ativas: 0, atrasos: 0, pendentesSigeduc: 0 });
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [hourlyData, setHourlyData] = useState<any[]>([]);
@@ -23,8 +23,16 @@ export const DashboardPage: React.FC = () => {
       })
       .subscribe();
 
+    const absencesSubscription = supabase
+      .channel('public:student_absences_dash')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_absences' }, () => {
+        fetchStats();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(accessLogsSubscription);
+      supabase.removeChannel(absencesSubscription);
     };
   }, []);
 
@@ -66,10 +74,17 @@ export const DashboardPage: React.FC = () => {
       { name: 'Sem Autorização', value: 100 - (ativasData?.length || 0), color: '#cbd5e1' } // Exemplo simplificado
     ]);
 
+    // Count pendentes Sigeduc
+    const { count: pendentesSigeduc } = await supabase
+      .from('student_absences')
+      .select('*', { count: 'exact' })
+      .eq('sigeduc_synced', false);
+
     setStats({
       ausentes: ausentes || 0,
       ativas: ativasData?.length || 0,
-      atrasos: lateCount
+      atrasos: lateCount,
+      pendentesSigeduc: pendentesSigeduc || 0
     });
   };
 
@@ -146,7 +161,7 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Bento Grid Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         <div className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-logo-blue">
           <div className="flex justify-between items-start">
             <div className="w-14 h-14 rounded-2xl bg-logo-blue/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-logo-blue/10 transition-all duration-500">
@@ -185,6 +200,24 @@ export const DashboardPage: React.FC = () => {
             <p className="text-on-surface-variant text-sm font-medium mt-1">Retornos Atrasados</p>
           </div>
         </div>
+
+        <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-amber-500 relative overflow-hidden">
+          <div className="absolute inset-0 bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors"></div>
+          <div className="flex justify-between items-start relative z-10">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-amber-500/20 transition-all duration-500">
+              <span className="material-symbols-outlined text-amber-500 text-2xl">sync_problem</span>
+            </div>
+            {stats.pendentesSigeduc > 0 && (
+              <span className="text-amber-500 text-[10px] font-bold uppercase tracking-widest animate-pulse bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                Pendente
+              </span>
+            )}
+          </div>
+          <div className="relative z-10">
+            <p className="text-5xl font-headline font-extrabold text-amber-500">{stats.pendentesSigeduc}</p>
+            <p className="text-on-surface-variant text-sm font-medium mt-1">Baixas no Sigeduc</p>
+          </div>
+        </Link>
       </div>
 
       {/* Gráficos Analíticos */}
