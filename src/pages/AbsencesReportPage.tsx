@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { format, parseISO } from 'date-fns';
+import { StudentAssociateModal } from '../components/students/StudentAssociateModal';
 
 export const AbsencesReportPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +19,10 @@ export const AbsencesReportPage: React.FC = () => {
   const [recordDate, setRecordDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [recordReason, setRecordReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Modal / association
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalRecord, setModalRecord] = useState<any | null>(null);
 
   useEffect(() => {
     if (searchTerm.length >= 3) {
@@ -91,7 +96,10 @@ export const AbsencesReportPage: React.FC = () => {
           type: recordType,
           date: recordDate,
           reason: recordReason,
-          created_by: userData.user?.id
+          created_by: userData.user?.id,
+          cached_full_name: selectedStudent.full_name,
+          cached_enrollment_id: selectedStudent.enrollment_id,
+          cached_grade: selectedStudent.grade
         }
       ]);
 
@@ -103,6 +111,7 @@ export const AbsencesReportPage: React.FC = () => {
       setRecordReason('');
       setRecordDate(format(new Date(), 'yyyy-MM-dd'));
       alert('Registrado com sucesso!');
+      fetchAbsences();
     }
     setIsSubmitting(false);
   };
@@ -115,7 +124,20 @@ export const AbsencesReportPage: React.FC = () => {
       
     if (error) {
       alert('Erro ao atualizar status: ' + error.message);
+    } else {
+      fetchAbsences();
     }
+  };
+
+  const openAssociateModal = (record: any) => {
+    setModalRecord(record);
+    setModalOpen(true);
+  };
+
+  const onAssociated = () => {
+    setModalOpen(false);
+    setModalRecord(null);
+    fetchAbsences();
   };
 
   const pendentesCount = absences.filter(a => !a.sigeduc_synced).length;
@@ -262,7 +284,7 @@ export const AbsencesReportPage: React.FC = () => {
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full py-3.5 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  className="w-full py-3.5 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-60"
                 >
                   {isSubmitting ? 'Salvando...' : 'Registrar'}
                 </button>
@@ -321,15 +343,30 @@ export const AbsencesReportPage: React.FC = () => {
                     {absences.map((record) => (
                       <tr key={record.id} className="border-b border-gray-100/50 hover:bg-white/40 transition-colors">
                         <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <img src={record.students?.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${record.students?.full_name}`} alt="" className="w-8 h-8 rounded-lg object-cover" />
-                            <div>
-                              <p className="text-sm font-bold text-gray-800 line-clamp-1">{record.students?.full_name}</p>
-                              <p className="text-[10px] text-gray-500">
-                                {record.students?.grade} {record.auth_users?.email ? `• Reg: ${record.auth_users.email.split('@')[0]}` : ''}
-                              </p>
+                          {record.students ? (
+                            <div className="flex items-center gap-3">
+                              <img src={record.students?.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${record.students?.full_name}`} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                              <div>
+                                <p className="text-sm font-bold text-gray-800 line-clamp-1">{record.students?.full_name}</p>
+                                <p className="text-[10px] text-gray-500">
+                                  {record.students?.grade} {record.auth_users?.email ? `• Reg: ${record.auth_users.email.split('@')[0]}` : ''}
+                                </p>
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-bold text-sm text-rose-600">Aluno não cadastrado</p>
+                                <p className="text-[10px] text-gray-500">ID: {record.student_id || '—'}</p>
+                                {record.cached_full_name && <p className="text-[10px] text-gray-500">Nome (cache): {record.cached_full_name}</p>}
+                                {record.cached_enrollment_id && <p className="text-[10px] text-gray-500">Matrícula (cache): {record.cached_enrollment_id}</p>}
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => openAssociateModal(record)} className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-bold">Associar</button>
+                                <button onClick={() => openAssociateModal(record)} className="px-3 py-1 bg-emerald-500 text-white rounded-lg text-xs font-bold">Cadastrar</button>
+                              </div>
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-4">
                           <p className="text-xs font-bold text-gray-700">
@@ -338,6 +375,7 @@ export const AbsencesReportPage: React.FC = () => {
                           <p className="text-[10px] text-gray-500">
                             {format(parseISO(record.date), 'dd/MM/yyyy')}
                           </p>
+                          {record.reason && <p className="text-[10px] text-gray-500 mt-1">Motivo: {record.reason}</p>}
                         </td>
                         <td className="py-3 px-4">
                           {record.sigeduc_synced ? (
@@ -372,6 +410,8 @@ export const AbsencesReportPage: React.FC = () => {
         </div>
 
       </div>
+
+      <StudentAssociateModal open={modalOpen} onClose={() => setModalOpen(false)} absenceRecord={modalRecord} onAssociated={onAssociated} />
     </div>
   );
 };
