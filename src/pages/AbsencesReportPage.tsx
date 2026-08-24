@@ -28,6 +28,12 @@ interface StudentResult {
   photo_url: string;
 }
 
+interface DraftRecord {
+  type: 'FALTA_JUSTIFICADA' | 'ABONO';
+  reason: string;
+  authorizedBy: string;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const AbsencesReportPage: React.FC = () => {
   // ── Tab State ───────────────────────────────────────────────────────────────
@@ -55,7 +61,8 @@ export const AbsencesReportPage: React.FC = () => {
   // ── Planilha State ──────────────────────────────────────────────────────────
   const [planilhaDate, setPlanilhaDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [planilhaGrade, setPlanilhaGrade] = useState('');
-  const [draftRecords, setDraftRecords] = useState<Record<string, { type: 'PRESENTE' | 'FALTA_JUSTIFICADA' | 'ABONO', reason: string }>>({});
+  const [planilhaSearch, setPlanilhaSearch] = useState('');
+  const [draftRecords, setDraftRecords] = useState<Record<string, DraftRecord>>({});
   const [isSavingPlanilha, setIsSavingPlanilha] = useState(false);
 
   // ── Registration Form ───────────────────────────────────────────────────────
@@ -192,8 +199,16 @@ export const AbsencesReportPage: React.FC = () => {
 
   const planilhaStudents = useMemo(() => {
     if (!planilhaGrade) return [];
-    return allStudents.filter(s => s.grade === planilhaGrade);
-  }, [allStudents, planilhaGrade]);
+    let studentsInGrade = allStudents.filter(s => s.grade === planilhaGrade);
+    if (planilhaSearch) {
+      const term = planilhaSearch.toLowerCase();
+      studentsInGrade = studentsInGrade.filter(s => 
+        s.full_name.toLowerCase().includes(term) || 
+        s.enrollment_id.toLowerCase().includes(term)
+      );
+    }
+    return studentsInGrade;
+  }, [allStudents, planilhaGrade, planilhaSearch]);
 
   // Set default grade if none is selected
   useEffect(() => {
@@ -375,56 +390,96 @@ export const AbsencesReportPage: React.FC = () => {
   };
 
   // ── Planilha Actions ────────────────────────────────────────────────────────
-  const getDraftType = (id: string) => draftRecords[id]?.type || 'PRESENTE';
-  const getDraftReason = (id: string) => draftRecords[id]?.reason || '';
+  const getDraft = (id: string): DraftRecord | undefined => draftRecords[id];
 
-  const handleDraftChange = (studentId: string, type: 'PRESENTE' | 'FALTA_JUSTIFICADA' | 'ABONO') => {
-    setDraftRecords(prev => ({
-      ...prev,
-      [studentId]: { ...prev[studentId], type, reason: prev[studentId]?.reason || '' }
-    }));
+  const handleDraftTypeToggle = (studentId: string, type: 'FALTA_JUSTIFICADA' | 'ABONO') => {
+    setDraftRecords(prev => {
+      const current = prev[studentId];
+      if (current && current.type === type) {
+        // Toggle off: remove from drafts
+        const newDrafts = { ...prev };
+        delete newDrafts[studentId];
+        return newDrafts;
+      }
+      // Toggle on
+      return {
+        ...prev,
+        [studentId]: { 
+          type, 
+          reason: current?.reason || '', 
+          authorizedBy: current?.authorizedBy || '' 
+        }
+      };
+    });
   };
 
   const handleDraftReasonChange = (studentId: string, reason: string) => {
-    setDraftRecords(prev => ({
-      ...prev,
-      [studentId]: { ...prev[studentId], reason, type: prev[studentId]?.type || 'PRESENTE' }
-    }));
+    setDraftRecords(prev => {
+      if (!prev[studentId]) return prev;
+      return {
+        ...prev,
+        [studentId]: { ...prev[studentId], reason }
+      };
+    });
+  };
+
+  const handleDraftAuthorizedByChange = (studentId: string, authorizedBy: string) => {
+    setDraftRecords(prev => {
+      if (!prev[studentId]) return prev;
+      return {
+        ...prev,
+        [studentId]: { ...prev[studentId], authorizedBy }
+      };
+    });
   };
 
   const handleBatchSavePlanilha = async () => {
+    const keys = Object.keys(draftRecords);
+    if (keys.length === 0) {
+      alert('Nenhuma falta ou abono marcado para salvar.');
+      return;
+    }
+
     setIsSavingPlanilha(true);
     const { data: userData } = await supabase.auth.getUser();
 
-    const recordsToInsert = Object.entries(draftRecords)
-      .filter(([_, data]) => data.type !== 'PRESENTE')
-      .map(([studentId, data]) => ({
+    const recordsToInsert = keys.map(studentId => {
+      const data = draftRecords[studentId];
+      
+      // Format the reason with authorizedBy if it's an Abono
+      let finalReason = data.reason;
+      if (data.type === 'ABONO' && data.authorizedBy.trim()) {
+        finalReason = `[Autorizado por: ${data.authorizedBy.trim()}] ${data.reason}`.trim();
+      }
+
+      return {
         student_id: studentId,
         type: data.type,
         date: planilhaDate,
-        reason: data.reason || null,
+        reason: finalReason || null,
         created_by: userData.user?.id
-      }));
+      };
+    });
 
-    if (recordsToInsert.length > 0) {
-      const { error } = await supabase.from('student_absences').insert(recordsToInsert);
-      if (error) {
-        alert('Erro ao salvar lançamentos em lote: ' + error.message);
-      } else {
-        alert(`${recordsToInsert.length} lançamentos salvos com sucesso!`);
-        setDraftRecords({});
-        fetchAbsences(); // refresh historico data
-      }
+    const { error } = await supabase.from('student_absences').insert(recordsToInsert);
+    if (error) {
+      alert('Erro ao salvar lançamentos em lote: ' + error.message);
     } else {
-      alert('Nenhuma falta ou abono marcado para salvar.');
+      alert(`${recordsToInsert.length} lançamentos salvos com sucesso!`);
+      setDraftRecords({});
+      fetchAbsences(); // refresh historico data
     }
     
     setIsSavingPlanilha(false);
   };
 
+  // Planilha Summary Counters
+  const draftFaltasCount = Object.values(draftRecords).filter(r => r.type === 'FALTA_JUSTIFICADA').length;
+  const draftAbonosCount = Object.values(draftRecords).filter(r => r.type === 'ABONO').length;
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 px-4 md:px-10 py-6 md:py-8 min-h-screen pb-32">
+    <div className="flex-1 px-4 md:px-10 py-6 md:py-8 min-h-screen pb-40 relative">
       {/* Header */}
       <header className="mb-6 md:mb-8">
         <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Controle Operacional</p>
@@ -438,17 +493,17 @@ export const AbsencesReportPage: React.FC = () => {
           <div className="flex bg-white/40 p-1.5 rounded-2xl border border-white/60 shadow-sm backdrop-blur-sm">
             <button
               onClick={() => setActiveTab('historico')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'historico' ? 'bg-primary text-white shadow-md' : 'text-gray-600 hover:bg-white/60'}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'historico' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-gray-600 hover:bg-white/60'}`}
             >
               <span className="material-symbols-outlined text-[18px]">history</span>
               Histórico
             </button>
             <button
               onClick={() => setActiveTab('planilha')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'planilha' ? 'bg-primary text-white shadow-md' : 'text-gray-600 hover:bg-white/60'}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'planilha' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-gray-600 hover:bg-white/60'}`}
             >
               <span className="material-symbols-outlined text-[18px]">grid_on</span>
-              Lançamento em Lote
+              Planilha de Lançamento
             </button>
           </div>
         </div>
@@ -1013,102 +1068,146 @@ export const AbsencesReportPage: React.FC = () => {
         </>
       ) : (
         /* ── PLANILHA (LANCAMENTO EM LOTE) VIEW ─────────────────────────── */
-        <div className="glass-card p-4 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/20 shadow-xl">
+        <div className="bg-white/80 backdrop-blur-xl p-4 md:p-8 rounded-[2rem] border border-white shadow-2xl relative overflow-hidden">
+          
+          {/* Subtle background decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+          
           {/* Planilha Header */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-8 relative z-10">
             <div>
-              <h3 className="font-bold text-lg md:text-xl text-primary flex items-center gap-2">
-                <span className="material-symbols-outlined text-2xl">view_list</span>
-                Lançamento em Lote
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">Marque presenças, faltas e abonos como em um diário de classe.</p>
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 text-primary mb-3">
+                <span className="material-symbols-outlined text-2xl">grid_on</span>
+              </div>
+              <h3 className="font-extrabold text-2xl text-gray-800 tracking-tight">Planilha de Chamada</h3>
+              <p className="text-sm text-gray-500 mt-1 max-w-md">Registre de forma rápida múltiplos alunos. Clique nas opções para alternar e preencha os detalhes.</p>
             </div>
             
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto p-2 bg-gray-50/80 rounded-2xl border border-gray-100 shadow-inner">
+              <div className="flex items-center gap-2 px-3 bg-white rounded-xl border border-gray-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-sm flex-1 md:w-48">
+                <span className="material-symbols-outlined text-gray-400 text-sm">search</span>
+                <input
+                  type="text"
+                  placeholder="Buscar aluno..."
+                  value={planilhaSearch}
+                  onChange={e => setPlanilhaSearch(e.target.value)}
+                  className="w-full py-2.5 bg-transparent border-none text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 placeholder:font-normal"
+                />
+              </div>
               <input
                 type="date"
                 value={planilhaDate}
                 onChange={e => setPlanilhaDate(e.target.value)}
-                className="px-4 py-2 bg-white rounded-xl border border-gray-200 text-sm font-bold text-gray-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 shadow-sm"
+                className="px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm font-bold text-gray-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
               />
               <select
                 value={planilhaGrade}
                 onChange={e => setPlanilhaGrade(e.target.value)}
-                className="px-4 py-2 bg-white rounded-xl border border-gray-200 text-sm font-bold text-gray-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 shadow-sm min-w-[150px]"
+                className="px-4 py-2.5 bg-white rounded-xl border border-gray-200 text-sm font-bold text-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm min-w-[140px] appearance-none cursor-pointer"
+                style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23001e40%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem top 50%', backgroundSize: '0.65rem auto' }}
               >
-                {allGrades.length === 0 && <option value="">Carregando turmas...</option>}
+                {allGrades.length === 0 && <option value="">Carregando...</option>}
                 {allGrades.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
           </div>
 
-          {/* Planilha Table */}
-          <div className="bg-white/60 rounded-2xl border border-gray-200/60 overflow-hidden mb-6">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead>
-                  <tr className="bg-gray-50/80 border-b border-gray-200/60">
-                    <th className="py-4 px-4 text-[11px] font-black uppercase text-gray-500 tracking-wider w-[30%]">Aluno</th>
-                    <th className="py-4 px-4 text-[11px] font-black uppercase text-gray-500 tracking-wider text-center w-[40%]">Status</th>
-                    <th className="py-4 px-4 text-[11px] font-black uppercase text-gray-500 tracking-wider w-[30%]">Motivo / Justificativa</th>
+          {/* Planilha Grid */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-8 relative z-10">
+            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead className="sticky top-0 z-20 bg-white/90 backdrop-blur-md shadow-sm">
+                  <tr className="border-b border-gray-200">
+                    <th className="py-4 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest w-[25%]">Aluno</th>
+                    <th className="py-4 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest w-[25%]">Registro</th>
+                    <th className="py-4 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest w-[25%]">Autorizado por</th>
+                    <th className="py-4 px-6 text-[10px] font-black uppercase text-gray-400 tracking-widest w-[25%]">Motivo / Justificativa</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {planilhaStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="py-12 text-center text-gray-400 text-sm">
-                        Nenhum aluno encontrado nesta turma.
+                      <td colSpan={4} className="py-16 text-center">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-3">
+                          <span className="material-symbols-outlined text-3xl text-gray-300">search_off</span>
+                        </div>
+                        <p className="text-gray-500 font-bold text-sm">Nenhum aluno encontrado.</p>
                       </td>
                     </tr>
                   ) : (
                     planilhaStudents.map(student => {
-                      const type = getDraftType(student.id);
+                      const draft = getDraft(student.id);
+                      const isActiveFalta = draft?.type === 'FALTA_JUSTIFICADA';
+                      const isActiveAbono = draft?.type === 'ABONO';
+                      
                       return (
-                        <tr key={student.id} className="hover:bg-white/80 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={student.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}`}
-                                alt=""
-                                className="w-9 h-9 rounded-xl object-cover shadow-sm border border-gray-100"
-                              />
+                        <tr 
+                          key={student.id} 
+                          className={`group transition-all duration-300 ${isActiveFalta ? 'bg-blue-50/50 hover:bg-blue-50' : isActiveAbono ? 'bg-emerald-50/50 hover:bg-emerald-50' : 'hover:bg-gray-50/50'}`}
+                        >
+                          <td className="py-4 px-6 align-middle">
+                            <div className="flex items-center gap-4">
+                              <div className="relative">
+                                <img
+                                  src={student.photo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${student.full_name}`}
+                                  alt=""
+                                  className={`w-10 h-10 rounded-[10px] object-cover transition-all duration-300 ${isActiveFalta ? 'ring-2 ring-blue-500 ring-offset-2' : isActiveAbono ? 'ring-2 ring-emerald-500 ring-offset-2' : 'border border-gray-200 group-hover:border-gray-300'}`}
+                                />
+                                {(isActiveFalta || isActiveAbono) && (
+                                  <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white border-2 border-white ${isActiveFalta ? 'bg-blue-500' : 'bg-emerald-500'}`}>
+                                    <span className="material-symbols-outlined text-[10px]">check</span>
+                                  </div>
+                                )}
+                              </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-bold text-gray-800 truncate">{student.full_name}</p>
-                                <p className="text-[10px] text-gray-500 font-medium tracking-wide">#{student.enrollment_id}</p>
+                                <p className={`text-sm font-bold truncate transition-colors ${isActiveFalta ? 'text-blue-900' : isActiveAbono ? 'text-emerald-900' : 'text-gray-800'}`}>
+                                  {student.full_name}
+                                </p>
+                                <p className={`text-[10px] font-medium tracking-wide transition-colors ${isActiveFalta ? 'text-blue-600/70' : isActiveAbono ? 'text-emerald-600/70' : 'text-gray-400'}`}>
+                                  #{student.enrollment_id}
+                                </p>
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center justify-center gap-2">
+                          <td className="py-4 px-6 align-middle">
+                            <div className="flex items-center gap-2">
                               <button
-                                onClick={() => handleDraftChange(student.id, 'PRESENTE')}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${type === 'PRESENTE' ? 'bg-gray-100 text-gray-800 border-gray-300 shadow-sm' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'}`}
+                                onClick={() => handleDraftTypeToggle(student.id, 'FALTA_JUSTIFICADA')}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 border ${isActiveFalta ? 'bg-blue-500 text-white border-blue-600 shadow-md shadow-blue-500/30 scale-105' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50'}`}
                               >
-                                Presente
-                              </button>
-                              <button
-                                onClick={() => handleDraftChange(student.id, 'FALTA_JUSTIFICADA')}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${type === 'FALTA_JUSTIFICADA' ? 'bg-blue-500 text-white border-blue-600 shadow-sm shadow-blue-500/20' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-300 hover:text-blue-500'}`}
-                              >
+                                <span className="material-symbols-outlined text-[14px]">person_off</span>
                                 Falta Just.
                               </button>
                               <button
-                                onClick={() => handleDraftChange(student.id, 'ABONO')}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${type === 'ABONO' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/20' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-300 hover:text-emerald-500'}`}
+                                onClick={() => handleDraftTypeToggle(student.id, 'ABONO')}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 border ${isActiveAbono ? 'bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-500/30 scale-105' : 'bg-white text-gray-500 border-gray-200 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50/50'}`}
                               >
+                                <span className="material-symbols-outlined text-[14px]">event_available</span>
                                 Abono
                               </button>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
-                            <input
-                              type="text"
-                              value={getDraftReason(student.id)}
-                              onChange={e => handleDraftReasonChange(student.id, e.target.value)}
-                              disabled={type === 'PRESENTE'}
-                              placeholder={type === 'PRESENTE' ? '' : 'Motivo...'}
-                              className="w-full px-3 py-2 bg-white rounded-lg border border-gray-200 text-xs font-medium text-gray-700 outline-none focus:border-primary disabled:bg-gray-50 disabled:border-gray-100 transition-all"
-                            />
+                          <td className="py-4 px-6 align-middle">
+                            <div className={`transition-all duration-500 origin-left ${isActiveAbono ? 'opacity-100 scale-100' : 'opacity-30 scale-95 pointer-events-none'}`}>
+                              <input
+                                type="text"
+                                value={draft?.authorizedBy || ''}
+                                onChange={e => handleDraftAuthorizedByChange(student.id, e.target.value)}
+                                placeholder={isActiveAbono ? 'Nome do autorizador...' : ''}
+                                className={`w-full px-3 py-2 bg-white rounded-xl border text-xs font-medium outline-none transition-all ${isActiveAbono ? 'border-emerald-200 text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-inner' : 'border-gray-100 text-gray-400 bg-gray-50'}`}
+                              />
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 align-middle">
+                            <div className={`transition-all duration-500 origin-left ${draft ? 'opacity-100 scale-100' : 'opacity-30 scale-95 pointer-events-none'}`}>
+                              <input
+                                type="text"
+                                value={draft?.reason || ''}
+                                onChange={e => handleDraftReasonChange(student.id, e.target.value)}
+                                placeholder={draft ? 'Motivo...' : ''}
+                                className={`w-full px-3 py-2 bg-white rounded-xl border text-xs font-medium outline-none transition-all ${isActiveFalta ? 'border-blue-200 text-blue-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-inner' : isActiveAbono ? 'border-emerald-200 text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-inner' : 'border-gray-100 text-gray-400 bg-gray-50'}`}
+                              />
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1117,20 +1216,53 @@ export const AbsencesReportPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+            
+            {/* Floating Summary Footer */}
+            <div className="bg-gray-50 border-t border-gray-200 p-4 flex flex-col md:flex-row items-center justify-between gap-4 relative z-20">
+              <div className="flex items-center gap-6">
+                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                  <span className="material-symbols-outlined text-gray-400">summarize</span>
+                  Resumo
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                    <span className="text-sm font-bold text-gray-700">{draftFaltasCount} <span className="font-medium text-gray-500 text-xs">Faltas</span></span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                    <span className="text-sm font-bold text-gray-700">{draftAbonosCount} <span className="font-medium text-gray-500 text-xs">Abonos</span></span>
+                  </div>
+                </div>
+              </div>
 
-          <div className="flex justify-end pt-4 border-t border-gray-200/50">
-            <button
-              onClick={handleBatchSavePlanilha}
-              disabled={isSavingPlanilha || planilhaStudents.length === 0}
-              className="px-6 py-3 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-sm hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2 min-w-[200px]"
-            >
-              {isSavingPlanilha ? (
-                <><span className="material-symbols-outlined text-lg animate-spin">progress_activity</span> Salvando...</>
-              ) : (
-                <><span className="material-symbols-outlined text-lg">save_as</span> Salvar Lançamentos</>
-              )}
-            </button>
+              <div className="flex items-center gap-3">
+                {(draftFaltasCount > 0 || draftAbonosCount > 0) && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Tem certeza que deseja limpar todas as marcações não salvas?')) {
+                        setDraftRecords({});
+                      }
+                    }}
+                    className="px-4 py-2.5 bg-white text-gray-500 rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-gray-100 hover:text-gray-800 transition-all border border-gray-200"
+                  >
+                    Limpar
+                  </button>
+                )}
+                
+                <button
+                  onClick={handleBatchSavePlanilha}
+                  disabled={isSavingPlanilha || (draftFaltasCount === 0 && draftAbonosCount === 0)}
+                  className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-sm hover:bg-primary/90 transition-all shadow-xl shadow-primary/30 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 min-w-[200px]"
+                >
+                  {isSavingPlanilha ? (
+                    <><span className="material-symbols-outlined text-lg animate-spin">progress_activity</span> Salvando...</>
+                  ) : (
+                    <><span className="material-symbols-outlined text-lg">save_as</span> Gravar Registros</>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
