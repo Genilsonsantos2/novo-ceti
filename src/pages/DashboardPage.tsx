@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 
 export const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0 });
+  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, totalAlunos: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,10 +45,16 @@ export const DashboardPage: React.FC = () => {
       .eq('date', today)
       .eq('type', 'ABONO');
 
+    // Count total alunos
+    const { count: totalAlunos } = await supabase
+      .from('students')
+      .select('*', { count: 'exact' });
+
     setStats({
       pendentesSigeduc: pendentesSigeduc || 0,
       faltasHoje: faltasHoje || 0,
-      abonosHoje: abonosHoje || 0
+      abonosHoje: abonosHoje || 0,
+      totalAlunos: totalAlunos || 0
     });
     
     setLoading(false);
@@ -62,6 +68,10 @@ export const DashboardPage: React.FC = () => {
           <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Painel Administrativo</p>
           <h2 className="font-headline font-extrabold text-3xl md:text-4xl text-on-surface tracking-tight">Gestão Central</h2>
           <p className="text-on-surface-variant font-body mt-1">Visão geral do controle de Faltas e Abonos do Sigeduc.</p>
+        </div>
+        <div className="flex items-center gap-2 bg-primary/5 rounded-2xl px-4 py-2.5 border border-primary/10">
+          <span className="material-symbols-outlined text-primary text-lg">groups</span>
+          <p className="text-sm font-bold text-primary">{stats.totalAlunos} <span className="text-xs font-medium text-primary/70">alunos cadastrados</span></p>
         </div>
       </div>
 
@@ -90,7 +100,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Link>
 
-          <div className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-blue-500">
+          <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-blue-500">
             <div className="flex justify-between items-start">
               <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-blue-500/10 transition-all duration-500">
                 <span className="material-symbols-outlined text-blue-500 text-2xl">person_off</span>
@@ -101,9 +111,9 @@ export const DashboardPage: React.FC = () => {
               <p className="text-5xl font-headline font-extrabold text-blue-500">{stats.faltasHoje}</p>
               <p className="text-on-surface-variant text-sm font-medium mt-1">Faltas Justificadas (Hoje)</p>
             </div>
-          </div>
+          </Link>
 
-          <div className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-emerald-500">
+          <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-emerald-500">
             <div className="flex justify-between items-start">
               <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-emerald-500/10 transition-all duration-500">
                 <span className="material-symbols-outlined text-emerald-500 text-2xl">event_available</span>
@@ -114,7 +124,7 @@ export const DashboardPage: React.FC = () => {
               <p className="text-5xl font-headline font-extrabold text-emerald-500">{stats.abonosHoje}</p>
               <p className="text-on-surface-variant text-sm font-medium mt-1">Abonos (Hoje)</p>
             </div>
-          </div>
+          </Link>
 
         </div>
       )}
