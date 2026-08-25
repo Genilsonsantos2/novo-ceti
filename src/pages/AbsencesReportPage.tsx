@@ -162,6 +162,9 @@ export const AbsencesReportPage: React.FC = () => {
 
     if (error) {
       alert('Erro ao excluir: ' + error.message);
+    } else {
+      // Refresh the list after successful deletion
+      fetchAbsences();
     }
   };
 
@@ -289,8 +292,7 @@ export const AbsencesReportPage: React.FC = () => {
     setIsSavingPlanilha(false);
   };
 
-  // Planilha Summary Counters
-  const draftFaltasCount = Object.values(draftRecords).filter(r => r.type === 'FALTA_JUSTIFICADA').length;
+    const draftFaltasCount = Object.values(draftRecords).filter(r => r.type === 'FALTA_JUSTIFICADA').length;
   const draftAbonosCount = Object.values(draftRecords).filter(r => r.type === 'ABONO').length;
   const draftTotalCount = draftFaltasCount + draftAbonosCount;
 
@@ -316,17 +318,52 @@ export const AbsencesReportPage: React.FC = () => {
               Histórico
             </button>
             <button
-              onClick={() => setActiveTab('planilha')}
-              className={`flex items-center gap-2 px-6 py-2 text-sm font-bold transition-all ${activeTab === 'planilha' ? 'bg-[#00A859] text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+              onClick={() => setActiveTab('diario')}
+              className={`flex items-center gap-2 px-6 py-2 text-sm font-bold transition-all border-r border-gray-300 ${activeTab === 'diario' ? 'bg-[#1F4E79] text-white' : 'text-gray-700 hover:bg-gray-100'}`}
             >
-              <span className="material-symbols-outlined text-[18px]">grid_on</span>
-              Planilha de Lançamento
+              <span className="material-symbols-outlined text-[18px]">summarize</span>
+              Resumo
             </button>
+          <button
+            onClick={() => setActiveTab('planilha')}
+            className={`flex items-center gap-2 px-6 py-2 text-sm font-bold transition-all ${activeTab === 'planilha' ? 'bg-[#FF9800] text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            <span className="material-symbols-outlined text-[18px]">today</span>
+            Diário
+          </button>
           </div>
         </div>
       </header>
 
-      {activeTab === 'historico' ? (
+      {activeTab === 'diario' ? (
+        <div className="glass-card p-4 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/20 shadow-xl overflow-x-auto">
+          <h3 className="text-lg font-bold mb-4 text-primary">Resumo Diário de Registros</h3>
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="bg-[#FF9800] text-white">
+              <tr>
+                <th className="px-2 py-1 border border-gray-300">Data</th>
+                <th className="px-2 py-1 border border-gray-300">Faltas</th>
+                <th className="px-2 py-1 border border-gray-300">Abonos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(filteredAbsences.reduce((acc, rec) => {
+                const d = format(parseISO(rec.date), 'yyyy-MM-dd');
+                if (!acc[d]) acc[d] = { faltas: 0, abonos: 0 };
+                if (rec.type === 'FALTA_JUSTIFICADA') acc[d].faltas += 1;
+                else if (rec.type === 'ABONO') acc[d].abonos += 1;
+                return acc;
+              }, {} as Record<string, { faltas: number; abonos: number }>)).map(([date, counts]) => (
+                <tr key={date} className="border-b border-gray-200">
+                  <td className="px-2 py-1 border border-gray-300">{format(parseISO(date), 'dd/MM/yyyy')}</td>
+                  <td className="px-2 py-1 border border-gray-300 text-center">{counts.faltas}</td>
+                  <td className="px-2 py-1 border border-gray-300 text-center">{counts.abonos}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : activeTab === 'historico' ? (
         <>
           {/* Historico View */}
           <div className="grid grid-cols-3 gap-3 md:gap-6 mb-6 md:mb-8">
