@@ -155,16 +155,13 @@ export const AbsencesReportPage: React.FC = () => {
   const handleDelete = async (id: string, studentName: string) => {
     if (!window.confirm(`Excluir registro de "${studentName}"? Esta ação não pode ser desfeita.`)) return;
 
-    const { error } = await supabase
-      .from('student_absences')
-      .delete()
-      .eq('id', id);
-
+    const { error } = await supabase.from('student_absences').delete().eq('id', id);
     if (error) {
       alert('Erro ao excluir: ' + error.message);
     } else {
-      // Refresh the list after successful deletion
-      fetchAbsences();
+      // Remove the deleted record from state to update UI instantly
+      setAbsences(prev => prev.filter(a => a.id !== id));
+      alert('Registro excluído com sucesso.');
     }
   };
 
