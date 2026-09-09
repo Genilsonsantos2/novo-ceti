@@ -383,6 +383,7 @@ export const AbsencesReportPage: React.FC = () => {
 
   const draftFaltasCount = Object.values(draftRecords).filter(r => r.type === 'FALTA_JUSTIFICADA').length;
   const draftAbonosCount = Object.values(draftRecords).filter(r => r.type === 'ABONO').length;
+  const draftTotalCount = Object.keys(draftRecords).length;
 
   // ── Import Actions (PapaParse) ─────────────────────────────────────────────
   const parseCSV = (file: File) => {
