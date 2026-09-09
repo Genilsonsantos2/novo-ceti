@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { format, parseISO, subDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -386,16 +387,102 @@ export const AbsencesReportPage: React.FC = () => {
   const draftTotalCount = Object.keys(draftRecords).length;
 
   // ── Import Actions (PapaParse) ─────────────────────────────────────────────
-  const parseCSV = (file: File) => {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows = results.data as ImportRow[];
-        validateImportData(rows);
-      },
-      error: (err: any) => alert('Erro ao ler CSV: ' + err.message)
-    });
+  const getRowValue = (row: any, keys: string[]) => {
+    for (const key of keys) {
+      const value = row?.[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim();
+    }
+    return '';
+  };
+
+  const normalizeText = (value: string | null | undefined) => {
+    return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  };
+
+  const handleCreateMissingStudent = async (row: ImportRow) => {
+    const rawName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno']);
+    const rawMatricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno']);
+    const rawGrade = getRowValue(row, ['Turma', 'Série/Turma', 'Serie/Turma', 'Grade', 'Curso']);
+
+    const fullName = rawName || window.prompt('Digite o nome completo do aluno para cadastrar:')?.trim();
+    if (!fullName) return;
+
+    let enrollmentId = rawMatricula || window.prompt('Digite a matrícula do aluno:', rawMatricula || '')?.trim();
+    if (!enrollmentId) return alert('A matrícula é obrigatória para cadastrar o aluno.');
+
+    const grade = rawGrade || window.prompt('Digite a turma/série do aluno:', rawGrade || '')?.trim() || '';
+
+    try {
+      const photoUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}&backgroundColor=random`;
+      const { error } = await supabase.from('students').insert({
+        full_name: fullName,
+        enrollment_id: enrollmentId,
+        grade,
+        photo_url: photoUrl,
+        is_authorized: true,
+        qr_code_id: `QR-${enrollmentId}-${Date.now().toString().slice(-4)}`
+      });
+
+      if (error) throw error;
+
+      await fetchAllStudents();
+      alert('Aluno cadastrado com sucesso e agora pode ser importado.');
+      const nextRows = importValidation.map(item => item.row.Aluno === rawName ? { ...item, status: 'VALID', errorReason: '', studentId: null } : item);
+      setImportValidation(nextRows);
+      validateImportData(nextRows.map(item => item.row));
+    } catch (error: any) {
+      alert('Erro ao cadastrar aluno: ' + error.message);
+    }
+  };
+
+  const parseImportFile = async (file: File) => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+
+    if (extension === 'csv') {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const rows = results.data as Record<string, any>[];
+          validateImportData(rows as ImportRow[]);
+        },
+        error: (err: any) => alert('Erro ao ler CSV: ' + err.message)
+      });
+      return;
+    }
+
+    if (extension === 'xlsx' || extension === 'xls') {
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+        if (!rows.length) {
+          alert('Arquivo Excel vazio.');
+          return;
+        }
+
+        const headers = rows[0].map((header: any) => String(header ?? '').trim());
+        const dataRows = rows.slice(1).filter(row => row.some(cell => String(cell ?? '').trim() !== '')); 
+
+        const mappedRows = dataRows.map((row) => {
+          const rowObject: Record<string, string> = {};
+          headers.forEach((header, idx) => {
+            rowObject[header] = row[idx] ?? '';
+          });
+          return rowObject as ImportRow;
+        });
+
+        validateImportData(mappedRows);
+      } catch (error: any) {
+        alert('Erro ao ler Excel: ' + error.message);
+      }
+      return;
+    }
+
+    alert('Formato de arquivo não suportado. Envie CSV, XLS ou XLSX.');
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -410,40 +497,51 @@ export const AbsencesReportPage: React.FC = () => {
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      parseCSV(e.dataTransfer.files[0]);
+      parseImportFile(e.dataTransfer.files[0]);
     }
   };
 
   const validateImportData = (rows: ImportRow[]) => {
     const validations: ImportValidationResult[] = rows.map(row => {
-      const matricula = row.Matrícula?.trim();
-      const student = allStudents.find(s => s.enrollment_id === matricula);
-      
+      const matricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno']);
+      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno']);
+      const studentByMatricula = allStudents.find(s => normalizeText(s.enrollment_id) === normalizeText(matricula));
+      const studentByName = !studentByMatricula && studentName ? allStudents.find(s => normalizeText(s.full_name) === normalizeText(studentName)) : null;
+      const student = studentByMatricula || studentByName;
+
       let status: 'VALID' | 'ERROR' = 'VALID';
       let errorReason = '';
 
       if (!student) {
         status = 'ERROR';
-        errorReason = 'Matrícula não encontrada no sistema';
+        errorReason = 'Aluno não cadastrado. Cadastre antes ou use o cadastro rápido.';
       }
 
-      // Validar data (vem como DD/MM/YYYY)
       let parsedDate = '';
-      if (row.Data) {
-        const parts = row.Data.split('/');
+      const rawDate = getRowValue(row, ['Data', 'Dia', 'Data da Falta', 'Data do Registro']);
+      if (rawDate) {
+        const parts = rawDate.split(/[\/\-]/);
         if (parts.length === 3) {
-          parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          if (parts[0].length === 2 && parts[1].length === 2) {
+            parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          } else if (parts[0].length === 4) {
+            parsedDate = `${parts[0]}-${parts[1]}-${parts[2]}`;
+          } else {
+            parsedDate = rawDate;
+          }
         } else {
-          parsedDate = row.Data;
+          parsedDate = rawDate;
         }
       }
+
       if (!parsedDate || isNaN(Date.parse(parsedDate))) {
         status = 'ERROR';
-        errorReason = errorReason ? errorReason + '; Data inválida' : 'Data inválida';
+        errorReason = errorReason ? `${errorReason}; Data inválida` : 'Data inválida';
       }
 
-      const parsedType = (row.Tipo === 'Abono' || row.Tipo?.toLowerCase().includes('abono')) ? 'ABONO' : 'FALTA_JUSTIFICADA';
-      const parsedSynced = row['Status Sigeduc']?.toLowerCase().includes('baixado') ? true : false;
+      const rawType = getRowValue(row, ['Tipo', 'Tipo de Registro', 'Status', 'Motivo']);
+      const parsedType = (rawType === 'Abono' || rawType?.toLowerCase().includes('abono')) ? 'ABONO' : 'FALTA_JUSTIFICADA';
+      const parsedSynced = getRowValue(row, ['Status Sigeduc', 'Sigeduc', 'Status do Sigeduc'])?.toLowerCase().includes('baixado') ? true : false;
 
       return {
         row,
@@ -658,7 +756,7 @@ export const AbsencesReportPage: React.FC = () => {
                <span className="material-symbols-outlined">upload_file</span>
                Importação Inteligente (CSV)
              </h3>
-             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Arraste seu arquivo CSV exportado para cá. Nós faremos a validação de matrículas antes de salvar.</p>
+             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Arraste seu arquivo CSV, XLS ou XLSX exportado para cá. Nós faremos a validação por nome ou matrícula antes de salvar.</p>
            </div>
 
            {importValidation.length === 0 ? (
@@ -669,11 +767,11 @@ export const AbsencesReportPage: React.FC = () => {
                 <div className="w-16 h-16 bg-white dark:bg-zinc-900 rounded-full shadow-sm flex items-center justify-center mb-4">
                    <span className="material-symbols-outlined text-indigo-500 text-3xl">cloud_upload</span>
                 </div>
-                <p className="font-bold text-gray-700 dark:text-gray-200 text-lg mb-2">Arraste e solte o arquivo CSV</p>
+                <p className="font-bold text-gray-700 dark:text-gray-200 text-lg mb-2">Arraste e solte o arquivo Excel ou CSV</p>
                 <p className="text-gray-400 text-sm mb-6">ou clique para selecionar manualmente</p>
                 <label className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold cursor-pointer transition-colors shadow-sm">
                    Procurar Arquivo
-                   <input type="file" accept=".csv" className="hidden" onChange={e => e.target.files && parseCSV(e.target.files[0])} />
+                   <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={e => e.target.files && parseImportFile(e.target.files[0])} />
                 </label>
              </div>
            ) : (
@@ -722,7 +820,22 @@ export const AbsencesReportPage: React.FC = () => {
                                {row.parsedType}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-red-600 text-xs font-bold">{row.errorReason}</td>
+                          <td className="px-4 py-2 text-red-600 text-xs font-bold">
+                            {row.errorReason && row.errorReason.includes('Aluno não cadastrado') ? (
+                              <div className="flex flex-col items-start gap-2">
+                                <span>{row.errorReason}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCreateMissingStudent(row.row)}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-[10px] font-bold"
+                                >
+                                  Cadastrar aluno
+                                </button>
+                              </div>
+                            ) : (
+                              row.errorReason
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
