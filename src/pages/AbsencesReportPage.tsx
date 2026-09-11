@@ -633,49 +633,68 @@ export const AbsencesReportPage: React.FC = () => {
 
       {/* Header */}
       <header className="mb-6 md:mb-8">
-        <p className="text-xs font-bold text-primary dark:text-indigo-400 uppercase tracking-widest mb-2 opacity-70">Controle Operacional Avançado</p>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="font-headline font-extrabold text-2xl md:text-3xl text-on-surface dark:text-white tracking-tight">Gestão de Faltas Premium</h2>
-            <p className="text-on-surface-variant dark:text-gray-400 font-medium mt-1 text-sm">Painel dinâmico, Importações Inteligentes e Alertas.</p>
-          </div>
-          
-          <div className="flex bg-white/70 dark:bg-zinc-800/70 backdrop-blur-md border border-gray-200 dark:border-zinc-700 shadow-sm overflow-hidden rounded-xl">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold transition-all border-r border-gray-200 dark:border-zinc-700 ${activeTab === 'dashboard' ? 'bg-primary dark:bg-indigo-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'}`}
-            >
-              <span className="material-symbols-outlined text-[18px]">dashboard</span>
-              Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab('importacao')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold transition-all border-r border-gray-200 dark:border-zinc-700 ${activeTab === 'importacao' ? 'bg-indigo-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'}`}
-            >
-              <span className="material-symbols-outlined text-[18px]">upload_file</span>
-              Importar
-            </button>
-            <button
-              onClick={() => setActiveTab('historico')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold transition-all border-r border-gray-200 dark:border-zinc-700 ${activeTab === 'historico' ? 'bg-primary dark:bg-indigo-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'}`}
-            >
-              <span className="material-symbols-outlined text-[18px]">history</span>
-              Histórico
-            </button>
-            <button
-              onClick={() => setActiveTab('diario')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold transition-all border-r border-gray-200 dark:border-zinc-700 ${activeTab === 'diario' ? 'bg-primary dark:bg-indigo-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'}`}
-            >
-              <span className="material-symbols-outlined text-[18px]">summarize</span>
-              Resumo
-            </button>
-            <button
-              onClick={() => setActiveTab('planilha')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'planilha' ? 'bg-amber-500 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700'}`}
-            >
-              <span className="material-symbols-outlined text-[18px]">today</span>
-              Diário
-            </button>
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-amber-500 p-[1px] shadow-lg shadow-emerald-500/10">
+          <div className="rounded-[15px] bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm px-4 py-4 md:px-6 md:py-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] md:text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-[0.2em] mb-2">Controle Operacional</p>
+                <h2 className="font-headline font-extrabold text-2xl md:text-3xl text-gray-900 dark:text-white tracking-tight">Faltas Justificadas e Abonos</h2>
+                <p className="text-gray-600 dark:text-gray-400 font-medium mt-1 text-sm">Painel rápido para acompanhamento, validação e registro diário.</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 text-xs font-bold">
+                  <span className="material-symbols-outlined text-sm">event_busy</span>
+                  {faltasCount} faltas
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 text-xs font-bold">
+                  <span className="material-symbols-outlined text-sm">medical_services</span>
+                  {abonosCount} abonos
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 px-3 py-1.5 text-xs font-bold">
+                  <span className="material-symbols-outlined text-sm">schedule</span>
+                  {pendentesCount} pendentes
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 flex bg-slate-100/80 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-all flex-1 ${activeTab === 'dashboard' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
+              >
+                <span className="material-symbols-outlined text-[18px]">dashboard</span>
+                Dashboard
+              </button>
+              <button
+                onClick={() => setActiveTab('importacao')}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-all flex-1 ${activeTab === 'importacao' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
+              >
+                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                Importar
+              </button>
+              <button
+                onClick={() => setActiveTab('historico')}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-all flex-1 ${activeTab === 'historico' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
+              >
+                <span className="material-symbols-outlined text-[18px]">history</span>
+                Histórico
+              </button>
+              <button
+                onClick={() => setActiveTab('diario')}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-all flex-1 ${activeTab === 'diario' ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
+              >
+                <span className="material-symbols-outlined text-[18px]">summarize</span>
+                Resumo
+              </button>
+              <button
+                onClick={() => setActiveTab('planilha')}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-all flex-1 ${activeTab === 'planilha' ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
+              >
+                <span className="material-symbols-outlined text-[18px]">today</span>
+                Diário
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -696,20 +715,35 @@ export const AbsencesReportPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <div className="bg-gradient-to-br from-white to-amber-50/30 dark:from-zinc-800 dark:to-zinc-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 flex flex-col justify-center items-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/10 rounded-bl-full -mr-4 -mt-4"></div>
-                <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase">Pendentes Sigeduc</p>
-                <p className="text-5xl font-black text-yellow-500 mt-2">{pendentesCount}</p>
+             <div className="bg-gradient-to-br from-white to-yellow-50 dark:from-zinc-800 dark:to-zinc-800 p-5 rounded-2xl shadow-sm border border-yellow-100 dark:border-zinc-700 flex items-center justify-between relative overflow-hidden">
+                <div>
+                  <p className="text-xs font-bold text-yellow-700 dark:text-yellow-300 uppercase tracking-[0.18em]">Pendentes</p>
+                  <p className="text-4xl font-black text-yellow-600 mt-2">{pendentesCount}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Sigeduc</p>
+                </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-700">
+                  <span className="material-symbols-outlined text-3xl">schedule</span>
+                </div>
              </div>
-             <div className="bg-gradient-to-br from-white to-amber-50/30 dark:from-zinc-800 dark:to-zinc-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 flex flex-col justify-center items-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-bl-full -mr-4 -mt-4"></div>
-                <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase">Total Faltas</p>
-                <p className="text-5xl font-black text-amber-500 mt-2">{faltasCount}</p>
+             <div className="bg-gradient-to-br from-white to-amber-50 dark:from-zinc-800 dark:to-zinc-800 p-5 rounded-2xl shadow-sm border border-amber-100 dark:border-zinc-700 flex items-center justify-between relative overflow-hidden">
+                <div>
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-[0.18em]">Faltas</p>
+                  <p className="text-4xl font-black text-amber-600 mt-2">{faltasCount}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Justificadas</p>
+                </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                  <span className="material-symbols-outlined text-3xl">event_busy</span>
+                </div>
              </div>
-             <div className="bg-gradient-to-br from-white to-teal-50/30 dark:from-zinc-800 dark:to-zinc-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 flex flex-col justify-center items-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-bl-full -mr-4 -mt-4"></div>
-                <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase">Total Abonos</p>
-                <p className="text-5xl font-black text-teal-500 mt-2">{abonosCount}</p>
+             <div className="bg-gradient-to-br from-white to-emerald-50 dark:from-zinc-800 dark:to-zinc-800 p-5 rounded-2xl shadow-sm border border-emerald-100 dark:border-zinc-700 flex items-center justify-between relative overflow-hidden">
+                <div>
+                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-[0.18em]">Abonos</p>
+                  <p className="text-4xl font-black text-emerald-600 mt-2">{abonosCount}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Registrados</p>
+                </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                  <span className="material-symbols-outlined text-3xl">medical_services</span>
+                </div>
              </div>
           </div>
 
@@ -849,42 +883,60 @@ export const AbsencesReportPage: React.FC = () => {
       {/* ── HISTORICO VIEW ─────────────────────────────────────────────────── */}
       {activeTab === 'historico' && (
         <>
-          <div className="flex gap-4 mb-4">
-             <input 
-               type="text" 
-               placeholder="Buscar por nome ou matrícula..." 
-               value={searchQuery}
-               onChange={e => setSearchQuery(e.target.value)}
-               className="flex-1 px-4 py-2 rounded-xl border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white focus:ring-2 focus:ring-primary outline-none shadow-sm"
-             />
-             <div className="flex gap-2">
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white p-2 rounded-xl text-sm outline-none shadow-sm"/>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white p-2 rounded-xl text-sm outline-none shadow-sm"/>
-             </div>
+          <div className="mb-4 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 p-3 shadow-sm backdrop-blur-sm">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex-1 flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                  <input 
+                    type="text" 
+                    placeholder="Buscar por nome ou matrícula..." 
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none shadow-sm"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white px-3 py-2.5 rounded-xl text-sm outline-none shadow-sm"/>
+                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white px-3 py-2.5 rounded-xl text-sm outline-none shadow-sm"/>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 justify-end">
+                {pendentesCount > 0 && filterSigeduc === 'PENDING' && (
+                  <button onClick={handleBatchSyncSigeduc} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2 shadow-sm">
+                    <span className="material-symbols-outlined text-sm">done_all</span> Sincronizar
+                  </button>
+                )}
+                <button onClick={handleExportCSV} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2 shadow-sm">
+                  <span className="material-symbols-outlined text-sm">download</span> CSV
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex justify-between mb-4 items-center">
-             <div className="flex gap-2">
-               <button onClick={() => setFilterType('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'ALL' ? 'bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-white border-gray-300 dark:border-zinc-600 shadow-inner' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos Tipos</button>
-               <button onClick={() => setFilterType('FALTA_JUSTIFICADA')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'FALTA_JUSTIFICADA' ? 'bg-amber-500 text-white border-amber-600' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Faltas</button>
-               <button onClick={() => setFilterType('ABONO')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'ABONO' ? 'bg-teal-500 text-white border-teal-600' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Abonos</button>
+          <div className="flex flex-col xl:flex-row justify-between mb-4 items-start xl:items-center gap-3">
+             <div className="flex flex-wrap gap-2">
+               <button onClick={() => setFilterType('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'ALL' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos</button>
+               <button onClick={() => setFilterType('FALTA_JUSTIFICADA')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'FALTA_JUSTIFICADA' ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Faltas</button>
+               <button onClick={() => setFilterType('ABONO')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'ABONO' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Abonos</button>
                
-               <div className="w-px h-8 bg-gray-300 dark:bg-zinc-600 mx-2"></div>
+               <div className="w-px h-8 bg-gray-300 dark:bg-zinc-600 mx-1 hidden md:block"></div>
                
-               <button onClick={() => setFilterSigeduc('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'ALL' ? 'bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-white border-gray-300 dark:border-zinc-600 shadow-inner' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Ambos (Sigeduc)</button>
-               <button onClick={() => setFilterSigeduc('PENDING')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'PENDING' ? 'bg-yellow-500 text-white border-yellow-600' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Pendentes</button>
-               <button onClick={() => setFilterSigeduc('SYNCED')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'SYNCED' ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Baixados</button>
+               <button onClick={() => setFilterSigeduc('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'ALL' ? 'bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-white border-gray-300 dark:border-zinc-600 shadow-inner' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos</button>
+               <button onClick={() => setFilterSigeduc('PENDING')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'PENDING' ? 'bg-yellow-500 text-white border-yellow-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Pendentes</button>
+               <button onClick={() => setFilterSigeduc('SYNCED')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'SYNCED' ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Baixados</button>
              </div>
-             
-             <div className="flex gap-2">
-               {pendentesCount > 0 && filterSigeduc === 'PENDING' && (
-                 <button onClick={handleBatchSyncSigeduc} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-1 shadow-sm">
-                   <span className="material-symbols-outlined text-sm">done_all</span> Sincronizar Lote
-                 </button>
-               )}
-               <button onClick={handleExportCSV} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-1 shadow-sm">
-                 <span className="material-symbols-outlined text-sm">download</span> Exportar CSV
-               </button>
+
+             <div className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400">
+               <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-zinc-700 px-2.5 py-1.5">
+                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                 {filteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length} faltas
+               </span>
+               <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-zinc-700 px-2.5 py-1.5">
+                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                 {filteredAbsences.filter(a => a.type === 'ABONO').length} abonos
+               </span>
              </div>
           </div>
 
