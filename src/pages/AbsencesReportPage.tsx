@@ -1192,7 +1192,16 @@ export const AbsencesReportPage: React.FC = () => {
                         <td className="border border-gray-300 dark:border-zinc-700 px-2 py-1.5 text-center text-gray-500 dark:text-gray-400 font-medium">{index + 1}</td>
                         <td className="border border-gray-300 dark:border-zinc-700 px-2 py-1.5 text-gray-600 dark:text-gray-400 font-mono text-[10px]">{student.enrollment_id}</td>
                         <td className={`border border-gray-300 dark:border-zinc-700 px-2 py-1.5 font-bold ${hasStatus ? 'text-[#00A859]' : 'text-gray-800 dark:text-gray-200'}`}>
-                          {student.full_name}
+                          <div className="flex items-center gap-2 min-w-[200px]">
+                            <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 bg-gray-100 dark:border-zinc-600 dark:bg-zinc-700 shrink-0 flex items-center justify-center">
+                              {student.photo_url ? (
+                                <img src={student.photo_url} alt={student.full_name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[9px] font-bold text-gray-600 dark:text-gray-200">{getStudentInitials(student.full_name)}</span>
+                              )}
+                            </div>
+                            <span className="truncate">{student.full_name}</span>
+                          </div>
                         </td>
                         <td className="border border-gray-300 dark:border-zinc-700 p-0 relative bg-white dark:bg-zinc-800">
                           <select value={draft?.type || ''} onChange={(e) => handleDraftTypeChange(student.id, e.target.value)} className={`w-full h-full min-h-[32px] px-2 py-1 border-none outline-none text-xs font-bold cursor-pointer transition-colors ${draft?.type === 'FALTA_JUSTIFICADA' ? 'bg-amber-100 text-amber-800' : draft?.type === 'ABONO' ? 'bg-teal-100 text-teal-800' : 'bg-transparent text-gray-600 dark:text-gray-300'} focus:ring-2 focus:ring-inset focus:ring-[#00A859]`}>
