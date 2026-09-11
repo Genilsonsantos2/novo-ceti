@@ -227,6 +227,15 @@ export const AbsencesReportPage: React.FC = () => {
   }, [allGrades, planilhaGrade]);
 
   // ── Actions ─────────────────────────────────────────────────────────────────
+  const getStudentInitials = (fullName?: string) => {
+    if (!fullName) return '?';
+
+    const names = fullName.trim().split(/\s+/).filter(Boolean);
+    if (names.length === 1) return names[0].slice(0, 2).toUpperCase();
+
+    return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+  };
+
   const handleToggleSigeduc = async (id: string, currentStatus: boolean) => {
     const { error } = await supabase
       .from('student_absences')
@@ -594,9 +603,24 @@ export const AbsencesReportPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
             <div className="p-4 border-b border-gray-100 dark:border-zinc-700 flex justify-between items-center bg-gray-50 dark:bg-zinc-800/50">
-              <div>
-                <h3 className="font-bold text-gray-800 dark:text-gray-100">Linha do Tempo</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{selectedTimelineStudent.name}</p>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 bg-gray-100 dark:border-zinc-700 dark:bg-zinc-700 flex items-center justify-center">
+                  {absences.find(a => a.student_id === selectedTimelineStudent.id)?.students?.photo_url ? (
+                    <img
+                      src={absences.find(a => a.student_id === selectedTimelineStudent.id)?.students?.photo_url}
+                      alt={selectedTimelineStudent.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-600 dark:text-gray-200">
+                      {getStudentInitials(selectedTimelineStudent.name)}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 dark:text-gray-100">Linha do Tempo</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{selectedTimelineStudent.name}</p>
+                </div>
               </div>
               <button onClick={() => setSelectedTimelineStudent(null)} className="p-2 bg-gray-200 dark:bg-zinc-700 rounded-full hover:bg-gray-300 transition-colors">
                 <span className="material-symbols-outlined text-sm dark:text-white">close</span>
@@ -966,26 +990,37 @@ export const AbsencesReportPage: React.FC = () => {
                           {format(parseISO(r.date), 'dd/MM/yyyy')}
                         </td>
                         <td className="px-4 py-3">
-                           <div className="flex items-center gap-2">
-                             <button 
-                               onClick={() => setSelectedTimelineStudent({ id: r.student_id, name: r.students?.full_name || '' })} 
-                               className="font-bold text-gray-800 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 underline decoration-indigo-300 underline-offset-2 transition-colors text-left"
-                               title="Ver Linha do Tempo"
-                             >
-                               {r.students?.full_name}
-                             </button>
-                             {recurrentStudents.has(r.student_id) && (
-                               <div className="flex gap-1">
-                                 <span className="flex items-center text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200" title="Mais de 3 registros nos últimos 30 dias">
-                                   <span className="material-symbols-outlined text-[12px] mr-0.5">warning</span> Reincidente
+                           <div className="flex items-center gap-3">
+                             <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200 bg-gray-100 dark:border-zinc-700 dark:bg-zinc-700 flex items-center justify-center shrink-0">
+                               {r.students?.photo_url ? (
+                                 <img src={r.students.photo_url} alt={r.students.full_name || 'Aluno'} className="w-full h-full object-cover" />
+                               ) : (
+                                 <span className="text-[10px] font-bold text-gray-600 dark:text-gray-200">
+                                   {getStudentInitials(r.students?.full_name)}
                                  </span>
-                                 <button onClick={() => generateWhatsAppMessage(r.students?.full_name || '')} className="flex items-center text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200 hover:bg-green-200 transition-colors" title="Notificar via WhatsApp">
-                                   <span className="material-symbols-outlined text-[12px] mr-0.5">chat</span> Notificar
-                                 </button>
-                               </div>
-                             )}
+                               )}
+                             </div>
+                             <div>
+                               <button 
+                                 onClick={() => setSelectedTimelineStudent({ id: r.student_id, name: r.students?.full_name || '' })} 
+                                 className="font-bold text-gray-800 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 underline decoration-indigo-300 underline-offset-2 transition-colors text-left"
+                                 title="Ver Linha do Tempo"
+                               >
+                                 {r.students?.full_name}
+                               </button>
+                               <div className="text-xs text-gray-500 dark:text-gray-400">{r.students?.grade} - {r.students?.enrollment_id}</div>
+                             </div>
                            </div>
-                           <div className="text-xs text-gray-500 dark:text-gray-400">{r.students?.grade} - {r.students?.enrollment_id}</div>
+                           {recurrentStudents.has(r.student_id) && (
+                             <div className="flex gap-1 mt-2">
+                               <span className="flex items-center text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200" title="Mais de 3 registros nos últimos 30 dias">
+                                 <span className="material-symbols-outlined text-[12px] mr-0.5">warning</span> Reincidente
+                               </span>
+                               <button onClick={() => generateWhatsAppMessage(r.students?.full_name || '')} className="flex items-center text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200 hover:bg-green-200 transition-colors" title="Notificar via WhatsApp">
+                                 <span className="material-symbols-outlined text-[12px] mr-0.5">chat</span> Notificar
+                               </button>
+                             </div>
+                           )}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {isEditing ? (
