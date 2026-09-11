@@ -85,6 +85,7 @@ export const AbsencesReportPage: React.FC = () => {
   // ── Filters ─────────────────────────────────────────────────────────────────
   const [filterType, setFilterType] = useState<'ALL' | 'FALTA_JUSTIFICADA' | 'ABONO'>('ALL');
   const [filterSigeduc, setFilterSigeduc] = useState<'ALL' | 'PENDING' | 'SYNCED'>('ALL');
+  const [filterGrade, setFilterGrade] = useState<'ALL' | string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   // ── Planilha State ──────────────────────────────────────────────────────────
@@ -100,6 +101,13 @@ export const AbsencesReportPage: React.FC = () => {
 
   // ── Modals & Inline Edit State ──────────────────────────────────────────────
   const [selectedTimelineStudent, setSelectedTimelineStudent] = useState<{id: string, name: string} | null>(null);
+  const [quickAddStudent, setQuickAddStudent] = useState<{id: string, name: string, grade?: string} | null>(null);
+  const [quickAddDraft, setQuickAddDraft] = useState<{date: string, type: 'FALTA_JUSTIFICADA' | 'ABONO', reason: string, authorizedBy: string}>({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    type: 'FALTA_JUSTIFICADA',
+    reason: '',
+    authorizedBy: '',
+  });
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{type: 'FALTA_JUSTIFICADA' | 'ABONO', reason: string}>({ type: 'FALTA_JUSTIFICADA', reason: '' });
 
@@ -155,6 +163,7 @@ export const AbsencesReportPage: React.FC = () => {
       if (filterType !== 'ALL' && a.type !== filterType) return false;
       if (filterSigeduc === 'PENDING' && a.sigeduc_synced) return false;
       if (filterSigeduc === 'SYNCED' && !a.sigeduc_synced) return false;
+      if (filterGrade !== 'ALL' && a.students?.grade !== filterGrade) return false;
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -167,7 +176,7 @@ export const AbsencesReportPage: React.FC = () => {
       }
       return true;
     });
-  }, [absences, filterType, filterSigeduc, searchQuery]);
+  }, [absences, filterType, filterSigeduc, filterGrade, searchQuery]);
 
   const pendentesCount = filteredAbsences.filter(a => !a.sigeduc_synced).length;
   const faltasCount = filteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length;
@@ -261,6 +270,38 @@ export const AbsencesReportPage: React.FC = () => {
       setAbsences(prev => prev.filter(a => a.id !== id));
       alert('Registro excluído com sucesso.');
     }
+  };
+
+  const handleQuickAddSave = async () => {
+    if (!quickAddStudent) return;
+
+    const { data: userData } = await supabase.auth.getUser();
+    const finalReason = quickAddDraft.authorizedBy && quickAddDraft.authorizedBy.trim()
+      ? `[Autorizado por: ${quickAddDraft.authorizedBy.trim()}] ${quickAddDraft.reason}`.trim()
+      : quickAddDraft.reason.trim();
+
+    const { error } = await supabase.from('student_absences').insert({
+      student_id: quickAddStudent.id,
+      type: quickAddDraft.type,
+      date: quickAddDraft.date,
+      reason: finalReason || null,
+      created_by: userData.user?.id
+    });
+
+    if (error) {
+      alert('Erro ao registrar: ' + error.message);
+      return;
+    }
+
+    setQuickAddStudent(null);
+    setQuickAddDraft({
+      date: format(new Date(), 'yyyy-MM-dd'),
+      type: 'FALTA_JUSTIFICADA',
+      reason: '',
+      authorizedBy: '',
+    });
+    fetchAbsences();
+    alert('Registro salvo com sucesso.');
   };
 
   // ── Inline Editing ──────────────────────────────────────────────────────────
@@ -654,6 +695,63 @@ export const AbsencesReportPage: React.FC = () => {
         </div>
       )}
 
+      {quickAddStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/80 bg-white/20 flex items-center justify-center shrink-0">
+                  {allStudents.find(s => s.id === quickAddStudent.id)?.photo_url ? (
+                    <img src={allStudents.find(s => s.id === quickAddStudent.id)?.photo_url} alt={quickAddStudent.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-bold">{getStudentInitials(quickAddStudent.name)}</span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Registrar rápido</h3>
+                  <p className="text-sm text-emerald-50">{quickAddStudent.name}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                  Data
+                  <input type="date" value={quickAddDraft.date} onChange={e => setQuickAddDraft(prev => ({ ...prev, date: e.target.value }))} className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200" />
+                </label>
+
+                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                  Tipo
+                  <select value={quickAddDraft.type} onChange={e => setQuickAddDraft(prev => ({ ...prev, type: e.target.value as 'FALTA_JUSTIFICADA' | 'ABONO' }))} className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200">
+                    <option value="FALTA_JUSTIFICADA">Falta Justificada</option>
+                    <option value="ABONO">Abono</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">
+                Autorizado por
+                <input type="text" value={quickAddDraft.authorizedBy} onChange={e => setQuickAddDraft(prev => ({ ...prev, authorizedBy: e.target.value }))} placeholder="Nome da pessoa responsável" className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200" />
+              </label>
+
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">
+                Motivo / Observação
+                <textarea value={quickAddDraft.reason} onChange={e => setQuickAddDraft(prev => ({ ...prev, reason: e.target.value }))} rows={4} placeholder="Descreva o motivo do registro..." className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-emerald-200" />
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/60">
+              <button onClick={() => setQuickAddStudent(null)} className="px-4 py-2 rounded-xl border border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-gray-200 font-bold hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={handleQuickAddSave} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-sm">
+                Salvar registro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <header className="mb-6 md:mb-8">
@@ -939,29 +1037,43 @@ export const AbsencesReportPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-col xl:flex-row justify-between mb-4 items-start xl:items-center gap-3">
-             <div className="flex flex-wrap gap-2">
-               <button onClick={() => setFilterType('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'ALL' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos</button>
-               <button onClick={() => setFilterType('FALTA_JUSTIFICADA')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'FALTA_JUSTIFICADA' ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Faltas</button>
-               <button onClick={() => setFilterType('ABONO')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'ABONO' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Abonos</button>
-               
-               <div className="w-px h-8 bg-gray-300 dark:bg-zinc-600 mx-1 hidden md:block"></div>
-               
-               <button onClick={() => setFilterSigeduc('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'ALL' ? 'bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-white border-gray-300 dark:border-zinc-600 shadow-inner' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos</button>
-               <button onClick={() => setFilterSigeduc('PENDING')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'PENDING' ? 'bg-yellow-500 text-white border-yellow-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Pendentes</button>
-               <button onClick={() => setFilterSigeduc('SYNCED')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'SYNCED' ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Baixados</button>
-             </div>
+          <div className="mb-4 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-slate-50/80 dark:bg-zinc-800/80 p-3 shadow-sm">
+            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setFilterType('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'ALL' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos</button>
+                <button onClick={() => setFilterType('FALTA_JUSTIFICADA')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'FALTA_JUSTIFICADA' ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Faltas</button>
+                <button onClick={() => setFilterType('ABONO')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterType === 'ABONO' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Abonos</button>
 
-             <div className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400">
-               <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-zinc-700 px-2.5 py-1.5">
-                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                 {filteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length} faltas
-               </span>
-               <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-zinc-700 px-2.5 py-1.5">
-                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                 {filteredAbsences.filter(a => a.type === 'ABONO').length} abonos
-               </span>
-             </div>
+                <div className="w-px h-8 bg-gray-300 dark:bg-zinc-600 mx-1 hidden md:block"></div>
+
+                <button onClick={() => setFilterSigeduc('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'ALL' ? 'bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-white border-gray-300 dark:border-zinc-600 shadow-inner' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos</button>
+                <button onClick={() => setFilterSigeduc('PENDING')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'PENDING' ? 'bg-yellow-500 text-white border-yellow-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Pendentes</button>
+                <button onClick={() => setFilterSigeduc('SYNCED')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'SYNCED' ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Baixados</button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs font-bold text-gray-600 dark:text-gray-300">Turma</label>
+                <select value={filterGrade} onChange={(e) => setFilterGrade(e.target.value)} className="border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 rounded-xl px-3 py-2 text-sm outline-none shadow-sm">
+                  <option value="ALL">Todas</option>
+                  {allGrades.map(grade => (
+                    <option key={grade} value={grade}>{grade}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end mb-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400">
+              <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-zinc-700 px-2.5 py-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                {filteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length} faltas
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-zinc-700 px-2.5 py-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                {filteredAbsences.filter(a => a.type === 'ABONO').length} abonos
+              </span>
+            </div>
           </div>
 
           <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur rounded-2xl border border-gray-200 dark:border-zinc-700 shadow-sm overflow-x-auto">
@@ -1071,6 +1183,9 @@ export const AbsencesReportPage: React.FC = () => {
                              </div>
                            ) : (
                              <div className="flex gap-1 justify-center">
+                               <button onClick={() => setQuickAddStudent({ id: r.student_id, name: r.students?.full_name || '', grade: r.students?.grade || undefined })} className="text-emerald-500 hover:text-emerald-700 transition-colors p-1 bg-emerald-50 rounded shadow-sm" title="Registrar rápido">
+                                 <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                               </button>
                                <button onClick={() => startEditing(r)} className="text-blue-500 hover:text-blue-700 transition-colors p-1 bg-blue-50 rounded shadow-sm" title="Editar">
                                  <span className="material-symbols-outlined text-[18px]">edit</span>
                                </button>
