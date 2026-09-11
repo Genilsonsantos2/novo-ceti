@@ -1131,13 +1131,13 @@ export const AbsencesReportPage: React.FC = () => {
                </div>
                
                <div className="flex gap-2 mt-2 md:mt-0">
-                  <div className="bg-white px-2 py-1 rounded text-gray-800 text-xs font-bold flex items-center shadow-sm">
+                  <div className="bg-white px-2 py-1 rounded text-gray-700 text-xs font-bold flex items-center shadow-sm border border-emerald-100">
                     Data:
-                    <input type="date" value={planilhaDate} onChange={e => setPlanilhaDate(e.target.value)} className="ml-2 border-none outline-none font-normal"/>
+                    <input type="date" value={planilhaDate} onChange={e => setPlanilhaDate(e.target.value)} className="ml-2 border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400"/>
                   </div>
-                  <div className="bg-white px-2 py-1 rounded text-gray-800 text-xs font-bold flex items-center shadow-sm">
+                  <div className="bg-white px-2 py-1 rounded text-gray-700 text-xs font-bold flex items-center shadow-sm border border-emerald-100">
                     Turma:
-                    <select value={planilhaGrade} onChange={e => setPlanilhaGrade(e.target.value)} className="ml-2 border-none outline-none font-normal">
+                    <select value={planilhaGrade} onChange={e => setPlanilhaGrade(e.target.value)} className="ml-2 border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400 cursor-pointer">
                       {allGrades.map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
                   </div>
