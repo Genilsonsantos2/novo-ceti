@@ -85,6 +85,7 @@ export const AbsencesReportPage: React.FC = () => {
   // ── Filters ─────────────────────────────────────────────────────────────────
   const [filterType, setFilterType] = useState<'ALL' | 'FALTA_JUSTIFICADA' | 'ABONO'>('ALL');
   const [filterSigeduc, setFilterSigeduc] = useState<'ALL' | 'PENDING' | 'SYNCED'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDENTE' | 'EM_ANALISE' | 'VALIDADA'>('ALL');
   const [filterGrade, setFilterGrade] = useState<'ALL' | string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -158,11 +159,19 @@ export const AbsencesReportPage: React.FC = () => {
   };
 
   // ── Filtered Data (Historico) ────────────────────────────────────────────────
+  const getAbsenceStatus = (record: AbsenceRecord): 'PENDENTE' | 'EM_ANALISE' | 'VALIDADA' => {
+    const hasReason = !!record.reason && record.reason.trim().length > 0;
+    if (record.sigeduc_synced && hasReason) return 'VALIDADA';
+    if (hasReason && !record.sigeduc_synced) return 'EM_ANALISE';
+    return 'PENDENTE';
+  };
+
   const filteredAbsences = useMemo(() => {
     return absences.filter(a => {
       if (filterType !== 'ALL' && a.type !== filterType) return false;
       if (filterSigeduc === 'PENDING' && a.sigeduc_synced) return false;
       if (filterSigeduc === 'SYNCED' && !a.sigeduc_synced) return false;
+      if (filterStatus !== 'ALL' && getAbsenceStatus(a) !== filterStatus) return false;
       if (filterGrade !== 'ALL' && a.students?.grade !== filterGrade) return false;
       
       if (searchQuery) {
@@ -176,7 +185,7 @@ export const AbsencesReportPage: React.FC = () => {
       }
       return true;
     });
-  }, [absences, filterType, filterSigeduc, filterGrade, searchQuery]);
+  }, [absences, filterType, filterSigeduc, filterStatus, filterGrade, searchQuery]);
 
   const pendentesCount = filteredAbsences.filter(a => !a.sigeduc_synced).length;
   const faltasCount = filteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length;
@@ -217,6 +226,19 @@ export const AbsencesReportPage: React.FC = () => {
     return Object.values(gradesCounts).sort((a: any, b: any) => (b.Faltas + b.Abonos) - (a.Faltas + a.Abonos)).slice(0, 5);
   }, [absences]);
 
+  const topStudentsData = useMemo(() => {
+    const counts = absences.reduce((acc, record) => {
+      const key = record.student_id;
+      const studentName = record.students?.full_name || 'Aluno sem nome';
+      if (!acc[key]) acc[key] = { name: studentName, total: 0, faltas: 0, abonos: 0 };
+      acc[key].total += 1;
+      if (record.type === 'FALTA_JUSTIFICADA') acc[key].faltas += 1;
+      else acc[key].abonos += 1;
+      return acc;
+    }, {} as Record<string, { name: string; total: number; faltas: number; abonos: number }>);
+
+    return Object.values(counts).sort((a, b) => b.total - a.total).slice(0, 5);
+  }, [absences]);
 
   // ── Filtered Data (Planilha) ─────────────────────────────────────────────────
   const allGrades = useMemo(() => {
@@ -901,6 +923,31 @@ export const AbsencesReportPage: React.FC = () => {
                 </div>
              </div>
           </div>
+
+          <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-700 dark:text-gray-200">Top 5 Alunos com mais registros</h3>
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Recorrência</span>
+            </div>
+
+            <div className="space-y-3">
+              {topStudentsData.map((student, index) => (
+                <div key={`${student.name}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/60 px-3 py-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-black text-xs">#{index + 1}</span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-800 dark:text-gray-100 truncate">{student.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{student.faltas} faltas · {student.abonos} abonos</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-black text-gray-900 dark:text-white">{student.total}</p>
+                    <p className="text-[10px] uppercase text-gray-500">registros</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1049,6 +1096,13 @@ export const AbsencesReportPage: React.FC = () => {
                 <button onClick={() => setFilterSigeduc('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'ALL' ? 'bg-gray-100 dark:bg-zinc-700 text-gray-800 dark:text-white border-gray-300 dark:border-zinc-600 shadow-inner' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos</button>
                 <button onClick={() => setFilterSigeduc('PENDING')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'PENDING' ? 'bg-yellow-500 text-white border-yellow-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Pendentes</button>
                 <button onClick={() => setFilterSigeduc('SYNCED')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterSigeduc === 'SYNCED' ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Baixados</button>
+
+                <div className="w-px h-8 bg-gray-300 dark:bg-zinc-600 mx-1 hidden md:block"></div>
+
+                <button onClick={() => setFilterStatus('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterStatus === 'ALL' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos</button>
+                <button onClick={() => setFilterStatus('PENDENTE')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterStatus === 'PENDENTE' ? 'bg-yellow-500 text-white border-yellow-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Pendentes</button>
+                <button onClick={() => setFilterStatus('EM_ANALISE')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterStatus === 'EM_ANALISE' ? 'bg-orange-500 text-white border-orange-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Em análise</button>
+                <button onClick={() => setFilterStatus('VALIDADA')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterStatus === 'VALIDADA' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Validadas</button>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1151,12 +1205,17 @@ export const AbsencesReportPage: React.FC = () => {
                           )}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button 
-                            onClick={() => handleToggleSigeduc(r.id, r.sigeduc_synced)} 
-                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all shadow-sm ${r.sigeduc_synced ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-yellow-500 text-white hover:bg-yellow-600'}`}
-                          >
-                            {r.sigeduc_synced ? 'Baixado' : 'Pendente'}
-                          </button>
+                          <div className="flex flex-col items-center gap-1">
+                            <button 
+                              onClick={() => handleToggleSigeduc(r.id, r.sigeduc_synced)} 
+                              className={`px-3 py-1 rounded-full text-xs font-bold transition-all shadow-sm ${r.sigeduc_synced ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-yellow-500 text-white hover:bg-yellow-600'}`}
+                            >
+                              {r.sigeduc_synced ? 'Baixado' : 'Pendente'}
+                            </button>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getAbsenceStatus(r) === 'VALIDADA' ? 'bg-emerald-100 text-emerald-700' : getAbsenceStatus(r) === 'EM_ANALISE' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {getAbsenceStatus(r)}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           {isEditing ? (
