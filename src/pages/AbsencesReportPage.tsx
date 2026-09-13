@@ -605,16 +605,23 @@ export const AbsencesReportPage: React.FC = () => {
     if (!text) return '';
 
     const regexes = [
-      /(?:A|O) (?:aluna|aluno|estudante) ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i,
-      /(?:A|O) aluna ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i,
-      /(?:A|O) aluno ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i,
-      /(?:A|O) estudante ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i,
-      /(?:estudante|aluno|aluna) ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i
+      /(?:A|O) (?:aluna|aluno|estudante) ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.|\s+\|)/i,
+      /(?:A|O) aluna ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.|\s+\|)/i,
+      /(?:A|O) aluno ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.|\s+\|)/i,
+      /(?:A|O) estudante ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.|\s+\|)/i,
+      /(?:estudante|aluno|aluna) ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.|\s+\|)/i,
+      /([A-ZÀ-Ÿ][a-zà-ÿA-ZÀ-Ÿ\.\- ]{3,})\s*,\s*(?:do|da|de)\s*(?:1|2|3|4|5|6|7|8|9|10|11|12|Etapa|º|°)/i
     ];
 
     for (const regex of regexes) {
       const match = text.match(regex);
       if (match && match[1]) return match[1].replace(/\s+/g, ' ').trim();
+    }
+
+    const words = text.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      const maybeName = words.slice(0, Math.min(8, words.length)).join(' ');
+      if (/^[A-ZÀ-Ÿ]/.test(maybeName) && !/[0-9]/.test(maybeName)) return maybeName;
     }
 
     return '';
@@ -730,6 +737,21 @@ export const AbsencesReportPage: React.FC = () => {
       });
     };
 
+    const scoreHeaderRow = (row: any[]) => {
+      const text = row.map(cell => String(cell ?? '').trim()).join(' ');
+      const normalized = normalizeText(text);
+      let score = 0;
+      if (normalized.includes('data')) score += 3;
+      if (normalized.includes('nome') || normalized.includes('aluno')) score += 3;
+      if (normalized.includes('matri')) score += 3;
+      if (normalized.includes('curso') || normalized.includes('turma')) score += 2;
+      if (normalized.includes('abono')) score += 2;
+      if (normalized.includes('justificativa')) score += 2;
+      if (normalized.includes('duracao')) score += 1;
+      if (normalized.includes('sigeduc')) score += 2;
+      return score;
+    };
+
     if (extension === 'csv') {
       Papa.parse(file, {
         header: true,
@@ -756,13 +778,16 @@ export const AbsencesReportPage: React.FC = () => {
           return;
         }
 
-        const headerIndex = rows.findIndex(row => row.some((cell: any) => {
-          const normalized = normalizeText(cell);
-          return normalized.includes('aluno') || normalized.includes('nome') || normalized.includes('matri') || normalized.includes('data');
-        }));
+        const headerRowIndex = rows.reduce((bestIndex, row, index) => {
+          if (index === 0) return 0;
+          const score = scoreHeaderRow(row);
+          if (score > scoreHeaderRow(rows[bestIndex])) return index;
+          return bestIndex;
+        }, 0);
 
-        const baseIndex = headerIndex === -1 ? 0 : headerIndex;
-        const headers = (rows[baseIndex] || []).map((header: any) => String(header ?? '').trim());
+        const baseIndex = headerRowIndex;
+        const rawHeaders = (rows[baseIndex] || []).map((header: any) => String(header ?? '').trim());
+        const headers = rawHeaders.length ? rawHeaders : ['Data', 'Nome', 'Curso', 'Abono', 'Justificativa', 'Duração', 'Lançamento no Sigeduc', 'Autorizado por', 'Mensagem'];
         const dataRows = rows.slice(baseIndex + 1).filter(row => row.some(cell => String(cell ?? '').trim() !== ''));
 
         const mappedRows = dataRows.map((row) => {
@@ -770,6 +795,8 @@ export const AbsencesReportPage: React.FC = () => {
           headers.forEach((header, idx) => {
             rowObject[header] = row[idx] ?? '';
           });
+          const extraText = row.filter(cell => String(cell ?? '').trim() !== '').join(' | ');
+          if (extraText) rowObject['Mensagem'] = rowObject['Mensagem'] || extraText;
           return rowObject as ImportRow;
         }).filter(row => Object.values(row).some(v => String(v ?? '').trim() !== ''));
 
@@ -802,7 +829,7 @@ export const AbsencesReportPage: React.FC = () => {
   const validateImportData = (rows: ImportRow[]) => {
     const validations: ImportValidationResult[] = rows.map(row => {
       const matricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno', 'MATRICULA', 'RM ALUNO']);
-      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME', 'ALUNO'], );
+      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME', 'ALUNO']);
       const fallbackNameFromText = extractStudentNameFromText(String(Object.values(row || {}).join(' ') || ''));
 
       const resolvedStudentName = studentName || fallbackNameFromText;
@@ -814,7 +841,12 @@ export const AbsencesReportPage: React.FC = () => {
         return allStudents.find(s => {
           const normalizedEnrollment = normalizeText(s.enrollment_id).replace(/[^a-z0-9]/g, '');
           const normalizedName = normalizeText(s.full_name).replace(/[^a-z0-9]/g, '');
-          return normalizedEnrollment === normalizedValue || normalizedName === normalizedValue;
+          return normalizedEnrollment === normalizedValue || normalizedName === normalizedValue || normalizedName.includes(normalizedValue) || normalizedValue.includes(normalizedName);
+        }) || allStudents.find(s => {
+          const normalizedName = normalizeText(s.full_name).replace(/[^a-z0-9]/g, '');
+          const firstName = normalizedName.split(' ')[0];
+          const lastName = normalizedName.split(' ').slice(-1)[0];
+          return normalizedValue.includes(firstName) || normalizedValue.includes(lastName) || firstName.includes(normalizedValue) || lastName.includes(normalizedValue);
         });
       };
 
