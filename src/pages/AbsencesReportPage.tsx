@@ -727,6 +727,47 @@ export const AbsencesReportPage: React.FC = () => {
     }
   };
 
+  const inferLegacyAtestadoRows = (rows: any[][]) => {
+    const cleanRows = rows.filter(row => row.some(cell => String(cell ?? '').trim() !== ''));
+    const inferred: Record<string, string>[] = [];
+
+    for (const row of cleanRows) {
+      const values = row.map(cell => String(cell ?? '').trim()).filter(v => v !== '');
+      if (!values.length) continue;
+
+      const text = values.join(' | ');
+      const dateMatch = text.match(/\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/);
+      const nameCandidates = values.filter(v => /^[A-ZÀ-Ÿ][A-Za-zÀ-ÿ\s\.\-]{3,}$/.test(v) && !/^(abono|justificativa|ok|dia|dados|curso|etapa|integral|tecnico|técnico)$/i.test(v));
+      const typeValue = values.find(v => /abono|justificativa|falta/i.test(v)) || '';
+      const courseValue = values.find(v => /(integral|tecnico|técnico|etapa|ano|curso)/i.test(v)) || '';
+      const authValue = values.find(v => /^[A-ZÀ-Ÿ]{3,}$/.test(v) && !/^(OK|DATAS|DIA|ABONO|JUSTIFICATIVA)$/i.test(v)) || '';
+
+      const candidateName = nameCandidates.find(v => !/\d/.test(v) && !/(integral|tecnico|técnico|etapa|ano)/i.test(v)) || nameCandidates[0] || '';
+      const normalizedText = text.replace(/\s+/g, ' ');
+      const finalDate = dateMatch ? dateMatch[0] : '';
+      const finalName = candidateName || extractStudentNameFromText(normalizedText);
+      const finalReason = values.filter(v => /justific|atestado|apresentou|autoriz|bom dia|boa tarde|boas|falta|ausencia|ausência|relatorio|medico|médico|odontolog|comparecimento/i.test(v)).join(' | ') || normalizedText;
+
+      if (!finalDate && !finalName) continue;
+
+      const inferredRow: Record<string, string> = {
+        Data: finalDate,
+        Aluno: finalName,
+        Curso: courseValue,
+        Tipo: /abono/i.test(typeValue) ? 'ABONO' : 'FALTA_JUSTIFICADA',
+        Motivo: finalReason,
+        'Autorizado por': authValue,
+        Mensagem: normalizedText,
+      };
+
+      if (inferredRow.Data || inferredRow.Aluno || inferredRow.Motivo) {
+        inferred.push(inferredRow as ImportRow);
+      }
+    }
+
+    return inferred;
+  };
+
   const parseImportFile = async (file: File) => {
     const extension = file.name.split('.').pop()?.toLowerCase();
 
@@ -750,45 +791,6 @@ export const AbsencesReportPage: React.FC = () => {
       if (normalized.includes('duracao')) score += 1;
       if (normalized.includes('sigeduc')) score += 2;
       return score;
-    };
-
-    const inferMappedRowsFromLegacyLayout = (rows: any[][]) => {
-      const cleanRows = rows.filter(row => row.some(cell => String(cell ?? '').trim() !== ''));
-      const inferred: Record<string, string>[] = [];
-
-      for (const row of cleanRows) {
-        const values = row.map(cell => String(cell ?? '').trim());
-        if (values.every(v => !v)) continue;
-
-        const nonEmpty = values.filter(v => v !== '');
-        const rowLength = Math.max(9, values.length);
-        const padded = [...values];
-        while (padded.length < rowLength) padded.push('');
-
-        const firstCell = padded[0] || '';
-        const hasDate = /\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(firstCell) || /\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(nonEmpty.join(' '));
-        const hasName = /[A-Za-zÀ-ÿ]/.test((padded[1] || '') + (padded[2] || ''));
-
-        if (!hasDate && !hasName) continue;
-
-        const rowObject: Record<string, string> = {
-          Data: padded[0] || padded[1] || '',
-          Aluno: padded[1] || padded[0] || '',
-          Curso: padded[2] || '',
-          Abono: padded[3] || '',
-          Justificativa: padded[4] || '',
-          Duração: padded[5] || '',
-          'Lançamento no Sigeduc': padded[6] || '',
-          'Autorizado por': padded[7] || '',
-          Mensagem: padded.slice(8).join(' | ') || nonEmpty.slice(8).join(' | ') || ''
-        };
-
-        if (rowObject.Data || rowObject.Aluno || rowObject.Mensagem) {
-          inferred.push(rowObject as ImportRow);
-        }
-      }
-
-      return inferred;
     };
 
     if (extension === 'csv') {
@@ -839,7 +841,7 @@ export const AbsencesReportPage: React.FC = () => {
           return rowObject as ImportRow;
         }).filter(row => Object.values(row).some(v => String(v ?? '').trim() !== ''));
 
-        const finalRows = mappedRows.length ? mappedRows : inferMappedRowsFromLegacyLayout(rows);
+        const finalRows = mappedRows.length ? mappedRows : inferLegacyAtestadoRows(rows.slice(1));
         validateImportData(finalRows);
       } catch (error: any) {
         alert('Erro ao ler Excel: ' + error.message);
