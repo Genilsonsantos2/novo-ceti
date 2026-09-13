@@ -528,6 +528,11 @@ export const AbsencesReportPage: React.FC = () => {
     return '';
   };
 
+  const getDisplayRowValue = (row: any, keys: string[]) => {
+    const value = getRowValue(row, keys);
+    return value || '—';
+  };
+
   const normalizeText = (value: string | null | undefined) => {
     return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   };
@@ -623,12 +628,19 @@ export const AbsencesReportPage: React.FC = () => {
   const parseImportFile = async (file: File) => {
     const extension = file.name.split('.').pop()?.toLowerCase();
 
+    const cleanRows = (rows: Record<string, any>[]) => {
+      return rows.filter(row => {
+        const values = Object.values(row || {}).map(v => String(v ?? '').trim());
+        return values.some(v => v !== '');
+      });
+    };
+
     if (extension === 'csv') {
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          const rows = results.data as Record<string, any>[];
+          const rows = cleanRows(results.data as Record<string, any>[]);
           validateImportData(rows as ImportRow[]);
         },
         error: (err: any) => alert('Erro ao ler CSV: ' + err.message)
@@ -649,8 +661,14 @@ export const AbsencesReportPage: React.FC = () => {
           return;
         }
 
-        const headers = rows[0].map((header: any) => String(header ?? '').trim());
-        const dataRows = rows.slice(1).filter(row => row.some(cell => String(cell ?? '').trim() !== '')); 
+        const headerIndex = rows.findIndex(row => row.some((cell: any) => {
+          const normalized = normalizeText(cell);
+          return normalized.includes('aluno') || normalized.includes('nome') || normalized.includes('matri') || normalized.includes('data');
+        }));
+
+        const baseIndex = headerIndex === -1 ? 0 : headerIndex;
+        const headers = (rows[baseIndex] || []).map((header: any) => String(header ?? '').trim());
+        const dataRows = rows.slice(baseIndex + 1).filter(row => row.some(cell => String(cell ?? '').trim() !== ''));
 
         const mappedRows = dataRows.map((row) => {
           const rowObject: Record<string, string> = {};
@@ -658,7 +676,7 @@ export const AbsencesReportPage: React.FC = () => {
             rowObject[header] = row[idx] ?? '';
           });
           return rowObject as ImportRow;
-        });
+        }).filter(row => Object.values(row).some(v => String(v ?? '').trim() !== ''));
 
         validateImportData(mappedRows);
       } catch (error: any) {
@@ -1132,9 +1150,9 @@ export const AbsencesReportPage: React.FC = () => {
                               <span className="material-symbols-outlined text-red-500 font-bold" title={row.errorReason}>error</span>
                             )}
                           </td>
-                          <td className="px-4 py-2 dark:text-gray-300">{row.row.Data}</td>
-                          <td className="px-4 py-2 dark:text-gray-300">{row.row.Aluno}</td>
-                          <td className="px-4 py-2 font-mono text-xs dark:text-gray-400">{row.row.Matrícula}</td>
+                          <td className="px-4 py-2 dark:text-gray-300">{row.parsedDate || getDisplayRowValue(row.row, ['Data', 'Dia', 'Data da Falta', 'Data do Registro', 'DATA', 'Data do Lançamento', 'Data da Ausência'])}</td>
+                          <td className="px-4 py-2 dark:text-gray-300">{getDisplayRowValue(row.row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME', 'ALUNO'])}</td>
+                          <td className="px-4 py-2 font-mono text-xs dark:text-gray-400">{getDisplayRowValue(row.row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno', 'MATRICULA', 'RM ALUNO'])}</td>
                           <td className="px-4 py-2">
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${row.parsedType === 'ABONO' ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700'}`}>
                                {row.parsedType}
