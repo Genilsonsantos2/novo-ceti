@@ -752,6 +752,45 @@ export const AbsencesReportPage: React.FC = () => {
       return score;
     };
 
+    const inferMappedRowsFromLegacyLayout = (rows: any[][]) => {
+      const cleanRows = rows.filter(row => row.some(cell => String(cell ?? '').trim() !== ''));
+      const inferred: Record<string, string>[] = [];
+
+      for (const row of cleanRows) {
+        const values = row.map(cell => String(cell ?? '').trim());
+        if (values.every(v => !v)) continue;
+
+        const nonEmpty = values.filter(v => v !== '');
+        const rowLength = Math.max(9, values.length);
+        const padded = [...values];
+        while (padded.length < rowLength) padded.push('');
+
+        const firstCell = padded[0] || '';
+        const hasDate = /\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(firstCell) || /\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(nonEmpty.join(' '));
+        const hasName = /[A-Za-zÀ-ÿ]/.test((padded[1] || '') + (padded[2] || ''));
+
+        if (!hasDate && !hasName) continue;
+
+        const rowObject: Record<string, string> = {
+          Data: padded[0] || padded[1] || '',
+          Aluno: padded[1] || padded[0] || '',
+          Curso: padded[2] || '',
+          Abono: padded[3] || '',
+          Justificativa: padded[4] || '',
+          Duração: padded[5] || '',
+          'Lançamento no Sigeduc': padded[6] || '',
+          'Autorizado por': padded[7] || '',
+          Mensagem: padded.slice(8).join(' | ') || nonEmpty.slice(8).join(' | ') || ''
+        };
+
+        if (rowObject.Data || rowObject.Aluno || rowObject.Mensagem) {
+          inferred.push(rowObject as ImportRow);
+        }
+      }
+
+      return inferred;
+    };
+
     if (extension === 'csv') {
       Papa.parse(file, {
         header: true,
@@ -800,7 +839,8 @@ export const AbsencesReportPage: React.FC = () => {
           return rowObject as ImportRow;
         }).filter(row => Object.values(row).some(v => String(v ?? '').trim() !== ''));
 
-        validateImportData(mappedRows);
+        const finalRows = mappedRows.length ? mappedRows : inferMappedRowsFromLegacyLayout(rows);
+        validateImportData(finalRows);
       } catch (error: any) {
         alert('Erro ao ler Excel: ' + error.message);
       }
