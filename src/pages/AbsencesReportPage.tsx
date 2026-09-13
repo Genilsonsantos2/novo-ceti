@@ -537,41 +537,89 @@ export const AbsencesReportPage: React.FC = () => {
     return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   };
 
-  const parseImportDate = (row: any) => {
-    const rawDate = getRowValue(row, ['Data', 'Dia', 'Data da Falta', 'Data do Registro', 'DATA', 'Data do Lançamento', 'Data da Ausência']);
-    if (!rawDate) return '';
+  const extractDateFromText = (value: string) => {
+    const match = String(value || '').match(/\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b/g);
+    if (!match) return '';
 
-    const cleaned = String(rawDate).trim();
-    const directDate = cleaned.replace(/\s+/g, '');
-    const parts = directDate.split(/[\/\-]/);
+    const candidate = match[0];
+    const normalized = candidate.replace(/\./g, '/');
+    const parts = normalized.split(/[\/\-]/);
 
     if (parts.length === 3) {
-      if (parts[0].length === 4) {
-        const [year, month, day] = parts;
-        const iso = `${year}-${month}-${day}`;
-        return isNaN(Date.parse(iso)) ? '' : iso;
-      }
-
-      if (parts[0].length === 2 && parts[1].length === 2) {
-        const [day, month, year] = parts;
-        const iso = `${year}-${month}-${day}`;
-        return isNaN(Date.parse(iso)) ? '' : iso;
-      }
+      const last = parts[2];
+      const year = last.length === 2 ? `20${last}` : last;
+      const month = parts[1].padStart(2, '0');
+      const day = parts[0].padStart(2, '0');
+      const iso = `${year}-${month}-${day}`;
+      return isNaN(Date.parse(iso)) ? '' : iso;
     }
 
-    const parsed = new Date(cleaned);
-    return Number.isNaN(parsed.getTime()) ? '' : format(parsed, 'yyyy-MM-dd');
+    return '';
+  };
+
+  const extractStudentNameFromText = (value: string) => {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+
+    const regexes = [
+      /(?:A|O) (?:aluna|aluno|estudante) ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i,
+      /(?:A|O) aluna ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i,
+      /(?:A|O) aluno ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i,
+      /(?:A|O) estudante ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i,
+      /(?:estudante|aluno|aluna) ([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\- ]+?)(?:,| do | da | de |\.)/i
+    ];
+
+    for (const regex of regexes) {
+      const match = text.match(regex);
+      if (match && match[1]) return match[1].replace(/\s+/g, ' ').trim();
+    }
+
+    return '';
+  };
+
+  const parseImportDate = (row: any) => {
+    const rawDate = getRowValue(row, ['Data', 'Dia', 'Data da Falta', 'Data do Registro', 'DATA', 'Data do Lançamento', 'Data da Ausência', 'Data da ausência']);
+    if (rawDate) {
+      const cleaned = String(rawDate).trim();
+      const directDate = cleaned.replace(/\s+/g, '');
+      const parts = directDate.split(/[\/\-]/);
+
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          const [year, month, day] = parts;
+          const iso = `${year}-${month}-${day}`;
+          if (!isNaN(Date.parse(iso))) return iso;
+        }
+
+        if (parts[0].length === 2 && parts[1].length === 2) {
+          const [day, month, year] = parts;
+          const iso = `${year}-${month}-${day}`;
+          if (!isNaN(Date.parse(iso))) return iso;
+        }
+      }
+
+      const parsed = new Date(cleaned);
+      if (!Number.isNaN(parsed.getTime())) return format(parsed, 'yyyy-MM-dd');
+    }
+
+    const messageText = getImportReason(row) || '';
+    return extractDateFromText(messageText) || extractDateFromText(String(row?.Mensagem || row?.['Mensagem da Direção'] || ''));
   };
 
   const parseImportType = (row: any): 'FALTA_JUSTIFICADA' | 'ABONO' => {
-    const rawType = getRowValue(row, ['Tipo', 'Tipo de Registro', 'Status', 'Motivo', 'ABONO', 'Abono', 'Falta', 'FALTA', 'Tipo de Falta', 'Status do Registro']);
+    const rawType = getRowValue(row, ['Tipo', 'Tipo de Registro', 'Status', 'Motivo', 'ABONO', 'Abono', 'Falta', 'FALTA', 'Tipo de Falta', 'Status do Registro', 'Tipo do Registro']);
     const normalizedType = normalizeText(rawType);
 
     if (normalizedType.includes('abono') || ['sim', 's', 'x', '1', 'yes', 'true'].includes(normalizedType)) {
       return 'ABONO';
     }
 
-    if (normalizedType.includes('falta') || normalizedType.includes('justificada') || normalizedType.includes('nao') || normalizedType.includes('não')) {
+    const messageText = normalizeText(getImportReason(row));
+    if (messageText.includes('atestado') || messageText.includes('apresentou atestado') || messageText.includes('comparecimento medico') || messageText.includes('odontologico')) {
+      return 'ABONO';
+    }
+
+    if (normalizedType.includes('falta') || normalizedType.includes('justificada') || normalizedType.includes('nao') || normalizedType.includes('não') || messageText.includes('justificou') || messageText.includes('justificou a ausencia')) {
       return 'FALTA_JUSTIFICADA';
     }
 
@@ -580,9 +628,8 @@ export const AbsencesReportPage: React.FC = () => {
 
   const getImportReason = (row: any) => {
     const reasonParts = [
-      getRowValue(row, ['Motivo', 'Justificativa', 'Justificativa da Falta', 'Mensagem da Direção', 'Mensagem da direcao', 'Mensagem', 'Observação', 'Observacao', 'Descrição', 'Descricao']),
-      getRowValue(row, ['MENSAGEM DA DIREÇÃO', 'Mensagem da Dirección', 'Mensagem da direção']),
-      getRowValue(row, ['Autorizado por', 'AUTORIZADO POR', 'Autorizado Por', 'Autoriza', 'Responsável']),
+      getRowValue(row, ['Motivo', 'Justificativa', 'Justificativa da Falta', 'Mensagem da Direção', 'Mensagem da direcao', 'Mensagem', 'Observação', 'Observacao', 'Descrição', 'Descricao', 'MENSAGEM DA DIREÇÃO', 'Mensagem da Dirección', 'Mensagem da direção']),
+      getRowValue(row, ['Autorizado por', 'AUTORIZADO POR', 'Autorizado Por', 'Autoriza', 'Responsável', 'Responsavel']),
     ].filter(Boolean);
 
     if (reasonParts.length === 0) return null;
@@ -707,7 +754,12 @@ export const AbsencesReportPage: React.FC = () => {
   const validateImportData = (rows: ImportRow[]) => {
     const validations: ImportValidationResult[] = rows.map(row => {
       const matricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno', 'MATRICULA', 'RM ALUNO']);
-      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME']);
+      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME', 'ALUNO']);
+      const fallbackNameFromText = extractStudentNameFromText(String(Object.values(row || {}).join(' ') || ''));
+
+      const resolvedStudentName = studentName || fallbackNameFromText;
+      const fallbackMatriculaFromText = String(Object.values(row || {}).join(' ') || '').match(/\b\d{4,}\b/);
+      const resolvedMatricula = matricula || (fallbackMatriculaFromText ? fallbackMatriculaFromText[0] : '');
 
       const matchStudent = (value: string) => {
         const normalizedValue = normalizeText(value).replace(/[^a-z0-9]/g, '');
@@ -718,15 +770,15 @@ export const AbsencesReportPage: React.FC = () => {
         });
       };
 
-      const studentByMatricula = matricula ? matchStudent(matricula) : null;
-      const studentByName = !studentByMatricula && studentName ? matchStudent(studentName) : null;
+      const studentByMatricula = resolvedMatricula ? matchStudent(resolvedMatricula) : null;
+      const studentByName = !studentByMatricula && resolvedStudentName ? matchStudent(resolvedStudentName) : null;
       const student = studentByMatricula || studentByName;
 
       let status: 'VALID' | 'ERROR' = 'VALID';
       let errorReason = '';
 
       if (!student) {
-        const hasStudentIdentifier = !!(studentName || matricula);
+        const hasStudentIdentifier = !!(resolvedStudentName || resolvedMatricula);
         status = 'ERROR';
         errorReason = hasStudentIdentifier
           ? 'Aluno não cadastrado. Cadastre antes ou use o cadastro rápido.'
@@ -740,8 +792,9 @@ export const AbsencesReportPage: React.FC = () => {
       }
 
       const parsedType = parseImportType(row);
-      const parsedSynced = getRowValue(row, ['Status Sigeduc', 'Sigeduc', 'Status do Sigeduc', 'LANÇAMENTO NO SIGEDUC', 'Lançamento no Sigeduc', 'Status do Sigeduc']).toLowerCase().includes('baixado') ||
-        ['sim', 's', '1', 'yes', 'baixado', 'enviado', 'sincronizado', 'ok'].includes(normalizeText(getRowValue(row, ['Status Sigeduc', 'Sigeduc', 'Status do Sigeduc', 'LANÇAMENTO NO SIGEDUC', 'Lançamento no Sigeduc', 'Status do Sigeduc'])));
+      const sigeducValue = getRowValue(row, ['Status Sigeduc', 'Sigeduc', 'Status do Sigeduc', 'LANÇAMENTO NO SIGEDUC', 'Lançamento no Sigeduc', 'Status do Sigeduc']);
+      const parsedSynced = normalizeText(sigeducValue).includes('baixado') ||
+        ['sim', 's', '1', 'yes', 'baixado', 'enviado', 'sincronizado', 'ok'].includes(normalizeText(sigeducValue));
 
       return {
         row,
