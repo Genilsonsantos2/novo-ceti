@@ -67,12 +67,13 @@ const COLORS = ['#f59e0b', '#14b8a6'];
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const AbsencesReportPage: React.FC = () => {
   // ── Tab State ───────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'importacao' | 'historico' | 'diario' | 'planilha'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'importacao' | 'historico' | 'diario' | 'relatorios' | 'planilha'>('dashboard');
 
   // ── Data States ─────────────────────────────────────────────────────────────
   const [absences, setAbsences] = useState<AbsenceRecord[]>([]);
   const [allStudents, setAllStudents] = useState<StudentResult[]>([]);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   // ── Period Filter ───────────────────────────────────────────────────────────
   const [startDate, setStartDate] = useState(() => {
@@ -240,6 +241,37 @@ export const AbsencesReportPage: React.FC = () => {
     return Object.values(counts).sort((a, b) => b.total - a.total).slice(0, 5);
   }, [absences]);
 
+  const reportByGrade = useMemo(() => {
+    const grouped = absences.reduce((acc, record) => {
+      const grade = record.students?.grade || 'Sem turma';
+      if (!acc[grade]) {
+        acc[grade] = { grade, faltas: 0, abonos: 0, total: 0 };
+      }
+      acc[grade].total += 1;
+      if (record.type === 'FALTA_JUSTIFICADA') acc[grade].faltas += 1;
+      else acc[grade].abonos += 1;
+      return acc;
+    }, {} as Record<string, { grade: string; faltas: number; abonos: number; total: number }>);
+
+    return Object.values(grouped).sort((a, b) => b.total - a.total);
+  }, [absences]);
+
+  const reportByStudent = useMemo(() => {
+    const grouped = absences.reduce((acc, record) => {
+      const studentName = record.students?.full_name || 'Aluno sem nome';
+      const key = record.student_id || studentName;
+      if (!acc[key]) {
+        acc[key] = { student: studentName, grade: record.students?.grade || '-', faltas: 0, abonos: 0, total: 0 };
+      }
+      acc[key].total += 1;
+      if (record.type === 'FALTA_JUSTIFICADA') acc[key].faltas += 1;
+      else acc[key].abonos += 1;
+      return acc;
+    }, {} as Record<string, { student: string; grade: string; faltas: number; abonos: number; total: number }>);
+
+    return Object.values(grouped).sort((a, b) => b.total - a.total).slice(0, 10);
+  }, [absences]);
+
   // ── Filtered Data (Planilha) ─────────────────────────────────────────────────
   const allGrades = useMemo(() => {
     const set = new Set(allStudents.map(s => s.grade).filter(Boolean));
@@ -394,6 +426,24 @@ export const AbsencesReportPage: React.FC = () => {
     }
   };
 
+  const handleExportReportPDF = async () => {
+    if (!reportRef.current) return;
+    try {
+      const canvas = await html2canvas(reportRef.current, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.setFontSize(16);
+      pdf.text('Relatório de Faltas e Abonos', 10, 10);
+      pdf.addImage(imgData, 'PNG', 0, 20, pdfWidth, pdfHeight);
+      pdf.save(`Relatorio_Detalhado_${startDate}_a_${endDate}.pdf`);
+    } catch (e) {
+      alert('Erro ao gerar relatório em PDF.');
+    }
+  };
+
   // ── Planilha Actions ────────────────────────────────────────────────────────
   const getDraft = (id: string): DraftRecord | undefined => draftRecords[id];
 
@@ -460,6 +510,17 @@ export const AbsencesReportPage: React.FC = () => {
 
   // ── Import Actions (PapaParse) ─────────────────────────────────────────────
   const getRowValue = (row: any, keys: string[]) => {
+    const normalizedKeys = keys.map(k => normalizeText(k));
+    const entries = Object.entries(row || {});
+
+    for (const [key, value] of entries) {
+      const normalizedKey = normalizeText(key);
+      if (normalizedKeys.some(k => normalizedKey === k || normalizedKey.includes(k) || k.includes(normalizedKey))) {
+        const trimmed = String(value ?? '').trim();
+        if (trimmed !== '') return trimmed;
+      }
+    }
+
     for (const key of keys) {
       const value = row?.[key];
       if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim();
@@ -471,10 +532,62 @@ export const AbsencesReportPage: React.FC = () => {
     return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   };
 
+  const parseImportDate = (row: any) => {
+    const rawDate = getRowValue(row, ['Data', 'Dia', 'Data da Falta', 'Data do Registro', 'DATA', 'Data do Lançamento', 'Data da Ausência']);
+    if (!rawDate) return '';
+
+    const cleaned = String(rawDate).trim();
+    const directDate = cleaned.replace(/\s+/g, '');
+    const parts = directDate.split(/[\/\-]/);
+
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        const [year, month, day] = parts;
+        const iso = `${year}-${month}-${day}`;
+        return isNaN(Date.parse(iso)) ? '' : iso;
+      }
+
+      if (parts[0].length === 2 && parts[1].length === 2) {
+        const [day, month, year] = parts;
+        const iso = `${year}-${month}-${day}`;
+        return isNaN(Date.parse(iso)) ? '' : iso;
+      }
+    }
+
+    const parsed = new Date(cleaned);
+    return Number.isNaN(parsed.getTime()) ? '' : format(parsed, 'yyyy-MM-dd');
+  };
+
+  const parseImportType = (row: any): 'FALTA_JUSTIFICADA' | 'ABONO' => {
+    const rawType = getRowValue(row, ['Tipo', 'Tipo de Registro', 'Status', 'Motivo', 'ABONO', 'Abono', 'Falta', 'FALTA', 'Tipo de Falta', 'Status do Registro']);
+    const normalizedType = normalizeText(rawType);
+
+    if (normalizedType.includes('abono') || ['sim', 's', 'x', '1', 'yes', 'true'].includes(normalizedType)) {
+      return 'ABONO';
+    }
+
+    if (normalizedType.includes('falta') || normalizedType.includes('justificada') || normalizedType.includes('nao') || normalizedType.includes('não')) {
+      return 'FALTA_JUSTIFICADA';
+    }
+
+    return 'FALTA_JUSTIFICADA';
+  };
+
+  const getImportReason = (row: any) => {
+    const reasonParts = [
+      getRowValue(row, ['Motivo', 'Justificativa', 'Justificativa da Falta', 'Mensagem da Direção', 'Mensagem da direcao', 'Mensagem', 'Observação', 'Observacao', 'Descrição', 'Descricao']),
+      getRowValue(row, ['MENSAGEM DA DIREÇÃO', 'Mensagem da Dirección', 'Mensagem da direção']),
+      getRowValue(row, ['Autorizado por', 'AUTORIZADO POR', 'Autorizado Por', 'Autoriza', 'Responsável']),
+    ].filter(Boolean);
+
+    if (reasonParts.length === 0) return null;
+    return reasonParts.join(' | ');
+  };
+
   const handleCreateMissingStudent = async (row: ImportRow) => {
-    const rawName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno']);
-    const rawMatricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno']);
-    const rawGrade = getRowValue(row, ['Turma', 'Série/Turma', 'Serie/Turma', 'Grade', 'Curso']);
+    const rawName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME']);
+    const rawMatricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno', 'MATRICULA', 'RM ALUNO']);
+    const rawGrade = getRowValue(row, ['Turma', 'Série/Turma', 'Serie/Turma', 'Grade', 'Curso', 'CURSO']);
 
     const fullName = rawName || window.prompt('Digite o nome completo do aluno para cadastrar:')?.trim();
     if (!fullName) return;
@@ -499,7 +612,7 @@ export const AbsencesReportPage: React.FC = () => {
 
       await fetchAllStudents();
       alert('Aluno cadastrado com sucesso e agora pode ser importado.');
-      const nextRows = importValidation.map(item => item.row.Aluno === rawName ? { ...item, status: 'VALID', errorReason: '', studentId: null } : item);
+      const nextRows = importValidation.map(item => item.row === row ? { ...item, status: 'VALID', errorReason: '', studentId: null } : item);
       setImportValidation(nextRows);
       validateImportData(nextRows.map(item => item.row));
     } catch (error: any) {
@@ -575,45 +688,42 @@ export const AbsencesReportPage: React.FC = () => {
 
   const validateImportData = (rows: ImportRow[]) => {
     const validations: ImportValidationResult[] = rows.map(row => {
-      const matricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno']);
-      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno']);
-      const studentByMatricula = allStudents.find(s => normalizeText(s.enrollment_id) === normalizeText(matricula));
-      const studentByName = !studentByMatricula && studentName ? allStudents.find(s => normalizeText(s.full_name) === normalizeText(studentName)) : null;
+      const matricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno', 'MATRICULA', 'RM ALUNO']);
+      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME']);
+
+      const matchStudent = (value: string) => {
+        const normalizedValue = normalizeText(value).replace(/[^a-z0-9]/g, '');
+        return allStudents.find(s => {
+          const normalizedEnrollment = normalizeText(s.enrollment_id).replace(/[^a-z0-9]/g, '');
+          const normalizedName = normalizeText(s.full_name).replace(/[^a-z0-9]/g, '');
+          return normalizedEnrollment === normalizedValue || normalizedName === normalizedValue;
+        });
+      };
+
+      const studentByMatricula = matricula ? matchStudent(matricula) : null;
+      const studentByName = !studentByMatricula && studentName ? matchStudent(studentName) : null;
       const student = studentByMatricula || studentByName;
 
       let status: 'VALID' | 'ERROR' = 'VALID';
       let errorReason = '';
 
       if (!student) {
+        const hasStudentIdentifier = !!(studentName || matricula);
         status = 'ERROR';
-        errorReason = 'Aluno não cadastrado. Cadastre antes ou use o cadastro rápido.';
+        errorReason = hasStudentIdentifier
+          ? 'Aluno não cadastrado. Cadastre antes ou use o cadastro rápido.'
+          : 'Dados incompletos: informe nome ou matrícula do aluno.';
       }
 
-      let parsedDate = '';
-      const rawDate = getRowValue(row, ['Data', 'Dia', 'Data da Falta', 'Data do Registro']);
-      if (rawDate) {
-        const parts = rawDate.split(/[\/\-]/);
-        if (parts.length === 3) {
-          if (parts[0].length === 2 && parts[1].length === 2) {
-            parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-          } else if (parts[0].length === 4) {
-            parsedDate = `${parts[0]}-${parts[1]}-${parts[2]}`;
-          } else {
-            parsedDate = rawDate;
-          }
-        } else {
-          parsedDate = rawDate;
-        }
-      }
-
-      if (!parsedDate || isNaN(Date.parse(parsedDate))) {
+      const parsedDate = parseImportDate(row);
+      if (!parsedDate) {
         status = 'ERROR';
         errorReason = errorReason ? `${errorReason}; Data inválida` : 'Data inválida';
       }
 
-      const rawType = getRowValue(row, ['Tipo', 'Tipo de Registro', 'Status', 'Motivo']);
-      const parsedType = (rawType === 'Abono' || rawType?.toLowerCase().includes('abono')) ? 'ABONO' : 'FALTA_JUSTIFICADA';
-      const parsedSynced = getRowValue(row, ['Status Sigeduc', 'Sigeduc', 'Status do Sigeduc'])?.toLowerCase().includes('baixado') ? true : false;
+      const parsedType = parseImportType(row);
+      const parsedSynced = getRowValue(row, ['Status Sigeduc', 'Sigeduc', 'Status do Sigeduc', 'LANÇAMENTO NO SIGEDUC', 'Lançamento no Sigeduc', 'Status do Sigeduc']).toLowerCase().includes('baixado') ||
+        ['sim', 's', '1', 'yes', 'baixado', 'enviado', 'sincronizado', 'ok'].includes(normalizeText(getRowValue(row, ['Status Sigeduc', 'Sigeduc', 'Status do Sigeduc', 'LANÇAMENTO NO SIGEDUC', 'Lançamento no Sigeduc', 'Status do Sigeduc'])));
 
       return {
         row,
@@ -640,7 +750,7 @@ export const AbsencesReportPage: React.FC = () => {
       student_id: v.studentId,
       type: v.parsedType,
       date: v.parsedDate,
-      reason: v.row.Motivo || null,
+      reason: getImportReason(v.row),
       sigeduc_synced: v.parsedSynced,
       created_by: userData.user?.id
     }));
@@ -830,6 +940,13 @@ export const AbsencesReportPage: React.FC = () => {
               >
                 <span className="material-symbols-outlined text-[18px]">summarize</span>
                 Resumo
+              </button>
+              <button
+                onClick={() => setActiveTab('relatorios')}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-all flex-1 ${activeTab === 'relatorios' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
+              >
+                <span className="material-symbols-outlined text-[18px]">analytics</span>
+                Relatórios
               </button>
               <button
                 onClick={() => setActiveTab('planilha')}
@@ -1291,6 +1408,108 @@ export const AbsencesReportPage: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── RELATÓRIOS ───────────────────────────────────────────────────── */}
+      {activeTab === 'relatorios' && (
+        <div ref={reportRef} className="space-y-6">
+          <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 p-5 shadow-sm backdrop-blur-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-violet-300">Relatórios</p>
+                <h3 className="mt-2 text-xl font-extrabold text-gray-900 dark:text-white">Resumo executivo</h3>
+              </div>
+              <button onClick={handleExportReportPDF} className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm">
+                <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
+                Exportar PDF
+              </button>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-700">Faltas</p>
+              <p className="mt-3 text-3xl font-black text-amber-700">{faltasCount}</p>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Abonos</p>
+              <p className="mt-3 text-3xl font-black text-emerald-700">{abonosCount}</p>
+            </div>
+            <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-700">Pendentes</p>
+              <p className="mt-3 text-3xl font-black text-yellow-700">{pendentesCount}</p>
+            </div>
+            <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-700">Reincidentes</p>
+              <p className="mt-3 text-3xl font-black text-violet-700">{recurrentStudents.size}</p>
+            </div>
+          </div>
+
+          <div className="grid xl:grid-cols-2 gap-6">
+            <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 p-5 shadow-sm">
+              <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Distribuição por turma</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/50">
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300">Turma</th>
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Faltas</th>
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Abonos</th>
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportByGrade.length === 0 ? (
+                      <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">Sem registros no período.</td></tr>
+                    ) : (
+                      reportByGrade.map(item => (
+                        <tr key={item.grade} className="border-b border-gray-100 dark:border-zinc-700">
+                          <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{item.grade}</td>
+                          <td className="px-3 py-2 text-center text-amber-600 font-bold">{item.faltas}</td>
+                          <td className="px-3 py-2 text-center text-emerald-600 font-bold">{item.abonos}</td>
+                          <td className="px-3 py-2 text-center font-bold text-gray-700 dark:text-gray-200">{item.total}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 p-5 shadow-sm">
+              <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Top alunos</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/50">
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300">Aluno</th>
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Faltas</th>
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Abonos</th>
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportByStudent.length === 0 ? (
+                      <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">Sem registros no período.</td></tr>
+                    ) : (
+                      reportByStudent.map(item => (
+                        <tr key={item.student} className="border-b border-gray-100 dark:border-zinc-700">
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-gray-700 dark:text-gray-200">{item.student}</div>
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400">{item.grade}</div>
+                          </td>
+                          <td className="px-3 py-2 text-center text-amber-600 font-bold">{item.faltas}</td>
+                          <td className="px-3 py-2 text-center text-emerald-600 font-bold">{item.abonos}</td>
+                          <td className="px-3 py-2 text-center font-bold text-gray-700 dark:text-gray-200">{item.total}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
