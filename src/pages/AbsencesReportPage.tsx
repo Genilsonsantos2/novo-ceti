@@ -509,12 +509,59 @@ export const AbsencesReportPage: React.FC = () => {
   const draftTotalCount = Object.keys(draftRecords).length;
 
   // ── Import Actions (PapaParse) ─────────────────────────────────────────────
-  const getRowValue = (row: any, keys: string[]) => {
-    const normalizedKeys = keys.map(k => normalizeText(k));
+  const normalizeText = (value: string | null | undefined) => {
+    return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  };
+
+  const buildCanonicalRow = (row: any) => {
+    const canonical: Record<string, string> = {};
     const entries = Object.entries(row || {});
 
-    for (const [key, value] of entries) {
-      const normalizedKey = normalizeText(key);
+    const aliases: Record<string, string[]> = {
+      data: ['data', 'dia', 'datadafalta', 'dataderegistro', 'datadocadastro', 'dataausencia', 'datalancamento'],
+      aluno: ['aluno', 'nome', 'nomecompleto', 'nomedoaluno', 'nomealuno', 'aluna', 'estudante'],
+      matricula: ['matricula', 'rm', 'rmaluno', 'matricularm', 'matriculas'],
+      curso: ['curso', 'turma', 'serie', 'clas', 'serieeturma', 'periodo'],
+      tipo: ['tipo', 'tipoderegistro', 'status', 'motivo', 'abono', 'justificativa', 'faltajustificada'],
+      motivo: ['motivo', 'justificativa', 'mensagemdadiracao', 'mensagem', 'observacao', 'descricao'],
+      autorizadopor: ['autorizadopor', 'autorizado', 'responsavel', 'responsavelpor'],
+      lancesigeduc: ['lancamentonosigeduc', 'lancamentonosigeduc', 'statussigeduc', 'sigeduc', 'baixasigeduc'],
+      duracao: ['duracao', 'tempo', 'dias', 'periodo'],
+    };
+
+    for (const [rawKey, value] of entries) {
+      const normalizedKey = normalizeText(rawKey).replace(/[^a-z0-9]/g, '');
+      let matchedKey = '';
+
+      for (const [canonicalKey, values] of Object.entries(aliases)) {
+        if (values.some(v => normalizedKey === v || normalizedKey.includes(v) || v.includes(normalizedKey))) {
+          matchedKey = canonicalKey;
+          break;
+        }
+      }
+
+      if (matchedKey && value !== undefined && value !== null && String(value).trim() !== '') {
+        canonical[matchedKey] = String(value).trim();
+      }
+    }
+
+    return canonical;
+  };
+
+  const getRowValue = (row: any, keys: string[]) => {
+    const canonicalRow = buildCanonicalRow(row);
+    const normalizedKeys = keys.map(k => normalizeText(k).replace(/[^a-z0-9]/g, ''));
+
+    for (const [key, value] of Object.entries(canonicalRow)) {
+      const normalizedKey = normalizeText(key).replace(/[^a-z0-9]/g, '');
+      if (normalizedKeys.some(k => normalizedKey === k || normalizedKey.includes(k) || k.includes(normalizedKey))) {
+        const trimmed = String(value ?? '').trim();
+        if (trimmed !== '') return trimmed;
+      }
+    }
+
+    for (const [rawKey, value] of Object.entries(row || {})) {
+      const normalizedKey = normalizeText(rawKey).replace(/[^a-z0-9]/g, '');
       if (normalizedKeys.some(k => normalizedKey === k || normalizedKey.includes(k) || k.includes(normalizedKey))) {
         const trimmed = String(value ?? '').trim();
         if (trimmed !== '') return trimmed;
@@ -531,10 +578,6 @@ export const AbsencesReportPage: React.FC = () => {
   const getDisplayRowValue = (row: any, keys: string[]) => {
     const value = getRowValue(row, keys);
     return value || '—';
-  };
-
-  const normalizeText = (value: string | null | undefined) => {
-    return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   };
 
   const extractDateFromText = (value: string) => {
@@ -578,7 +621,8 @@ export const AbsencesReportPage: React.FC = () => {
   };
 
   const parseImportDate = (row: any) => {
-    const rawDate = getRowValue(row, ['Data', 'Dia', 'Data da Falta', 'Data do Registro', 'DATA', 'Data do Lançamento', 'Data da Ausência', 'Data da ausência']);
+    const dateKeys = ['Data', 'Dia', 'Data da Falta', 'Data do Registro', 'DATA', 'Data do Lançamento', 'Data da Ausência', 'Data da ausência', 'Data do estado', 'Data do evento'];
+    const rawDate = getRowValue(row, dateKeys);
     if (rawDate) {
       const cleaned = String(rawDate).trim();
       const directDate = cleaned.replace(/\s+/g, '');
@@ -603,23 +647,26 @@ export const AbsencesReportPage: React.FC = () => {
     }
 
     const messageText = getImportReason(row) || '';
-    return extractDateFromText(messageText) || extractDateFromText(String(row?.Mensagem || row?.['Mensagem da Direção'] || ''));
+    const textDate = extractDateFromText(messageText) || extractDateFromText(String(Object.values(row || {}).join(' ') || ''));
+    if (textDate) return textDate;
+
+    return '';
   };
 
   const parseImportType = (row: any): 'FALTA_JUSTIFICADA' | 'ABONO' => {
-    const rawType = getRowValue(row, ['Tipo', 'Tipo de Registro', 'Status', 'Motivo', 'ABONO', 'Abono', 'Falta', 'FALTA', 'Tipo de Falta', 'Status do Registro', 'Tipo do Registro']);
+    const rawType = getRowValue(row, ['Tipo', 'Tipo de Registro', 'Status', 'Motivo', 'ABONO', 'Abono', 'Falta', 'FALTA', 'Tipo de Falta', 'Status do Registro', 'Tipo do Registro', 'Justificativa', 'Justificativa da Falta']);
     const normalizedType = normalizeText(rawType);
 
     if (normalizedType.includes('abono') || ['sim', 's', 'x', '1', 'yes', 'true'].includes(normalizedType)) {
       return 'ABONO';
     }
 
-    const messageText = normalizeText(getImportReason(row));
-    if (messageText.includes('atestado') || messageText.includes('apresentou atestado') || messageText.includes('comparecimento medico') || messageText.includes('odontologico')) {
+    const messageText = normalizeText(getImportReason(row) || '');
+    if (messageText.includes('atestado') || messageText.includes('apresentou atestado') || messageText.includes('comparecimento medico') || messageText.includes('odontologico') || messageText.includes('medico')) {
       return 'ABONO';
     }
 
-    if (normalizedType.includes('falta') || normalizedType.includes('justificada') || normalizedType.includes('nao') || normalizedType.includes('não') || messageText.includes('justificou') || messageText.includes('justificou a ausencia')) {
+    if (normalizedType.includes('falta') || normalizedType.includes('justificada') || normalizedType.includes('nao') || normalizedType.includes('não') || messageText.includes('justificou') || messageText.includes('justificou a ausencia') || messageText.includes('justificou a ausência')) {
       return 'FALTA_JUSTIFICADA';
     }
 
@@ -628,8 +675,9 @@ export const AbsencesReportPage: React.FC = () => {
 
   const getImportReason = (row: any) => {
     const reasonParts = [
-      getRowValue(row, ['Motivo', 'Justificativa', 'Justificativa da Falta', 'Mensagem da Direção', 'Mensagem da direcao', 'Mensagem', 'Observação', 'Observacao', 'Descrição', 'Descricao', 'MENSAGEM DA DIREÇÃO', 'Mensagem da Dirección', 'Mensagem da direção']),
-      getRowValue(row, ['Autorizado por', 'AUTORIZADO POR', 'Autorizado Por', 'Autoriza', 'Responsável', 'Responsavel']),
+      getRowValue(row, ['Motivo', 'Justificativa', 'Justificativa da Falta', 'Mensagem da Direção', 'Mensagem da direcao', 'Mensagem', 'Observação', 'Observacao', 'Descrição', 'Descricao', 'MENSAGEM DA DIREÇÃO', 'Mensagem da Dirección', 'Mensagem da direção', 'Mensagem da direção', 'Mensagem da Direção']),
+      getRowValue(row, ['Autorizado por', 'AUTORIZADO POR', 'Autorizado Por', 'Autoriza', 'Responsável', 'Responsavel', 'Autorizado']),
+      getRowValue(row, ['ABONO', 'ABONO?'])
     ].filter(Boolean);
 
     if (reasonParts.length === 0) return null;
@@ -754,7 +802,7 @@ export const AbsencesReportPage: React.FC = () => {
   const validateImportData = (rows: ImportRow[]) => {
     const validations: ImportValidationResult[] = rows.map(row => {
       const matricula = getRowValue(row, ['Matrícula', 'Matricula', 'RM', 'Matrícula (RM)', 'RM Aluno', 'MATRICULA', 'RM ALUNO']);
-      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME', 'ALUNO']);
+      const studentName = getRowValue(row, ['Aluno', 'Nome', 'Nome Completo', 'Nome do Aluno', 'NOME', 'ALUNO'], );
       const fallbackNameFromText = extractStudentNameFromText(String(Object.values(row || {}).join(' ') || ''));
 
       const resolvedStudentName = studentName || fallbackNameFromText;
