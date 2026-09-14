@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { buildAiSuggestion } from '../lib/aiAbsenceAssist';
+import { buildAiSuggestion, getAiAbsenceRecommendation } from '../lib/aiAbsenceAssist';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AbsenceRecord {
@@ -331,7 +331,7 @@ export const AbsencesReportPage: React.FC = () => {
     if (!quickAddStudent) return;
 
     const { data: userData } = await supabase.auth.getUser();
-    const aiSuggestion = buildAiSuggestion({
+    const aiSuggestion = await getAiAbsenceRecommendation({
       reason: quickAddDraft.reason,
       type: quickAddDraft.type,
       authorizedBy: quickAddDraft.authorizedBy,

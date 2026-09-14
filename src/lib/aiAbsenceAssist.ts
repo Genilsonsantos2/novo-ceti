@@ -124,3 +124,20 @@ export async function fetchAiAssistIfAvailable<T>(endpoint: string, payload: Rec
     return null;
   }
 }
+
+export async function getAiAbsenceRecommendation(input: AiSuggestionInput): Promise<AiSuggestion> {
+  const localSuggestion = buildAiSuggestion(input);
+  const remote = await fetchAiAssistIfAvailable<{ type?: AbsenceType; risk?: RiskLevel; summary?: string; suggestion?: string; }>('/absence-recommendation', {
+    ...input,
+    model: import.meta.env.VITE_AI_MODEL || 'gpt-4o-mini',
+  });
+
+  if (!remote) return localSuggestion;
+
+  return {
+    type: remote.type || localSuggestion.type,
+    risk: remote.risk || localSuggestion.risk,
+    summary: remote.summary || localSuggestion.summary,
+    suggestion: remote.suggestion || localSuggestion.suggestion,
+  };
+}
