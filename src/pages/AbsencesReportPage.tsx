@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { buildAiSuggestion } from '../lib/aiAbsenceAssist';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AbsenceRecord {
@@ -330,13 +331,19 @@ export const AbsencesReportPage: React.FC = () => {
     if (!quickAddStudent) return;
 
     const { data: userData } = await supabase.auth.getUser();
-    const finalReason = quickAddDraft.authorizedBy && quickAddDraft.authorizedBy.trim()
-      ? `[Autorizado por: ${quickAddDraft.authorizedBy.trim()}] ${quickAddDraft.reason}`.trim()
-      : quickAddDraft.reason.trim();
+    const aiSuggestion = buildAiSuggestion({
+      reason: quickAddDraft.reason,
+      type: quickAddDraft.type,
+      authorizedBy: quickAddDraft.authorizedBy,
+      studentName: quickAddStudent.name,
+      recentAbsences: absences.filter(a => a.student_id === quickAddStudent.id).length,
+    });
+    const finalType = aiSuggestion.type;
+    const finalReason = aiSuggestion.suggestion.trim();
 
     const { error } = await supabase.from('student_absences').insert({
       student_id: quickAddStudent.id,
-      type: quickAddDraft.type,
+      type: finalType,
       date: quickAddDraft.date,
       reason: finalReason || null,
       created_by: userData.user?.id
@@ -1064,6 +1071,36 @@ export const AbsencesReportPage: React.FC = () => {
                 Motivo / Observação
                 <textarea value={quickAddDraft.reason} onChange={e => setQuickAddDraft(prev => ({ ...prev, reason: e.target.value }))} rows={4} placeholder="Descreva o motivo do registro..." className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-emerald-200" />
               </label>
+
+              {(() => {
+                const suggestion = buildAiSuggestion({
+                  reason: quickAddDraft.reason,
+                  type: quickAddDraft.type,
+                  authorizedBy: quickAddDraft.authorizedBy,
+                  studentName: quickAddStudent?.name,
+                  recentAbsences: absences.filter(a => a.student_id === quickAddStudent?.id).length,
+                });
+                return (
+                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-700">Assistente IA</p>
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${suggestion.risk === 'Alta' ? 'bg-red-100 text-red-700' : suggestion.risk === 'Média' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        Risco {suggestion.risk}
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">Classificação sugerida: {suggestion.type === 'ABONO' ? 'Abono' : 'Falta Justificada'}</p>
+                    <p className="mt-2 text-sm text-slate-700 leading-relaxed">{suggestion.summary}</p>
+                    <p className="mt-2 text-sm text-slate-600 italic">{suggestion.suggestion}</p>
+                    <button
+                      type="button"
+                      onClick={() => setQuickAddDraft(prev => ({ ...prev, type: suggestion.type, reason: suggestion.suggestion }))}
+                      className="mt-3 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors"
+                    >
+                      Aplicar sugestão
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/60">
