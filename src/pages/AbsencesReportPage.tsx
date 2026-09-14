@@ -75,6 +75,8 @@ export const AbsencesReportPage: React.FC = () => {
   const [allStudents, setAllStudents] = useState<StudentResult[]>([]);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+  const recentlyDeletedIdsRef = useRef<Set<string>>(new Set());
+  const hydratedFromRealtimeRef = useRef(false);
 
   // ── Period Filter ───────────────────────────────────────────────────────────
   const [startDate, setStartDate] = useState(() => {
@@ -120,10 +122,26 @@ export const AbsencesReportPage: React.FC = () => {
 
     const subscription = supabase
       .channel('public:student_absences_page')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_absences' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_absences' }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          recentlyDeletedIdsRef.current.add(String(payload.old?.id ?? ''));
+          setAbsences(prev => prev.filter(item => item.id !== payload.old?.id));
+          window.setTimeout(() => recentlyDeletedIdsRef.current.delete(String(payload.old?.id ?? '')), 3000);
+          return;
+        }
+
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          const id = payload.new?.id;
+          if (id && recentlyDeletedIdsRef.current.has(String(id))) {
+            return;
+          }
+        }
+
         fetchAbsences();
       })
       .subscribe();
+
+    hydratedFromRealtimeRef.current = true;
 
     return () => {
       supabase.removeChannel(subscription);
@@ -156,7 +174,12 @@ export const AbsencesReportPage: React.FC = () => {
     if (error) {
       console.error('Erro ao buscar faltas:', error);
     } else {
-      setAbsences((data as AbsenceRecord[]) || []);
+      const filtered = ((data as AbsenceRecord[]) || []).filter(record => !recentlyDeletedIdsRef.current.has(record.id));
+      setAbsences(prev => {
+        const next = filtered;
+        const removed = prev.filter(item => !next.some(record => record.id === item.id) && !recentlyDeletedIdsRef.current.has(item.id));
+        return removed.length > 0 ? next : next;
+      });
     }
   };
 
@@ -319,11 +342,18 @@ export const AbsencesReportPage: React.FC = () => {
 
   const handleDelete = async (id: string, studentName: string) => {
     if (!window.confirm(`Excluir registro de "${studentName}"? Esta ação não pode ser desfeita.`)) return;
+
+    recentlyDeletedIdsRef.current.add(id);
+    setAbsences(prev => prev.filter(a => a.id !== id));
+
     const { error } = await supabase.from('student_absences').delete().eq('id', id);
-    if (error) alert('Erro ao excluir: ' + error.message);
-    else {
-      setAbsences(prev => prev.filter(a => a.id !== id));
+    if (error) {
+      recentlyDeletedIdsRef.current.delete(id);
+      alert('Erro ao excluir: ' + error.message);
+      fetchAbsences();
+    } else {
       alert('Registro excluído com sucesso.');
+      window.setTimeout(() => recentlyDeletedIdsRef.current.delete(id), 2000);
     }
   };
 
