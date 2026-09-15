@@ -1906,7 +1906,7 @@ export const AbsencesReportPage: React.FC = () => {
                 value={planilhaSearch}
                 onChange={e => setPlanilhaSearch(e.target.value)}
                 placeholder="Pesquisar aluno por nome..."
-                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="w-full rounded-lg border-2 border-emerald-500 bg-emerald-50 py-2 pl-10 pr-3 text-sm font-semibold text-emerald-950 outline-none placeholder:text-emerald-700/70 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-200"
               />
             </div>
             <div className="flex flex-1 gap-2">
