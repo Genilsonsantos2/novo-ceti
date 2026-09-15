@@ -12,7 +12,8 @@ import { buildAiSuggestion, getAiAbsenceRecommendation } from '../lib/aiAbsenceA
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AbsenceRecord {
   id: string;
-  student_id: string;
+  student_id: string | null;
+  guest_student_id?: string | null;
   type: 'FALTA_JUSTIFICADA' | 'ABONO';
   date: string;
   reason: string | null;
@@ -33,6 +34,13 @@ interface StudentResult {
   enrollment_id: string;
   grade: string;
   photo_url: string;
+}
+
+interface GuestStudent {
+  id: string;
+  full_name: string;
+  grade: string;
+  created_at?: string;
 }
 
 interface DraftRecord {
@@ -73,6 +81,7 @@ export const AbsencesReportPage: React.FC = () => {
   // ── Data States ─────────────────────────────────────────────────────────────
   const [absences, setAbsences] = useState<AbsenceRecord[]>([]);
   const [allStudents, setAllStudents] = useState<StudentResult[]>([]);
+  const [guestStudents, setGuestStudents] = useState<GuestStudent[]>([]);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const recentlyDeletedIdsRef = useRef<Set<string>>(new Set());
@@ -96,6 +105,8 @@ export const AbsencesReportPage: React.FC = () => {
   // ── Planilha State ──────────────────────────────────────────────────────────
   const [planilhaDate, setPlanilhaDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [planilhaGrade, setPlanilhaGrade] = useState('');
+  const [planilhaSearch, setPlanilhaSearch] = useState('');
+  const [newGuestStudentName, setNewGuestStudentName] = useState('');
   const [draftRecords, setDraftRecords] = useState<Record<string, DraftRecord>>({});
   const [isSavingPlanilha, setIsSavingPlanilha] = useState(false);
 
@@ -150,6 +161,7 @@ export const AbsencesReportPage: React.FC = () => {
 
   useEffect(() => {
     fetchAllStudents();
+    fetchGuestStudents();
   }, []);
 
   // ── Data Fetching ───────────────────────────────────────────────────────────
@@ -163,10 +175,18 @@ export const AbsencesReportPage: React.FC = () => {
     }
   };
 
+  const fetchGuestStudents = async () => {
+    const { data, error } = await supabase
+      .from('absence_guest_students')
+      .select('id, full_name, grade, created_at')
+      .order('full_name');
+    if (!error && data) setGuestStudents(data as GuestStudent[]);
+  };
+
   const fetchAbsences = async () => {
     const { data, error } = await supabase
       .from('student_absences')
-      .select('*, students(full_name, enrollment_id, grade, photo_url)')
+      .select('*, students(full_name, enrollment_id, grade, photo_url), absence_guest_students(full_name, grade)')
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: false });
@@ -174,7 +194,11 @@ export const AbsencesReportPage: React.FC = () => {
     if (error) {
       console.error('Erro ao buscar faltas:', error);
     } else {
-      const filtered = ((data as AbsenceRecord[]) || []).filter(record => !recentlyDeletedIdsRef.current.has(record.id));
+      const filtered = ((data || []) as Array<AbsenceRecord & { absence_guest_students?: { full_name: string; grade: string } | null }>)
+        .map(record => record.absence_guest_students
+          ? { ...record, students: { full_name: record.absence_guest_students.full_name, enrollment_id: 'Avulso', grade: record.absence_guest_students.grade || '', photo_url: '' } }
+          : record)
+        .filter(record => !recentlyDeletedIdsRef.current.has(record.id));
       setAbsences(prev => {
         const next = filtered;
         const removed = prev.filter(item => !next.some(record => record.id === item.id) && !recentlyDeletedIdsRef.current.has(item.id));
@@ -298,14 +322,20 @@ export const AbsencesReportPage: React.FC = () => {
 
   // ── Filtered Data (Planilha) ─────────────────────────────────────────────────
   const allGrades = useMemo(() => {
-    const set = new Set(allStudents.map(s => s.grade).filter(Boolean));
+    const set = new Set([...allStudents.map(s => s.grade), ...guestStudents.map(s => s.grade)].filter(Boolean));
     return Array.from(set).sort();
-  }, [allStudents]);
+  }, [allStudents, guestStudents]);
 
   const planilhaStudents = useMemo(() => {
-    if (!planilhaGrade) return [];
-    return allStudents.filter(s => s.grade === planilhaGrade);
-  }, [allStudents, planilhaGrade]);
+    const registeredStudents = planilhaGrade ? allStudents.filter(s => s.grade === planilhaGrade) : [];
+    const guestStudentsForDiary = guestStudents
+      .filter(s => !planilhaGrade || s.grade === planilhaGrade)
+      .map(s => ({ id: s.id, full_name: s.full_name, enrollment_id: 'Avulso', grade: s.grade, photo_url: '' }));
+    const students = [...registeredStudents, ...guestStudentsForDiary];
+    const search = planilhaSearch.trim().toLowerCase();
+    if (!search) return students;
+    return students.filter(student => student.full_name.toLowerCase().includes(search) || student.enrollment_id.toLowerCase().includes(search));
+  }, [allStudents, guestStudents, planilhaGrade, planilhaSearch]);
 
   useEffect(() => {
     if (allGrades.length > 0 && !planilhaGrade) {
@@ -508,6 +538,34 @@ export const AbsencesReportPage: React.FC = () => {
     setDraftRecords(prev => prev[studentId] ? { ...prev, [studentId]: { ...prev[studentId], authorizedBy } } : prev);
   };
 
+  const handleAddGuestStudent = async () => {
+    const fullName = newGuestStudentName.trim();
+    if (!fullName) return;
+
+    const existing = guestStudents.find(student => student.full_name.toLowerCase() === fullName.toLowerCase() && student.grade === planilhaGrade);
+    if (existing) {
+      setPlanilhaSearch(existing.full_name);
+      setNewGuestStudentName('');
+      return;
+    }
+
+    const { data: userData } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('absence_guest_students')
+      .insert({ full_name: fullName, grade: planilhaGrade || null, created_by: userData.user?.id })
+      .select('id, full_name, grade, created_at')
+      .single();
+
+    if (error || !data) {
+      alert('Erro ao salvar aluno avulso: ' + (error?.message || 'resposta inválida'));
+      return;
+    }
+
+    setGuestStudents(prev => [...prev, data as GuestStudent].sort((a, b) => a.full_name.localeCompare(b.full_name)));
+    setPlanilhaSearch(fullName);
+    setNewGuestStudentName('');
+  };
+
   const handleBatchSavePlanilha = async () => {
     const keys = Object.keys(draftRecords);
     if (keys.length === 0) return alert('Nenhuma falta ou abono marcado para salvar.');
@@ -515,7 +573,7 @@ export const AbsencesReportPage: React.FC = () => {
     setIsSavingPlanilha(true);
     const { data: userData } = await supabase.auth.getUser();
 
-    const recordsToInsert = keys.map(studentId => {
+    const recordsToInsert = keys.filter(studentId => !guestStudents.some(student => student.id === studentId)).map(studentId => {
       const data = draftRecords[studentId];
       let finalReason = data.reason;
       if (data.authorizedBy && data.authorizedBy.trim()) {
@@ -530,11 +588,30 @@ export const AbsencesReportPage: React.FC = () => {
       };
     });
 
-    const { error } = await supabase.from('student_absences').insert(recordsToInsert);
+    const guestRecordsToInsert = keys.filter(studentId => guestStudents.some(student => student.id === studentId)).map(guestStudentId => {
+      const data = draftRecords[guestStudentId];
+      let finalReason = data.reason;
+      if (data.authorizedBy && data.authorizedBy.trim()) {
+        finalReason = `[Autorizado por: ${data.authorizedBy.trim()}] ${data.reason}`.trim();
+      }
+      return {
+        guest_student_id: guestStudentId,
+        type: data.type,
+        date: planilhaDate,
+        reason: finalReason || null,
+        created_by: userData.user?.id
+      };
+    });
+
+    const [registeredResult, guestResult] = await Promise.all([
+      recordsToInsert.length ? supabase.from('student_absences').insert(recordsToInsert) : Promise.resolve({ error: null }),
+      guestRecordsToInsert.length ? supabase.from('student_absences').insert(guestRecordsToInsert) : Promise.resolve({ error: null }),
+    ]);
+    const error = registeredResult.error || guestResult.error;
     if (error) {
       alert('Erro ao salvar lançamentos: ' + error.message);
     } else {
-      alert(`${recordsToInsert.length} lançamentos salvos com sucesso!`);
+      alert(`${keys.length} lançamentos salvos com sucesso!`);
       setDraftRecords({});
       fetchAbsences();
     }
@@ -1818,6 +1895,33 @@ export const AbsencesReportPage: React.FC = () => {
                     Limpar
                   </button>
                </div>
+            </div>
+          </div>
+
+          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-white p-3 shadow-sm md:flex-row md:items-center">
+            <div className="relative flex-1">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+              <input
+                type="search"
+                value={planilhaSearch}
+                onChange={e => setPlanilhaSearch(e.target.value)}
+                placeholder="Pesquisar aluno por nome..."
+                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </div>
+            <div className="flex flex-1 gap-2">
+              <input
+                type="text"
+                value={newGuestStudentName}
+                onChange={e => setNewGuestStudentName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddGuestStudent(); }}
+                placeholder="Nome do aluno sem cadastro"
+                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+              <button onClick={handleAddGuestStudent} disabled={!newGuestStudentName.trim()} className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50">
+                <span className="material-symbols-outlined text-sm">person_add</span>
+                Adicionar avulso
+              </button>
             </div>
           </div>
 

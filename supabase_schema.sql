@@ -75,3 +75,35 @@ ALTER PUBLICATION supabase_realtime ADD TABLE student_absences;
 
 -- Segurança
 ALTER TABLE student_absences ENABLE ROW LEVEL SECURITY;
+
+-- Alunos avulsos usados apenas no controle de faltas e abonos.
+-- Eles não entram no cadastro oficial de students.
+CREATE TABLE absence_guest_students (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  grade TEXT,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE absence_guest_students ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can manage absence guest students"
+  ON absence_guest_students FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+ALTER TABLE student_absences
+  ALTER COLUMN student_id DROP NOT NULL;
+
+ALTER TABLE student_absences
+  ADD COLUMN guest_student_id UUID REFERENCES absence_guest_students(id) ON DELETE CASCADE;
+
+ALTER TABLE student_absences
+  ADD CONSTRAINT student_absences_one_student_source
+  CHECK ((student_id IS NOT NULL) <> (guest_student_id IS NOT NULL));
+
+CREATE POLICY "Authenticated users can manage absence records"
+  ON student_absences FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE absence_guest_students;
