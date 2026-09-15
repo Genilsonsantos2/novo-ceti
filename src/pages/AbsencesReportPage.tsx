@@ -1859,23 +1859,23 @@ export const AbsencesReportPage: React.FC = () => {
       {activeTab === 'planilha' && (
         <div className="w-full">
           <div className="flex flex-col md:flex-row bg-[#00A859] p-1 border-b-4 border-[#00703C] mb-4 shadow-md rounded-t-xl">
-            <div className="bg-white/10 p-2 md:p-4 text-white flex-1 flex flex-col md:flex-row items-center justify-between border-r border-white/20">
+            <div className="bg-white/10 p-3 md:p-4 text-white flex-1 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-r border-white/20">
                <div>
                   <h3 className="font-bold text-lg uppercase tracking-wider">Status dos Lançamentos</h3>
                   <p className="text-xs text-white/80">Controle Diário de Turma</p>
                </div>
                
-               <div className="flex gap-2 mt-2 md:mt-0">
-                  <div className="bg-white px-2 py-1 rounded text-gray-700 text-xs font-bold flex items-center shadow-sm border border-emerald-100">
+               <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto md:mt-0">
+                  <label className="bg-white px-3 py-2 rounded text-gray-700 text-xs font-bold flex items-center shadow-sm border border-emerald-100">
                     Data:
-                    <input type="date" value={planilhaDate} onChange={e => setPlanilhaDate(e.target.value)} className="ml-2 border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400"/>
-                  </div>
-                  <div className="bg-white px-2 py-1 rounded text-gray-700 text-xs font-bold flex items-center shadow-sm border border-emerald-100">
+                    <input aria-label="Data do diário" type="date" value={planilhaDate} onChange={e => setPlanilhaDate(e.target.value)} className="ml-2 min-h-[36px] border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400"/>
+                  </label>
+                  <label className="bg-white px-3 py-2 rounded text-gray-700 text-xs font-bold flex items-center shadow-sm border border-emerald-100">
                     Turma:
-                    <select value={planilhaGrade} onChange={e => setPlanilhaGrade(e.target.value)} className="ml-2 border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400 cursor-pointer">
+                    <select aria-label="Turma do diário" value={planilhaGrade} onChange={e => setPlanilhaGrade(e.target.value)} className="ml-2 min-h-[36px] border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400 cursor-pointer">
                       {allGrades.map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
-                  </div>
+                  </label>
                </div>
             </div>
             
@@ -1906,13 +1906,16 @@ export const AbsencesReportPage: React.FC = () => {
           <div className="mb-3 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-white p-3 shadow-sm md:flex-row md:items-center">
             <div className="relative flex-1">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+              <label htmlFor="diario-pesquisa" className="sr-only">Pesquisar aluno</label>
               <input
+                id="diario-pesquisa"
                 type="search"
                 value={planilhaSearch}
                 onChange={e => setPlanilhaSearch(e.target.value)}
                 placeholder="Pesquisar aluno por nome..."
-                className="w-full rounded-lg border-2 border-emerald-500 bg-emerald-50 py-2 pl-10 pr-3 text-sm font-semibold text-emerald-950 outline-none placeholder:text-emerald-700/70 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-200"
+                className="w-full rounded-lg border-2 border-emerald-500 bg-emerald-50 py-3 pl-10 pr-11 text-sm font-semibold text-emerald-950 outline-none placeholder:text-emerald-700/70 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-200"
               />
+              {planilhaSearch && <button type="button" onClick={() => setPlanilhaSearch('')} aria-label="Limpar pesquisa" className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-emerald-700 hover:bg-emerald-200">close</button>}
             </div>
             <div className="flex flex-1 gap-2">
               <input
@@ -1921,18 +1924,24 @@ export const AbsencesReportPage: React.FC = () => {
                 onChange={e => setNewGuestStudentName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleAddGuestStudent(); }}
                 placeholder="Nome do aluno sem cadastro"
-                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                aria-label="Nome do aluno sem cadastro"
+                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               />
-              <button onClick={handleAddGuestStudent} disabled={!newGuestStudentName.trim()} className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50">
+              <button onClick={handleAddGuestStudent} disabled={!newGuestStudentName.trim()} className="inline-flex min-h-[46px] items-center justify-center gap-1 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50">
                 <span className="material-symbols-outlined text-sm">person_add</span>
                 Adicionar avulso
               </button>
             </div>
           </div>
 
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+            <span>{planilhaSearch ? `${planilhaStudents.length} aluno(s) encontrados em todas as turmas` : `${planilhaStudents.length} aluno(s) na turma selecionada`}</span>
+            {draftTotalCount > 0 && <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">{draftTotalCount} lançamento(s) aguardando gravação</span>}
+          </div>
+
           <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 overflow-x-auto shadow-sm rounded-b-xl">
-            <table className="w-full text-left border-collapse min-w-[800px] text-xs font-sans">
-              <thead>
+            <table className="w-full text-left border-collapse min-w-[800px] text-sm font-sans">
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-[#00A859] text-white">
                   <th className="border border-gray-400 px-2 py-2 font-bold text-center w-8">Nº</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold w-20">RM</th>
@@ -1952,10 +1961,10 @@ export const AbsencesReportPage: React.FC = () => {
                     return (
                       <tr key={student.id} className={`hover:bg-[#E6F4EA] dark:hover:bg-zinc-700 transition-colors ${index % 2 === 0 ? 'bg-white dark:bg-zinc-800' : 'bg-gray-50 dark:bg-zinc-900'}`}>
                         <td className="border border-gray-300 dark:border-zinc-700 px-2 py-1.5 text-center text-gray-500 dark:text-gray-400 font-medium">{index + 1}</td>
-                        <td className="border border-gray-300 dark:border-zinc-700 px-2 py-1.5 text-gray-600 dark:text-gray-400 font-mono text-[10px]">{student.enrollment_id}</td>
+                        <td className="border border-gray-300 dark:border-zinc-700 px-2 py-2 text-gray-600 dark:text-gray-400 font-mono text-xs">{student.enrollment_id}</td>
                         <td className={`border border-gray-300 dark:border-zinc-700 px-2 py-1.5 font-bold ${hasStatus ? 'text-[#00A859]' : 'text-gray-800 dark:text-gray-200'}`}>
                           <div className="flex items-center gap-2 min-w-[200px]">
-                            <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 bg-gray-100 dark:border-zinc-600 dark:bg-zinc-700 shrink-0 flex items-center justify-center">
+                            <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 bg-gray-100 dark:border-zinc-600 dark:bg-zinc-700 shrink-0 flex items-center justify-center">
                               {student.photo_url ? (
                                 <img src={student.photo_url} alt={student.full_name} className="w-full h-full object-cover" />
                               ) : (
@@ -1966,17 +1975,17 @@ export const AbsencesReportPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="border border-gray-300 dark:border-zinc-700 p-0 relative bg-white dark:bg-zinc-800">
-                          <select value={draft?.type || ''} onChange={(e) => handleDraftTypeChange(student.id, e.target.value)} className={`w-full h-full min-h-[32px] px-2 py-1 border-none outline-none text-xs font-bold cursor-pointer transition-colors ${draft?.type === 'FALTA_JUSTIFICADA' ? 'bg-amber-100 text-amber-800' : draft?.type === 'ABONO' ? 'bg-teal-100 text-teal-800' : 'bg-transparent text-gray-600 dark:text-gray-300'} focus:ring-2 focus:ring-inset focus:ring-[#00A859]`}>
+                          <select aria-label={`Status de ${student.full_name}`} value={draft?.type || ''} onChange={(e) => handleDraftTypeChange(student.id, e.target.value)} className={`w-full h-full min-h-[46px] px-2 py-2 border-none outline-none text-sm font-bold cursor-pointer transition-colors ${draft?.type === 'FALTA_JUSTIFICADA' ? 'bg-amber-100 text-amber-800' : draft?.type === 'ABONO' ? 'bg-teal-100 text-teal-800' : 'bg-transparent text-gray-600 dark:text-gray-300'} focus:ring-2 focus:ring-inset focus:ring-[#00A859]`}>
                             <option value="">-- Selecione --</option>
                             <option value="FALTA_JUSTIFICADA">Falta Justificada</option>
                             <option value="ABONO">Abono</option>
                           </select>
                         </td>
                         <td className={`border border-gray-300 dark:border-zinc-700 p-0 transition-colors ${!hasStatus ? 'bg-gray-100 dark:bg-zinc-900' : 'bg-white dark:bg-zinc-800'}`}>
-                          <input type="text" value={draft?.authorizedBy || ''} onChange={e => handleDraftAuthorizedByChange(student.id, e.target.value)} disabled={!hasStatus} placeholder={hasStatus ? 'Nome de quem autorizou' : ''} className="w-full h-full min-h-[32px] px-2 py-1 border-none outline-none text-xs bg-transparent dark:text-white disabled:opacity-50 focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-inset focus:ring-[#00A859]"/>
+                          <input aria-label={`Autorizado por para ${student.full_name}`} type="text" value={draft?.authorizedBy || ''} onChange={e => handleDraftAuthorizedByChange(student.id, e.target.value)} disabled={!hasStatus} placeholder={hasStatus ? 'Nome de quem autorizou' : ''} className="w-full h-full min-h-[46px] px-2 py-2 border-none outline-none text-sm bg-transparent dark:text-white disabled:opacity-50 focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-inset focus:ring-[#00A859]"/>
                         </td>
                         <td className={`border border-gray-300 dark:border-zinc-700 p-0 transition-colors ${!hasStatus ? 'bg-gray-100 dark:bg-zinc-900' : 'bg-white dark:bg-zinc-800'}`}>
-                          <input type="text" value={draft?.reason || ''} onChange={e => handleDraftReasonChange(student.id, e.target.value)} disabled={!hasStatus} placeholder={hasStatus ? 'Observações...' : ''} className="w-full h-full min-h-[32px] px-2 py-1 border-none outline-none text-xs bg-transparent dark:text-white disabled:opacity-50 focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-inset focus:ring-[#00A859]"/>
+                          <input aria-label={`Observações para ${student.full_name}`} type="text" value={draft?.reason || ''} onChange={e => handleDraftReasonChange(student.id, e.target.value)} disabled={!hasStatus} placeholder={hasStatus ? 'Observações...' : ''} className="w-full h-full min-h-[46px] px-2 py-2 border-none outline-none text-sm bg-transparent dark:text-white disabled:opacity-50 focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-inset focus:ring-[#00A859]"/>
                         </td>
                       </tr>
                     );
