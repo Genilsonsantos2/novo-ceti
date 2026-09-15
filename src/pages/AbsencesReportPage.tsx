@@ -1858,19 +1858,20 @@ export const AbsencesReportPage: React.FC = () => {
       {/* ── PLANILHA ─────────────────────────────────────────────────── */}
       {activeTab === 'planilha' && (
         <div className="w-full">
-          <div className="flex flex-col md:flex-row bg-[#00A859] p-1 border-b-4 border-[#00703C] mb-4 shadow-md rounded-t-xl">
-            <div className="bg-white/10 p-3 md:p-4 text-white flex-1 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-r border-white/20">
+           <div className="mb-5 overflow-hidden rounded-2xl border border-emerald-700 bg-[#064e3b] shadow-lg shadow-emerald-900/10">
+            <div className="flex flex-col gap-4 p-4 text-white md:p-5 lg:flex-row lg:items-center lg:justify-between">
                <div>
-                  <h3 className="font-bold text-lg uppercase tracking-wider">Status dos Lançamentos</h3>
-                  <p className="text-xs text-white/80">Controle Diário de Turma</p>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200">Controle de frequência</p>
+                <h3 className="font-headline text-xl font-extrabold tracking-tight md:text-2xl">Diário de faltas e abonos</h3>
+                <p className="mt-1 text-xs text-emerald-100/80">Selecione um aluno, marque o status e grave todos os lançamentos de uma vez.</p>
                </div>
                
-               <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto md:mt-0">
-                  <label className="bg-white px-3 py-2 rounded text-gray-700 text-xs font-bold flex items-center shadow-sm border border-emerald-100">
+              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                <label className="flex min-h-[48px] items-center rounded-xl border border-white/20 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm">
                     Data:
                     <input aria-label="Data do diário" type="date" value={planilhaDate} onChange={e => setPlanilhaDate(e.target.value)} className="ml-2 min-h-[36px] border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400"/>
                   </label>
-                  <label className="bg-white px-3 py-2 rounded text-gray-700 text-xs font-bold flex items-center shadow-sm border border-emerald-100">
+                  <label className="flex min-h-[48px] items-center rounded-xl border border-white/20 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm">
                     Turma:
                     <select aria-label="Turma do diário" value={planilhaGrade} onChange={e => setPlanilhaGrade(e.target.value)} className="ml-2 min-h-[36px] border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400 cursor-pointer">
                       {allGrades.map(g => <option key={g} value={g}>{g}</option>)}
@@ -1879,31 +1880,40 @@ export const AbsencesReportPage: React.FC = () => {
                </div>
             </div>
             
-            <div className="flex bg-[#E6F4EA] divide-x divide-gray-300 rounded-tr-lg">
-               <div className="px-6 py-2 text-center flex flex-col justify-center">
+            <div className="grid grid-cols-2 gap-px border-t border-emerald-200 bg-emerald-200 sm:grid-cols-4">
+              <div className="flex flex-col justify-center bg-white px-4 py-3 text-center">
                   <p className="text-[10px] font-bold text-gray-500 uppercase">Total Alunos</p>
                   <p className="text-2xl font-black text-[#00A859]">{planilhaStudents.length}</p>
                </div>
-               <div className="px-6 py-2 text-center flex flex-col justify-center bg-amber-50">
+               <div className="flex flex-col justify-center bg-amber-50 px-4 py-3 text-center">
                   <p className="text-[10px] font-bold text-gray-500 uppercase">Faltas Marcadas</p>
                   <p className="text-2xl font-black text-amber-600">{draftFaltasCount}</p>
                </div>
-               <div className="px-6 py-2 text-center flex flex-col justify-center bg-teal-50">
+               <div className="flex flex-col justify-center bg-teal-50 px-4 py-3 text-center">
                   <p className="text-[10px] font-bold text-gray-500 uppercase">Abonos Marcados</p>
                   <p className="text-2xl font-black text-teal-600">{draftAbonosCount}</p>
                </div>
-               <div className="px-4 py-2 flex flex-col gap-1 justify-center bg-gray-100 rounded-tr-lg">
-                  <button onClick={handleBatchSavePlanilha} disabled={draftTotalCount === 0 || isSavingPlanilha} className="bg-[#00A859] text-white text-xs font-bold px-4 py-1.5 rounded disabled:opacity-50 hover:bg-[#00703C] transition-colors shadow-sm">
+               <div className="flex flex-col justify-center gap-1 bg-gray-100 px-4 py-3">
+                  <button onClick={handleBatchSavePlanilha} disabled={draftTotalCount === 0 || isSavingPlanilha} className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-[#00A859] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#00703C] disabled:opacity-50">
+                    <span className="material-symbols-outlined text-base">save</span>
                     {isSavingPlanilha ? 'Gravando...' : 'Gravar Dados'}
                   </button>
-                  <button onClick={() => setDraftRecords({})} disabled={draftTotalCount === 0} className="bg-white text-red-600 border border-red-200 text-[10px] font-bold px-4 py-1 rounded disabled:opacity-50 hover:bg-red-50">
+                  <button onClick={() => setDraftRecords({})} disabled={draftTotalCount === 0} className="min-h-[30px] rounded-lg border border-red-200 bg-white px-4 py-1 text-[10px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
                     Limpar
                   </button>
                </div>
             </div>
           </div>
 
-          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-white p-3 shadow-sm md:flex-row md:items-center">
+          <div className="mb-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm md:p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-extrabold text-gray-800">Encontrar aluno</h4>
+                <p className="text-xs text-gray-500">Digite um nome para buscar em todas as turmas.</p>
+              </div>
+              <span className="material-symbols-outlined rounded-full bg-emerald-100 p-2 text-emerald-700">manage_search</span>
+            </div>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <div className="relative flex-1">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
               <label htmlFor="diario-pesquisa" className="sr-only">Pesquisar aluno</label>
@@ -1937,6 +1947,7 @@ export const AbsencesReportPage: React.FC = () => {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
             <span>{planilhaSearch ? `${planilhaStudents.length} aluno(s) encontrados em todas as turmas` : `${planilhaStudents.length} aluno(s) na turma selecionada`}</span>
             {draftTotalCount > 0 && <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">{draftTotalCount} lançamento(s) aguardando gravação</span>}
+          </div>
           </div>
 
           <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 overflow-x-auto shadow-sm rounded-b-xl">
