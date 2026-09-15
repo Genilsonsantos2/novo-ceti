@@ -327,12 +327,14 @@ export const AbsencesReportPage: React.FC = () => {
   }, [allStudents, guestStudents]);
 
   const planilhaStudents = useMemo(() => {
-    const registeredStudents = planilhaGrade ? allStudents.filter(s => s.grade === planilhaGrade) : [];
+    const search = planilhaSearch.trim().toLowerCase();
+    const registeredStudents = search
+      ? allStudents
+      : planilhaGrade ? allStudents.filter(s => s.grade === planilhaGrade) : [];
     const guestStudentsForDiary = guestStudents
-      .filter(s => !planilhaGrade || s.grade === planilhaGrade)
+      .filter(s => search || !planilhaGrade || s.grade === planilhaGrade)
       .map(s => ({ id: s.id, full_name: s.full_name, enrollment_id: 'Avulso', grade: s.grade, photo_url: '' }));
     const students = [...registeredStudents, ...guestStudentsForDiary];
-    const search = planilhaSearch.trim().toLowerCase();
     if (!search) return students;
     return students.filter(student => student.full_name.toLowerCase().includes(search) || student.enrollment_id.toLowerCase().includes(search));
   }, [allStudents, guestStudents, planilhaGrade, planilhaSearch]);
@@ -557,7 +559,10 @@ export const AbsencesReportPage: React.FC = () => {
       .single();
 
     if (error || !data) {
-      alert('Erro ao salvar aluno avulso: ' + (error?.message || 'resposta inválida'));
+      const missingTable = error?.code === 'PGRST205' || error?.message?.includes('absence_guest_students');
+      alert(missingTable
+        ? 'A tabela de alunos avulsos ainda não foi criada no Supabase. Execute a migração indicada no arquivo supabase_schema.sql.'
+        : 'Erro ao salvar aluno avulso: ' + (error?.message || 'resposta inválida'));
       return;
     }
 
