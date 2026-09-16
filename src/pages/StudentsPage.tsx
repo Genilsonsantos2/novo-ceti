@@ -48,9 +48,11 @@ export const StudentsPage: React.FC = () => {
     fetchStudents();
   }, []);
 
+  const normalizeGrade = (g?: string) => (g || '').trim().toUpperCase();
+
   const filteredData = useMemo(() => {
     return students.filter(s => {
-      const matchesGrade = !selectedGrade || s.grade === selectedGrade;
+      const matchesGrade = !selectedGrade || normalizeGrade(s.grade) === selectedGrade;
       const matchesSearch = !debouncedSearchTerm || 
         (s.full_name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) || 
         (s.enrollment_id?.includes(debouncedSearchTerm));
@@ -393,7 +395,8 @@ export const StudentsPage: React.FC = () => {
   };
 
   const grades = useMemo(() => {
-    return Array.from(new Set(students.map(s => s.grade).filter(Boolean))).sort() as string[];
+    const rawGrades = students.map(s => normalizeGrade(s.grade)).filter(Boolean);
+    return Array.from(new Set(rawGrades)).sort() as string[];
   }, [students]);
 
   const handleSelectAllWithPhoto = () => {
