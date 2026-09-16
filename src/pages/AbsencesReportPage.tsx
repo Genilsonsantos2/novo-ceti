@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { format, parseISO, subDays, isAfter } from 'date-fns';
+import { format, parseISO, subDays, addDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -108,6 +108,11 @@ export const AbsencesReportPage: React.FC = () => {
   const [planilhaSearch, setPlanilhaSearch] = useState('');
   const [draftRecords, setDraftRecords] = useState<Record<string, DraftRecord>>({});
   const [isSavingPlanilha, setIsSavingPlanilha] = useState(false);
+
+  // ── Diário State ───────────────────────────────────────────────────────────
+  const [diarioDate, setDiarioDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [diarioStudentSearch, setDiarioStudentSearch] = useState('');
+  const [diarioShowAddForm, setDiarioShowAddForm] = useState(false);
 
   // ── Import State ────────────────────────────────────────────────────────────
   const [importValidation, setImportValidation] = useState<ImportValidationResult[]>([]);
@@ -1691,35 +1696,291 @@ export const AbsencesReportPage: React.FC = () => {
       )}
 
       {/* ── RESUMO (DIARIO) ─────────────────────────────────────────────────── */}
-      {activeTab === 'diario' && (
-        <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-6 rounded-2xl border border-gray-200 dark:border-zinc-700 shadow-sm overflow-x-auto">
-          <h3 className="text-lg font-bold mb-4 text-primary dark:text-indigo-400">Resumo Diário de Registros</h3>
-          <table className="w-full text-left text-sm border-collapse">
-            <thead className="bg-[#1F4E79] dark:bg-indigo-900 text-white">
-              <tr>
-                <th className="px-4 py-2 border border-gray-300 dark:border-zinc-700">Data</th>
-                <th className="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-center">Faltas</th>
-                <th className="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-center">Abonos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(filteredAbsences.reduce((acc, rec) => {
-                const d = format(parseISO(rec.date), 'yyyy-MM-dd');
-                if (!acc[d]) acc[d] = { faltas: 0, abonos: 0 };
-                if (rec.type === 'FALTA_JUSTIFICADA') acc[d].faltas += 1;
-                else if (rec.type === 'ABONO') acc[d].abonos += 1;
-                return acc;
-              }, {} as Record<string, { faltas: number; abonos: number }>)).map(([date, counts]) => (
-                <tr key={date} className="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">
-                  <td className="px-4 py-2 border border-gray-300 dark:border-zinc-700 font-medium dark:text-gray-300">{format(parseISO(date), 'dd/MM/yyyy')}</td>
-                  <td className="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-center text-amber-600 font-bold">{counts.faltas}</td>
-                  <td className="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-center text-teal-600 font-bold">{counts.abonos}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {activeTab === 'diario' && (() => {
+        const diarioRecords = filteredAbsences.filter(a => format(parseISO(a.date), 'yyyy-MM-dd') === diarioDate);
+        const diarioFaltas = diarioRecords.filter(a => a.type === 'FALTA_JUSTIFICADA').length;
+        const diarioAbonos = diarioRecords.filter(a => a.type === 'ABONO').length;
+        const isToday = diarioDate === format(new Date(), 'yyyy-MM-dd');
+        const filteredDiarioStudents = diarioStudentSearch
+          ? allStudents.filter(s => s.full_name.toLowerCase().includes(diarioStudentSearch.toLowerCase()))
+          : [];
+
+        return (
+        <div className="space-y-5">
+          {/* ── Date Navigator ──────────────────────────────── */}
+          <div className="overflow-hidden rounded-2xl border border-amber-600 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 shadow-lg shadow-amber-500/10">
+            <div className="flex flex-col gap-4 p-4 text-white md:p-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-amber-100">Diário de Registros</p>
+                <h3 className="font-headline text-xl font-extrabold tracking-tight md:text-2xl">
+                  {isToday ? 'Hoje' : format(parseISO(diarioDate), 'dd/MM/yyyy')}
+                  {isToday && <span className="ml-2 text-sm font-medium text-amber-100">{format(parseISO(diarioDate), 'dd/MM/yyyy')}</span>}
+                </h3>
+                <p className="mt-1 text-xs text-amber-100/80">Navegue entre datas para visualizar ou adicionar registros antigos.</p>
+              </div>
+
+              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                {/* Navigation buttons */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setDiarioDate(format(subDays(parseISO(diarioDate), 1), 'yyyy-MM-dd'))}
+                    className="flex min-h-[44px] items-center justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/20 transition-colors"
+                    title="Dia anterior"
+                  >
+                    <span className="material-symbols-outlined text-lg">chevron_left</span>
+                  </button>
+                  <input
+                    aria-label="Data do diário"
+                    type="date"
+                    value={diarioDate}
+                    onChange={e => setDiarioDate(e.target.value)}
+                    className="min-h-[44px] rounded-xl border border-white/20 bg-white px-3 py-2 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-amber-200"
+                  />
+                  <button
+                    onClick={() => {
+                      const next = format(addDays(parseISO(diarioDate), 1), 'yyyy-MM-dd');
+                      const today = format(new Date(), 'yyyy-MM-dd');
+                      if (next <= today) setDiarioDate(next);
+                    }}
+                    disabled={isToday}
+                    className="flex min-h-[44px] items-center justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Próximo dia"
+                  >
+                    <span className="material-symbols-outlined text-lg">chevron_right</span>
+                  </button>
+                </div>
+
+                {/* Quick presets */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setDiarioDate(format(new Date(), 'yyyy-MM-dd'))}
+                    className={`min-h-[44px] rounded-xl px-4 py-2 text-xs font-bold transition-colors ${isToday ? 'bg-white text-amber-700 shadow-sm' : 'border border-white/20 bg-white/10 text-white hover:bg-white/20'}`}
+                  >
+                    Hoje
+                  </button>
+                  <button
+                    onClick={() => setDiarioDate(format(subDays(new Date(), 1), 'yyyy-MM-dd'))}
+                    className="min-h-[44px] rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/20 transition-colors"
+                  >
+                    Ontem
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats strip */}
+            <div className="grid grid-cols-3 gap-px border-t border-amber-400/40 bg-amber-400/40">
+              <div className="flex flex-col justify-center bg-white px-4 py-3 text-center">
+                <p className="text-[10px] font-bold text-gray-500 uppercase">Total</p>
+                <p className="text-2xl font-black text-gray-800">{diarioRecords.length}</p>
+              </div>
+              <div className="flex flex-col justify-center bg-amber-50 px-4 py-3 text-center">
+                <p className="text-[10px] font-bold text-gray-500 uppercase">Faltas</p>
+                <p className="text-2xl font-black text-amber-600">{diarioFaltas}</p>
+              </div>
+              <div className="flex flex-col justify-center bg-teal-50 px-4 py-3 text-center">
+                <p className="text-[10px] font-bold text-gray-500 uppercase">Abonos</p>
+                <p className="text-2xl font-black text-teal-600">{diarioAbonos}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Add Record Form ──────────────────────────────── */}
+          <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 shadow-sm overflow-hidden">
+            <button
+              onClick={() => setDiarioShowAddForm(!diarioShowAddForm)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-amber-500 rounded-full bg-amber-100 dark:bg-amber-900/30 p-2">add_circle</span>
+                <div>
+                  <p className="text-sm font-bold text-gray-800 dark:text-white">Adicionar Registro</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Registrar falta ou abono para {isToday ? 'hoje' : format(parseISO(diarioDate), 'dd/MM/yyyy')}
+                  </p>
+                </div>
+              </div>
+              <span className={`material-symbols-outlined text-gray-400 transition-transform ${diarioShowAddForm ? 'rotate-180' : ''}`}>expand_more</span>
+            </button>
+
+            {diarioShowAddForm && (
+              <div className="border-t border-gray-200 dark:border-zinc-700 p-4 space-y-3">
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
+                  <input
+                    type="search"
+                    value={diarioStudentSearch}
+                    onChange={e => setDiarioStudentSearch(e.target.value)}
+                    placeholder="Buscar aluno por nome para registrar..."
+                    className="w-full rounded-xl border-2 border-amber-400 bg-amber-50 dark:bg-zinc-900 dark:text-white py-3 pl-10 pr-4 text-sm font-semibold text-gray-800 outline-none placeholder:text-amber-700/50 focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
+                  />
+                </div>
+
+                {diarioStudentSearch && filteredDiarioStudents.length > 0 && (
+                  <div className="max-h-60 overflow-y-auto rounded-xl border border-gray-200 dark:border-zinc-700 divide-y divide-gray-100 dark:divide-zinc-700">
+                    {filteredDiarioStudents.slice(0, 15).map(student => (
+                      <button
+                        key={student.id}
+                        onClick={() => {
+                          setQuickAddStudent({ id: student.id, name: student.full_name, grade: student.grade || undefined });
+                          setQuickAddDraft(prev => ({ ...prev, date: diarioDate }));
+                          setDiarioStudentSearch('');
+                          setDiarioShowAddForm(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50 dark:hover:bg-zinc-700 transition-colors text-left"
+                      >
+                        <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-amber-200 bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                          {student.photo_url ? (
+                            <img src={student.photo_url} alt={student.full_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-700">{getStudentInitials(student.full_name)}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{student.full_name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{student.grade || 'Sem turma'} · Matrícula: {student.enrollment_id}</p>
+                        </div>
+                        <span className="material-symbols-outlined text-amber-500">arrow_forward</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {diarioStudentSearch && filteredDiarioStudents.length === 0 && (
+                  <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+                    <span className="material-symbols-outlined text-3xl text-gray-300 dark:text-zinc-600 mb-2 block">person_off</span>
+                    <p className="text-sm font-medium">Nenhum aluno encontrado</p>
+                    <p className="text-xs">Tente buscar por outro nome.</p>
+                  </div>
+                )}
+
+                {!diarioStudentSearch && (
+                  <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                    <p className="text-xs">Digite o nome do aluno para iniciar o registro.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Records for Selected Date ──────────────────────────────── */}
+          <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-extrabold text-gray-800 dark:text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-500">event_note</span>
+                Registros de {format(parseISO(diarioDate), 'dd/MM/yyyy')}
+              </h4>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-300">
+                {diarioRecords.length} registro{diarioRecords.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {diarioRecords.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 dark:text-gray-500">
+                <span className="material-symbols-outlined text-5xl text-gray-200 dark:text-zinc-600 mb-3 block">event_available</span>
+                <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Nenhum registro nesta data</p>
+                <p className="text-xs mt-1">Use o botão acima para adicionar um registro.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-[#1F4E79] dark:bg-indigo-900 text-white">
+                    <tr>
+                      <th className="px-4 py-2.5 border border-gray-300/20 font-bold">Aluno</th>
+                      <th className="px-4 py-2.5 border border-gray-300/20 font-bold">Turma</th>
+                      <th className="px-4 py-2.5 border border-gray-300/20 font-bold text-center">Tipo</th>
+                      <th className="px-4 py-2.5 border border-gray-300/20 font-bold">Motivo</th>
+                      <th className="px-4 py-2.5 border border-gray-300/20 font-bold text-center">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {diarioRecords.map(r => (
+                      <tr key={r.id} className="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
+                        <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 dark:text-gray-300">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center shrink-0">
+                              {r.students?.photo_url ? (
+                                <img src={r.students.photo_url} alt="" className="w-full h-full object-cover rounded-full" />
+                              ) : (
+                                <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">{getStudentInitials(r.students?.full_name || '')}</span>
+                              )}
+                            </div>
+                            <span className="font-medium truncate max-w-[200px]">{r.students?.full_name || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-xs text-gray-500 dark:text-gray-400">{r.students?.grade || '—'}</td>
+                        <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-center">
+                          <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-full ${r.type === 'ABONO' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                            {r.type === 'ABONO' ? 'Abono' : 'Falta'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-xs text-gray-600 dark:text-gray-400 max-w-[250px] truncate">{r.reason || '—'}</td>
+                        <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-center">
+                          <button
+                            onClick={() => setQuickAddStudent({ id: r.student_id, name: r.students?.full_name || '', grade: r.students?.grade || undefined })}
+                            className="text-emerald-500 hover:text-emerald-700 transition-colors p-1 bg-emerald-50 dark:bg-emerald-900/20 rounded shadow-sm"
+                            title="Registrar rápido"
+                          >
+                            <span className="material-symbols-outlined text-base">add</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* ── Historical Summary Table ──────────────────────────────── */}
+          <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-5 shadow-sm">
+            <h4 className="text-sm font-extrabold text-gray-800 dark:text-white flex items-center gap-2 mb-4">
+              <span className="material-symbols-outlined text-indigo-500">calendar_month</span>
+              Resumo por Data
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead className="bg-[#1F4E79] dark:bg-indigo-900 text-white">
+                  <tr>
+                    <th className="px-4 py-2 border border-gray-300/20">Data</th>
+                    <th className="px-4 py-2 border border-gray-300/20 text-center">Faltas</th>
+                    <th className="px-4 py-2 border border-gray-300/20 text-center">Abonos</th>
+                    <th className="px-4 py-2 border border-gray-300/20 text-center">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(filteredAbsences.reduce((acc, rec) => {
+                    const d = format(parseISO(rec.date), 'yyyy-MM-dd');
+                    if (!acc[d]) acc[d] = { faltas: 0, abonos: 0 };
+                    if (rec.type === 'FALTA_JUSTIFICADA') acc[d].faltas += 1;
+                    else if (rec.type === 'ABONO') acc[d].abonos += 1;
+                    return acc;
+                  }, {} as Record<string, { faltas: number; abonos: number }>))
+                  .sort(([a], [b]) => b.localeCompare(a))
+                  .map(([date, counts]) => (
+                    <tr
+                      key={date}
+                      onClick={() => setDiarioDate(date)}
+                      className={`border-b border-gray-200 dark:border-zinc-700 cursor-pointer transition-colors ${diarioDate === date ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300' : 'hover:bg-gray-50 dark:hover:bg-zinc-800'}`}
+                    >
+                      <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 font-medium dark:text-gray-300">
+                        <div className="flex items-center gap-2">
+                          {diarioDate === date && <span className="material-symbols-outlined text-amber-500 text-sm">arrow_right</span>}
+                          {format(parseISO(date), 'dd/MM/yyyy')}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-center text-amber-600 font-bold">{counts.faltas}</td>
+                      <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-center text-teal-600 font-bold">{counts.abonos}</td>
+                      <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-center font-bold text-gray-700 dark:text-gray-300">{counts.faltas + counts.abonos}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ── RELATÓRIOS ───────────────────────────────────────────────────── */}
       {activeTab === 'relatorios' && (
