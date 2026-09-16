@@ -332,17 +332,46 @@ export const StudentsPage: React.FC = () => {
         if (nameIdx === -1 || rmIdx === -1) { alert('Colunas obrigatórias não encontradas.'); setImporting(false); return; }
 
         const newStudents = [];
+        const existingRMs = new Set(students.map(s => String(s.enrollment_id).trim()));
+
         for (let i = headerRowIndex + 1; i < rows.length; i++) {
+          const rawValues = rows[i];
           const values = rows[i].map((v: any) => String(v).trim());
           if (!values.join('').trim()) continue;
+
+          const rmValue = values[rmIdx];
+          if (!rmValue || existingRMs.has(rmValue)) continue;
+
+          let parsedBirthDate = null;
+          if (birthIdx !== -1 && rawValues[birthIdx]) {
+            const rawBirth = rawValues[birthIdx];
+            const numBirth = Number(rawBirth);
+            
+            if (!isNaN(numBirth) && numBirth > 10000 && numBirth < 99999) {
+              const days = Math.floor(numBirth) - 25569;
+              const date = new Date(days * 86400 * 1000);
+              parsedBirthDate = date.toISOString().split('T')[0];
+            } else if (typeof rawBirth === 'string') {
+              const bStr = rawBirth.trim();
+              if (bStr.includes('/')) {
+                const parts = bStr.split('/');
+                if (parts.length === 3) {
+                  parsedBirthDate = `${parts[2].length === 2 ? '20'+parts[2] : parts[2]}-${parts[1]}-${parts[0]}`;
+                }
+              } else if (bStr.includes('-')) {
+                parsedBirthDate = bStr;
+              }
+            }
+          }
+
           const student: any = {
             full_name: values[nameIdx],
-            enrollment_id: values[rmIdx],
+            enrollment_id: rmValue,
             grade: gradeIdx !== -1 ? values[gradeIdx] : '',
             cpf: cpfIdx !== -1 ? values[cpfIdx] : '',
-            birth_date: birthIdx !== -1 ? values[birthIdx] : null,
+            birth_date: parsedBirthDate,
             guardian_name: respNameIdx !== -1 ? values[respNameIdx] : '',
-            qr_code_id: `QR-${values[rmIdx]}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+            qr_code_id: `QR-${rmValue}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
             is_authorized: true,
             photo_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(values[nameIdx])}&backgroundColor=random`
           };
@@ -353,6 +382,9 @@ export const StudentsPage: React.FC = () => {
           const { error } = await supabase.from('students').insert(newStudents);
           if (error) alert('Erro ao salvar: ' + error.message);
           else { alert(`${newStudents.length} alunos importados!`); fetchStudents(); setShowImportModal(false); }
+        } else {
+          alert('Nenhum novo aluno para importar. (Alunos já existentes foram ignorados)');
+          setShowImportModal(false);
         }
       } catch (error) { console.error(error); alert('Erro ao ler arquivo.'); }
       setImporting(false);
