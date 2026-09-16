@@ -1895,12 +1895,13 @@ export const AbsencesReportPage: React.FC = () => {
               />
               {planilhaSearch && <button type="button" onClick={() => setPlanilhaSearch('')} aria-label="Limpar pesquisa" className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-emerald-700 hover:bg-emerald-200">close</button>}
             </div>
+          </div>
 
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
             <span>{planilhaSearch ? `${planilhaStudents.length} aluno(s) encontrados em todas as turmas` : `${planilhaStudents.length} aluno(s) na turma selecionada`}</span>
             {draftTotalCount > 0 && <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">{draftTotalCount} lançamento(s) aguardando gravação</span>}
           </div>
-          </div>
+        </div>
 
           <div className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 overflow-x-auto shadow-sm rounded-b-xl">
             <table className="w-full text-left border-collapse min-w-[800px] text-sm font-sans">
