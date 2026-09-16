@@ -106,7 +106,6 @@ export const AbsencesReportPage: React.FC = () => {
   const [planilhaDate, setPlanilhaDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [planilhaGrade, setPlanilhaGrade] = useState('');
   const [planilhaSearch, setPlanilhaSearch] = useState('');
-  const [newGuestStudentName, setNewGuestStudentName] = useState('');
   const [draftRecords, setDraftRecords] = useState<Record<string, DraftRecord>>({});
   const [isSavingPlanilha, setIsSavingPlanilha] = useState(false);
 
@@ -538,37 +537,6 @@ export const AbsencesReportPage: React.FC = () => {
 
   const handleDraftAuthorizedByChange = (studentId: string, authorizedBy: string) => {
     setDraftRecords(prev => prev[studentId] ? { ...prev, [studentId]: { ...prev[studentId], authorizedBy } } : prev);
-  };
-
-  const handleAddGuestStudent = async () => {
-    const fullName = newGuestStudentName.trim();
-    if (!fullName) return;
-
-    const existing = guestStudents.find(student => student.full_name.toLowerCase() === fullName.toLowerCase() && student.grade === planilhaGrade);
-    if (existing) {
-      setPlanilhaSearch(existing.full_name);
-      setNewGuestStudentName('');
-      return;
-    }
-
-    const { data: userData } = await supabase.auth.getUser();
-    const { data, error } = await supabase
-      .from('absence_guest_students')
-      .insert({ full_name: fullName, grade: planilhaGrade || null, created_by: userData.user?.id })
-      .select('id, full_name, grade, created_at')
-      .single();
-
-    if (error || !data) {
-      const missingTable = error?.code === 'PGRST205' || error?.message?.includes('absence_guest_students');
-      alert(missingTable
-        ? 'A tabela de alunos avulsos ainda não foi criada no Supabase. Execute a migração indicada no arquivo supabase_schema.sql.'
-        : 'Erro ao salvar aluno avulso: ' + (error?.message || 'resposta inválida'));
-      return;
-    }
-
-    setGuestStudents(prev => [...prev, data as GuestStudent].sort((a, b) => a.full_name.localeCompare(b.full_name)));
-    setPlanilhaSearch(fullName);
-    setNewGuestStudentName('');
   };
 
   const handleBatchSavePlanilha = async () => {
@@ -1927,22 +1895,6 @@ export const AbsencesReportPage: React.FC = () => {
               />
               {planilhaSearch && <button type="button" onClick={() => setPlanilhaSearch('')} aria-label="Limpar pesquisa" className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-emerald-700 hover:bg-emerald-200">close</button>}
             </div>
-            <div className="flex flex-1 gap-2">
-              <input
-                type="text"
-                value={newGuestStudentName}
-                onChange={e => setNewGuestStudentName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleAddGuestStudent(); }}
-                placeholder="Nome do aluno sem cadastro"
-                aria-label="Nome do aluno sem cadastro"
-                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-              <button onClick={handleAddGuestStudent} disabled={!newGuestStudentName.trim()} className="inline-flex min-h-[46px] items-center justify-center gap-1 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50">
-                <span className="material-symbols-outlined text-sm">person_add</span>
-                Adicionar avulso
-              </button>
-            </div>
-          </div>
 
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
             <span>{planilhaSearch ? `${planilhaStudents.length} aluno(s) encontrados em todas as turmas` : `${planilhaStudents.length} aluno(s) na turma selecionada`}</span>
