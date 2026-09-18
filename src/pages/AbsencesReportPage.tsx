@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { addDays, format, parseISO, subDays, isAfter } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, parseISO, subDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -515,6 +515,28 @@ export const AbsencesReportPage: React.FC = () => {
       currentDate = addDays(currentDate, 1);
     }
 
+    const registeredStudentIds = keys.filter(studentId => !guestStudents.some(student => student.id === studentId));
+    const registeredGuestIds = keys.filter(studentId => guestStudents.some(student => student.id === studentId));
+    const { data: existingRecords, error: existingRecordsError } = await supabase
+      .from('student_absences')
+      .select('student_id, guest_student_id, type, date')
+      .or([
+        registeredStudentIds.length ? `student_id.in.(${registeredStudentIds.join(',')})` : '',
+        registeredGuestIds.length ? `guest_student_id.in.(${registeredGuestIds.join(',')})` : ''
+      ].filter(Boolean).join(','))
+      .gte('date', planilhaStartDate)
+      .lte('date', planilhaEndDate);
+
+    if (existingRecordsError) {
+      alert('Não foi possível verificar registros já lançados: ' + existingRecordsError.message);
+      setIsSavingPlanilha(false);
+      return;
+    }
+
+    const existingKeys = new Set((existingRecords || []).map(record =>
+      `${record.student_id || record.guest_student_id}|${record.type}|${record.date}`
+    ));
+
     const recordsToInsert = keys
       .filter(studentId => !guestStudents.some(student => student.id === studentId))
       .flatMap(studentId => dates.map(date => {
@@ -523,6 +545,7 @@ export const AbsencesReportPage: React.FC = () => {
         if (data.authorizedBy && data.authorizedBy.trim()) {
           finalReason = `[Autorizado por: ${data.authorizedBy.trim()}] ${data.reason}`.trim();
         }
+        if (existingKeys.has(`${studentId}|${data.type}|${date}`)) return null;
         return {
           student_id: studentId,
           type: data.type,
@@ -530,7 +553,7 @@ export const AbsencesReportPage: React.FC = () => {
           reason: finalReason || null,
           created_by: userData.user?.id
         };
-      }));
+      })).filter(Boolean);
 
     const guestRecordsToInsert = keys
       .filter(studentId => guestStudents.some(student => student.id === studentId))
@@ -540,6 +563,7 @@ export const AbsencesReportPage: React.FC = () => {
         if (data.authorizedBy && data.authorizedBy.trim()) {
           finalReason = `[Autorizado por: ${data.authorizedBy.trim()}] ${data.reason}`.trim();
         }
+        if (existingKeys.has(`${guestStudentId}|${data.type}|${date}`)) return null;
         return {
           guest_student_id: guestStudentId,
           type: data.type,
@@ -547,7 +571,14 @@ export const AbsencesReportPage: React.FC = () => {
           reason: finalReason || null,
           created_by: userData.user?.id
         };
-      }));
+      })).filter(Boolean);
+
+    const totalToInsert = recordsToInsert.length + guestRecordsToInsert.length;
+    if (totalToInsert === 0) {
+      alert('Todos os lançamentos selecionados já existem nesse intervalo.');
+      setIsSavingPlanilha(false);
+      return;
+    }
 
     const [registeredResult, guestResult] = await Promise.all([
       recordsToInsert.length ? supabase.from('student_absences').insert(recordsToInsert) : Promise.resolve({ error: null }),
@@ -557,7 +588,8 @@ export const AbsencesReportPage: React.FC = () => {
     if (error) {
       alert('Erro ao salvar lançamentos: ' + error.message);
     } else {
-      alert(`${keys.length * dates.length} lançamentos salvos com sucesso!`);
+      const skippedCount = keys.length * dates.length - totalToInsert;
+      alert(`${totalToInsert} lançamento(s) salvo(s) com sucesso${skippedCount ? `; ${skippedCount} já existente(s) foram ignorado(s)` : ''}.`);
       setDraftRecords({});
       setEndDate(currentEndDate => currentEndDate < planilhaEndDate ? planilhaEndDate : currentEndDate);
       fetchAbsences();
@@ -568,6 +600,9 @@ export const AbsencesReportPage: React.FC = () => {
   const draftFaltasCount = Object.values(draftRecords).filter(r => r.type === 'FALTA_JUSTIFICADA').length;
   const draftAbonosCount = Object.values(draftRecords).filter(r => r.type === 'ABONO').length;
   const draftTotalCount = Object.keys(draftRecords).length;
+  const planilhaDaysCount = planilhaStartDate && planilhaEndDate && planilhaEndDate >= planilhaStartDate
+    ? differenceInCalendarDays(parseISO(planilhaEndDate), parseISO(planilhaStartDate)) + 1
+    : 0;
 
   // ── Import Actions (PapaParse) ─────────────────────────────────────────────
   const normalizeText = (value: string | null | undefined) => {
@@ -1880,6 +1915,11 @@ export const AbsencesReportPage: React.FC = () => {
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200">Controle de frequência</p>
                 <h3 className="font-headline text-xl font-extrabold tracking-tight md:text-2xl">Diário de faltas e abonos</h3>
                 <p className="mt-1 text-xs text-emerald-100/80">Selecione um aluno, marque o status e grave todos os lançamentos de uma vez.</p>
+                 <p className="mt-2 text-xs font-bold text-white/90">
+                   {planilhaDaysCount > 0
+                     ? `${draftTotalCount} aluno(s) x ${planilhaDaysCount} dia(s) = ${draftTotalCount * planilhaDaysCount} lançamento(s) previsto(s)`
+                     : 'Selecione um intervalo válido de datas.'}
+                 </p>
                </div>
                
               <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
