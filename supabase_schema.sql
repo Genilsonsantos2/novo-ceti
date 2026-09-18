@@ -64,6 +64,8 @@ CREATE TABLE student_absences (
   student_id UUID REFERENCES students(id) ON DELETE CASCADE NOT NULL,
   type TEXT CHECK (type IN ('FALTA_JUSTIFICADA', 'ABONO')) NOT NULL,
   is_intermittent BOOLEAN DEFAULT false NOT NULL,
+  is_intermittent_active BOOLEAN DEFAULT true NOT NULL,
+  intermittent_group_id UUID,
   date DATE NOT NULL,
   reason TEXT,
   sigeduc_synced BOOLEAN DEFAULT false,

@@ -16,6 +16,8 @@ interface AbsenceRecord {
   guest_student_id?: string | null;
   type: 'FALTA_JUSTIFICADA' | 'ABONO';
   is_intermittent?: boolean;
+  intermittent_group_id?: string | null;
+  is_intermittent_active?: boolean;
   date: string;
   reason: string | null;
   sigeduc_synced: boolean;
@@ -101,7 +103,7 @@ export const AbsencesReportPage: React.FC = () => {
   const [filterType, setFilterType] = useState<'ALL' | 'FALTA_JUSTIFICADA' | 'ABONO'>('ALL');
   const [filterSigeduc, setFilterSigeduc] = useState<'ALL' | 'PENDING' | 'SYNCED'>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDENTE' | 'EM_ANALISE' | 'VALIDADA'>('ALL');
-  const [filterRecurrence, setFilterRecurrence] = useState<'ALL' | 'INTERMITENTES' | 'NORMAIS'>('ALL');
+  const [filterRecurrence, setFilterRecurrence] = useState<'ALL' | 'INTERMITENTES' | 'NORMAIS' | 'ATIVOS' | 'BAIXADOS'>('ALL');
   const [filterGrade, setFilterGrade] = useState<'ALL' | string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingSigeducTotal, setPendingSigeducTotal] = useState(0);
@@ -233,6 +235,8 @@ export const AbsencesReportPage: React.FC = () => {
       if (filterGrade !== 'ALL' && a.students?.grade !== filterGrade) return false;
       if (filterRecurrence === 'INTERMITENTES' && !a.is_intermittent) return false;
       if (filterRecurrence === 'NORMAIS' && a.is_intermittent) return false;
+      if (filterRecurrence === 'ATIVOS' && (!a.is_intermittent || a.is_intermittent_active === false)) return false;
+      if (filterRecurrence === 'BAIXADOS' && (!a.is_intermittent || a.is_intermittent_active !== false)) return false;
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -373,6 +377,24 @@ export const AbsencesReportPage: React.FC = () => {
       .eq('id', id);
     if (error) alert('Erro ao atualizar status: ' + error.message);
     else fetchPendingSigeducTotal();
+  };
+
+  const handleToggleIntermittent = async (record: AbsenceRecord) => {
+    if (!record.is_intermittent) return;
+    const nextActive = record.is_intermittent_active === false;
+    const action = nextActive ? 'reativar' : 'dar baixa';
+    if (!window.confirm(`Deseja ${action} este acompanhamento intermitente?`)) return;
+
+    let query = supabase.from('student_absences').update({ is_intermittent_active: nextActive });
+    query = record.intermittent_group_id
+      ? query.eq('intermittent_group_id', record.intermittent_group_id)
+      : query.eq('id', record.id);
+    const { error } = await query;
+    if (error) {
+      alert('Erro ao atualizar o acompanhamento intermitente: ' + error.message);
+      return;
+    }
+    fetchAbsences();
   };
 
   const handleBatchSyncSigeduc = async () => {
@@ -577,11 +599,24 @@ export const AbsencesReportPage: React.FC = () => {
           student_id: studentId,
           type: data.type,
           is_intermittent: data.isIntermittent,
+          intermittent_group_id: data.isIntermittent ? crypto.randomUUID() : null,
           date,
           reason: finalReason || null,
           created_by: userData.user?.id
         };
       })).filter(Boolean);
+
+    const intermittentGroups = new Map<string, string>();
+    const getIntermittentGroupId = (studentId: string, isIntermittent: boolean) => {
+      if (!isIntermittent) return null;
+      if (!intermittentGroups.has(studentId)) intermittentGroups.set(studentId, crypto.randomUUID());
+      return intermittentGroups.get(studentId);
+    };
+
+    const recordsToInsertWithGroups = recordsToInsert.map(record => ({
+      ...record,
+      intermittent_group_id: getIntermittentGroupId(record.student_id, record.is_intermittent)
+    }));
 
     const guestRecordsToInsert = keys
       .filter(studentId => guestStudents.some(student => student.id === studentId))
@@ -596,6 +631,7 @@ export const AbsencesReportPage: React.FC = () => {
           guest_student_id: guestStudentId,
           type: data.type,
           is_intermittent: data.isIntermittent,
+          intermittent_group_id: getIntermittentGroupId(guestStudentId, data.isIntermittent),
           date,
           reason: finalReason || null,
           created_by: userData.user?.id
@@ -610,7 +646,7 @@ export const AbsencesReportPage: React.FC = () => {
     }
 
     const [registeredResult, guestResult] = await Promise.all([
-      recordsToInsert.length ? supabase.from('student_absences').insert(recordsToInsert) : Promise.resolve({ error: null }),
+      recordsToInsertWithGroups.length ? supabase.from('student_absences').insert(recordsToInsertWithGroups) : Promise.resolve({ error: null }),
       guestRecordsToInsert.length ? supabase.from('student_absences').insert(guestRecordsToInsert) : Promise.resolve({ error: null }),
     ]);
     const error = registeredResult.error || guestResult.error;
@@ -1499,6 +1535,8 @@ export const AbsencesReportPage: React.FC = () => {
                 <button onClick={() => setFilterRecurrence('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'ALL' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos os alunos</button>
                 <button onClick={() => setFilterRecurrence('INTERMITENTES')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'INTERMITENTES' ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Intermitentes</button>
                 <button onClick={() => setFilterRecurrence('NORMAIS')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'NORMAIS' ? 'bg-sky-600 text-white border-sky-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Normais</button>
+                <button onClick={() => setFilterRecurrence('ATIVOS')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'ATIVOS' ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Intermitentes ativos</button>
+                <button onClick={() => setFilterRecurrence('BAIXADOS')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'BAIXADOS' ? 'bg-gray-600 text-white border-gray-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Intermitentes baixados</button>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1572,9 +1610,9 @@ export const AbsencesReportPage: React.FC = () => {
                                </button>
                                <div className="text-xs text-gray-500 dark:text-gray-400">{r.students?.grade} - {r.students?.enrollment_id}</div>
                                {r.is_intermittent && (
-                                 <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                                 <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${r.is_intermittent_active === false ? 'bg-gray-200 text-gray-700 dark:bg-zinc-700 dark:text-gray-300' : 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'}`}>
                                    <span className="material-symbols-outlined text-xs" aria-hidden="true">event_repeat</span>
-                                   Intermitente
+                                   {r.is_intermittent_active === false ? 'Intermitente baixado' : 'Intermitente ativo'}
                                  </span>
                                )}
                              </div>
@@ -1608,6 +1646,16 @@ export const AbsencesReportPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex flex-col items-center gap-1">
+                            {r.is_intermittent && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleIntermittent(r)}
+                                className={`rounded-full px-3 py-1 text-xs font-bold transition-all shadow-sm ${r.is_intermittent_active === false ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                aria-label={r.is_intermittent_active === false ? 'Reativar acompanhamento intermitente' : 'Dar baixa no acompanhamento intermitente'}
+                              >
+                                {r.is_intermittent_active === false ? 'Reativar' : 'Dar baixa'}
+                              </button>
+                            )}
                             <button 
                               onClick={() => handleToggleSigeduc(r.id, r.sigeduc_synced)} 
                               className={`px-3 py-1 rounded-full text-xs font-bold transition-all shadow-sm ${r.sigeduc_synced ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-yellow-500 text-white hover:bg-yellow-600'}`}
