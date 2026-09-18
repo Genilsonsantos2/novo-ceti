@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { format, parseISO, subDays, addDays, isAfter } from 'date-fns';
+import { format, parseISO, subDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -109,10 +109,8 @@ export const AbsencesReportPage: React.FC = () => {
   const [draftRecords, setDraftRecords] = useState<Record<string, DraftRecord>>({});
   const [isSavingPlanilha, setIsSavingPlanilha] = useState(false);
 
-  // ── Diário State ───────────────────────────────────────────────────────────
+  // ── Diário State ────────────────────────────────────────────────────────────
   const [diarioDate, setDiarioDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [diarioStudentSearch, setDiarioStudentSearch] = useState('');
-  const [diarioShowAddForm, setDiarioShowAddForm] = useState(false);
 
   // ── Import State ────────────────────────────────────────────────────────────
   const [importValidation, setImportValidation] = useState<ImportValidationResult[]>([]);
@@ -121,14 +119,6 @@ export const AbsencesReportPage: React.FC = () => {
 
   // ── Modals & Inline Edit State ──────────────────────────────────────────────
   const [selectedTimelineStudent, setSelectedTimelineStudent] = useState<{id: string, name: string} | null>(null);
-  const [quickAddStudent, setQuickAddStudent] = useState<{id: string, name: string, grade?: string} | null>(null);
-  const [quickAddDraft, setQuickAddDraft] = useState<{startDate: string, endDate: string, type: 'FALTA_JUSTIFICADA' | 'ABONO', reason: string, authorizedBy: string}>({
-    startDate: format(new Date(), 'yyyy-MM-dd'),
-    endDate: format(new Date(), 'yyyy-MM-dd'),
-    type: 'FALTA_JUSTIFICADA',
-    reason: '',
-    authorizedBy: '',
-  });
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{type: 'FALTA_JUSTIFICADA' | 'ABONO', reason: string}>({ type: 'FALTA_JUSTIFICADA', reason: '' });
 
@@ -392,58 +382,6 @@ export const AbsencesReportPage: React.FC = () => {
       alert('Registro excluído com sucesso.');
       window.setTimeout(() => recentlyDeletedIdsRef.current.delete(id), 2000);
     }
-  };
-
-  const handleQuickAddSave = async () => {
-    if (!quickAddStudent) return;
-    if (!quickAddDraft.startDate || !quickAddDraft.endDate || quickAddDraft.endDate < quickAddDraft.startDate) {
-      alert('Informe um intervalo válido: a data final deve ser igual ou posterior à inicial.');
-      return;
-    }
-
-    const { data: userData } = await supabase.auth.getUser();
-    const aiSuggestion = await getAiAbsenceRecommendation({
-      reason: quickAddDraft.reason,
-      type: quickAddDraft.type,
-      authorizedBy: quickAddDraft.authorizedBy,
-      studentName: quickAddStudent.name,
-      recentAbsences: absences.filter(a => a.student_id === quickAddStudent.id).length,
-    });
-    const finalType = aiSuggestion.type;
-    const finalReason = aiSuggestion.suggestion.trim();
-    const records = [];
-    let currentDate = parseISO(quickAddDraft.startDate);
-    const lastDate = parseISO(quickAddDraft.endDate);
-
-    while (currentDate <= lastDate) {
-      records.push({
-        student_id: quickAddStudent.id,
-        type: finalType,
-        date: format(currentDate, 'yyyy-MM-dd'),
-        reason: finalReason || null,
-        created_by: userData.user?.id
-      });
-      currentDate = addDays(currentDate, 1);
-    }
-
-    const { error } = await supabase.from('student_absences').insert(records);
-
-    if (error) {
-      alert('Erro ao registrar: ' + error.message);
-      return;
-    }
-
-    setQuickAddStudent(null);
-    setQuickAddDraft({
-      startDate: format(new Date(), 'yyyy-MM-dd'),
-      endDate: format(new Date(), 'yyyy-MM-dd'),
-      type: 'FALTA_JUSTIFICADA',
-      reason: '',
-      authorizedBy: '',
-    });
-    setEndDate(currentEndDate => currentEndDate < quickAddDraft.endDate ? quickAddDraft.endDate : currentEndDate);
-    fetchAbsences();
-    alert('Registro salvo com sucesso.');
   };
 
   // ── Inline Editing ──────────────────────────────────────────────────────────
@@ -1127,100 +1065,6 @@ export const AbsencesReportPage: React.FC = () => {
         </div>
       )}
 
-      {quickAddStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="p-4 border-b border-gray-200 dark:border-zinc-700 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/80 bg-white/20 flex items-center justify-center shrink-0">
-                  {allStudents.find(s => s.id === quickAddStudent.id)?.photo_url ? (
-                    <img src={allStudents.find(s => s.id === quickAddStudent.id)?.photo_url} alt={quickAddStudent.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-bold">{getStudentInitials(quickAddStudent.name)}</span>
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Registrar rápido</h3>
-                  <p className="text-sm text-emerald-50">{quickAddStudent.name}</p>
-                  <p className="text-xs font-semibold text-emerald-100">Turma: {quickAddStudent.grade || 'Sem turma'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                  Data inicial
-                  <input type="date" value={quickAddDraft.startDate} onChange={e => setQuickAddDraft(prev => ({ ...prev, startDate: e.target.value }))} className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200" />
-                </label>
-
-                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                  Data final
-                  <input type="date" value={quickAddDraft.endDate} onChange={e => setQuickAddDraft(prev => ({ ...prev, endDate: e.target.value }))} className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200" />
-                </label>
-
-                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                  Tipo
-                  <select value={quickAddDraft.type} onChange={e => setQuickAddDraft(prev => ({ ...prev, type: e.target.value as 'FALTA_JUSTIFICADA' | 'ABONO' }))} className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200">
-                    <option value="FALTA_JUSTIFICADA">Falta Justificada</option>
-                    <option value="ABONO">Abono</option>
-                  </select>
-                </label>
-              </div>
-
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">
-                Autorizado por
-                <input type="text" value={quickAddDraft.authorizedBy} onChange={e => setQuickAddDraft(prev => ({ ...prev, authorizedBy: e.target.value }))} placeholder="Nome da pessoa responsável" className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200" />
-              </label>
-
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">
-                Motivo / Observação
-                <textarea value={quickAddDraft.reason} onChange={e => setQuickAddDraft(prev => ({ ...prev, reason: e.target.value }))} rows={4} placeholder="Descreva o motivo do registro..." className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-emerald-200" />
-              </label>
-
-              {(() => {
-                const suggestion = buildAiSuggestion({
-                  reason: quickAddDraft.reason,
-                  type: quickAddDraft.type,
-                  authorizedBy: quickAddDraft.authorizedBy,
-                  studentName: quickAddStudent?.name,
-                  recentAbsences: absences.filter(a => a.student_id === quickAddStudent?.id).length,
-                });
-                return (
-                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4">
-                    <div className="flex items-center justify-between gap-3 mb-2">
-                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-700">Assistente IA</p>
-                      <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${suggestion.risk === 'Alta' ? 'bg-red-100 text-red-700' : suggestion.risk === 'Média' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        Risco {suggestion.risk}
-                      </span>
-                    </div>
-                    <p className="text-sm font-bold text-slate-800">Classificação sugerida: {suggestion.type === 'ABONO' ? 'Abono' : 'Falta Justificada'}</p>
-                    <p className="mt-2 text-sm text-slate-700 leading-relaxed">{suggestion.summary}</p>
-                    <p className="mt-2 text-sm text-slate-600 italic">{suggestion.suggestion}</p>
-                    <button
-                      type="button"
-                      onClick={() => setQuickAddDraft(prev => ({ ...prev, type: suggestion.type, reason: suggestion.suggestion }))}
-                      className="mt-3 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors"
-                    >
-                      Aplicar sugestão
-                    </button>
-                  </div>
-                );
-              })()}
-            </div>
-
-            <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/60">
-              <button onClick={() => setQuickAddStudent(null)} className="px-4 py-2 rounded-xl border border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-gray-200 font-bold hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleQuickAddSave} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-sm">
-                Salvar registros
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <header className="mb-6 md:mb-8">
         <div className="rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-amber-500 p-[1px] shadow-lg shadow-emerald-500/10">
@@ -1695,9 +1539,6 @@ export const AbsencesReportPage: React.FC = () => {
                              </div>
                            ) : (
                              <div className="flex gap-1 justify-center">
-                               <button onClick={() => setQuickAddStudent({ id: r.student_id, name: r.students?.full_name || '', grade: r.students?.grade || undefined })} className="text-emerald-500 hover:text-emerald-700 transition-colors p-1 bg-emerald-50 rounded shadow-sm" title="Registrar rápido">
-                                 <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                               </button>
                                <button onClick={() => startEditing(r)} className="text-blue-500 hover:text-blue-700 transition-colors p-1 bg-blue-50 rounded shadow-sm" title="Editar">
                                  <span className="material-symbols-outlined text-[18px]">edit</span>
                                </button>
@@ -1722,9 +1563,6 @@ export const AbsencesReportPage: React.FC = () => {
         const diarioFaltas = diarioRecords.filter(a => a.type === 'FALTA_JUSTIFICADA').length;
         const diarioAbonos = diarioRecords.filter(a => a.type === 'ABONO').length;
         const isToday = diarioDate === format(new Date(), 'yyyy-MM-dd');
-        const filteredDiarioStudents = diarioStudentSearch
-          ? allStudents.filter(s => s.full_name.toLowerCase().includes(diarioStudentSearch.toLowerCase()))
-          : [];
 
         return (
         <div className="space-y-5">
@@ -1737,7 +1575,7 @@ export const AbsencesReportPage: React.FC = () => {
                   {isToday ? 'Hoje' : format(parseISO(diarioDate), 'dd/MM/yyyy')}
                   {isToday && <span className="ml-2 text-sm font-medium text-amber-100">{format(parseISO(diarioDate), 'dd/MM/yyyy')}</span>}
                 </h3>
-                <p className="mt-1 text-xs text-amber-100/80">Navegue entre datas para visualizar ou adicionar registros antigos.</p>
+                <p className="mt-1 text-xs text-amber-100/80">Navegue entre datas para visualizar os registros.</p>
               </div>
 
               <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
@@ -1806,84 +1644,6 @@ export const AbsencesReportPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Add Record Form ──────────────────────────────── */}
-          <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 shadow-sm overflow-hidden">
-            <button
-              onClick={() => setDiarioShowAddForm(!diarioShowAddForm)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-amber-500 rounded-full bg-amber-100 dark:bg-amber-900/30 p-2">add_circle</span>
-                <div>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">Adicionar Registro</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Registrar falta ou abono para {isToday ? 'hoje' : format(parseISO(diarioDate), 'dd/MM/yyyy')}
-                  </p>
-                </div>
-              </div>
-              <span className={`material-symbols-outlined text-gray-400 transition-transform ${diarioShowAddForm ? 'rotate-180' : ''}`}>expand_more</span>
-            </button>
-
-            {diarioShowAddForm && (
-              <div className="border-t border-gray-200 dark:border-zinc-700 p-4 space-y-3">
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-                  <input
-                    type="search"
-                    value={diarioStudentSearch}
-                    onChange={e => setDiarioStudentSearch(e.target.value)}
-                    placeholder="Buscar aluno por nome para registrar..."
-                    className="w-full rounded-xl border-2 border-amber-400 bg-amber-50 dark:bg-zinc-900 dark:text-white py-3 pl-10 pr-4 text-sm font-semibold text-gray-800 outline-none placeholder:text-amber-700/50 focus:border-amber-600 focus:ring-2 focus:ring-amber-200"
-                  />
-                </div>
-
-                {diarioStudentSearch && filteredDiarioStudents.length > 0 && (
-                  <div className="max-h-60 overflow-y-auto rounded-xl border border-gray-200 dark:border-zinc-700 divide-y divide-gray-100 dark:divide-zinc-700">
-                    {filteredDiarioStudents.slice(0, 15).map(student => (
-                      <button
-                        key={student.id}
-                        onClick={() => {
-                          setQuickAddStudent({ id: student.id, name: student.full_name, grade: student.grade || undefined });
-                          setQuickAddDraft(prev => ({ ...prev, date: diarioDate }));
-                          setDiarioStudentSearch('');
-                          setDiarioShowAddForm(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50 dark:hover:bg-zinc-700 transition-colors text-left"
-                      >
-                        <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-amber-200 bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                          {student.photo_url ? (
-                            <img src={student.photo_url} alt={student.full_name} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-[10px] font-bold text-amber-700">{getStudentInitials(student.full_name)}</span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{student.full_name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{student.grade || 'Sem turma'} · Matrícula: {student.enrollment_id}</p>
-                        </div>
-                        <span className="material-symbols-outlined text-amber-500">arrow_forward</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {diarioStudentSearch && filteredDiarioStudents.length === 0 && (
-                  <div className="text-center py-6 text-gray-500 dark:text-gray-400">
-                    <span className="material-symbols-outlined text-3xl text-gray-300 dark:text-zinc-600 mb-2 block">person_off</span>
-                    <p className="text-sm font-medium">Nenhum aluno encontrado</p>
-                    <p className="text-xs">Tente buscar por outro nome.</p>
-                  </div>
-                )}
-
-                {!diarioStudentSearch && (
-                  <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                    <p className="text-xs">Digite o nome do aluno para iniciar o registro.</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* ── Records for Selected Date ──────────────────────────────── */}
           <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -1911,7 +1671,6 @@ export const AbsencesReportPage: React.FC = () => {
                       <th className="px-4 py-2.5 border border-gray-300/20 font-bold">Turma</th>
                       <th className="px-4 py-2.5 border border-gray-300/20 font-bold text-center">Tipo</th>
                       <th className="px-4 py-2.5 border border-gray-300/20 font-bold">Motivo</th>
-                      <th className="px-4 py-2.5 border border-gray-300/20 font-bold text-center">Ação</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1936,15 +1695,6 @@ export const AbsencesReportPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-xs text-gray-600 dark:text-gray-400 max-w-[250px] truncate">{r.reason || '—'}</td>
-                        <td className="px-4 py-2.5 border border-gray-200/50 dark:border-zinc-700 text-center">
-                          <button
-                            onClick={() => setQuickAddStudent({ id: r.student_id, name: r.students?.full_name || '', grade: r.students?.grade || undefined })}
-                            className="text-emerald-500 hover:text-emerald-700 transition-colors p-1 bg-emerald-50 dark:bg-emerald-900/20 rounded shadow-sm"
-                            title="Registrar rápido"
-                          >
-                            <span className="material-symbols-outlined text-base">add</span>
-                          </button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
