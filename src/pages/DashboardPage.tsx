@@ -94,7 +94,7 @@ export const DashboardPage: React.FC = () => {
         title: `${riskStudents.length} aluno(s) com recorrência`,
         description: `${student.name} lidera a lista com ${student.count} registros nos últimos 30 dias (${student.lastSeven} na última semana).`,
         actionLabel: 'Revisar histórico',
-        href: '/absences',
+        href: '/absences?aba=historico&filtro=reincidentes',
       });
     }
     if (missingReason.length > 0) {
@@ -104,7 +104,7 @@ export const DashboardPage: React.FC = () => {
         title: `${missingReason.length} registro(s) sem justificativa`,
         description: 'Esses lançamentos precisam de revisão antes de serem considerados válidos.',
         actionLabel: 'Completar justificativas',
-        href: '/absences',
+        href: '/absences?aba=historico&filtro=sem-justificativa',
       });
     }
     if (pendingSync.length > 0) {
@@ -114,7 +114,7 @@ export const DashboardPage: React.FC = () => {
         title: `${pendingSync.length} registro(s) pendente(s) no Sigeduc`,
         description: 'A baixa ainda não foi confirmada e pode exigir ação administrativa.',
         actionLabel: 'Ver pendências',
-        href: '/absences',
+        href: '/absences?aba=historico&filtro=sigeduc-pending',
       });
     }
     if (lastSevenDays.length > recentAbsences.length / 2 && lastSevenDays.length >= 3) {
@@ -124,7 +124,7 @@ export const DashboardPage: React.FC = () => {
         title: 'Aumento recente de ausências',
         description: `${lastSevenDays.length} registros ocorreram na última semana. Vale investigar a tendência por turma.`,
         actionLabel: 'Abrir relatórios',
-        href: '/absences',
+        href: '/absences?aba=relatorios&filtro=tendencia',
       });
     }
 
@@ -163,7 +163,7 @@ export const DashboardPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
           
-          <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-rose-500 relative overflow-hidden">
+          <Link to="/absences?aba=historico&filtro=sigeduc-pending" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-rose-500 relative overflow-hidden">
             <div className="absolute inset-0 bg-rose-500/5 group-hover:bg-rose-500/10 transition-colors"></div>
             <div className="flex justify-between items-start relative z-10">
               <div className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-rose-500/20 transition-all duration-500">
@@ -181,7 +181,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Link>
 
-          <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-blue-500">
+          <Link to="/absences?aba=historico&filtro=hoje-faltas" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-blue-500">
             <div className="flex justify-between items-start">
               <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-blue-500/10 transition-all duration-500">
                 <span className="material-symbols-outlined text-blue-500 text-2xl">person_off</span>
@@ -194,7 +194,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Link>
 
-          <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-emerald-500">
+          <Link to="/absences?aba=historico&filtro=hoje-abonos" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-emerald-500">
             <div className="flex justify-between items-start">
               <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-emerald-500/10 transition-all duration-500">
                 <span className="material-symbols-outlined text-emerald-500 text-2xl">event_available</span>
@@ -207,7 +207,7 @@ export const DashboardPage: React.FC = () => {
             </div>
           </Link>
 
-          <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-violet-500">
+          <Link to="/absences?aba=historico&filtro=intermitentes-ativos" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-violet-500">
             <div className="flex justify-between items-start">
               <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-violet-500/10 transition-all duration-500">
                 <span className="material-symbols-outlined text-violet-500 text-2xl">autorenew</span>

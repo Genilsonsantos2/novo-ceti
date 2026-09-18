@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useSearchParams } from 'react-router-dom';
 import { addDays, addYears, differenceInCalendarDays, format, parseISO, subDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -79,6 +80,7 @@ const COLORS = ['#f59e0b', '#14b8a6'];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const AbsencesReportPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   // ── Tab State ───────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'dashboard' | 'importacao' | 'historico' | 'diario' | 'relatorios' | 'planilha'>('dashboard');
 
@@ -103,10 +105,48 @@ export const AbsencesReportPage: React.FC = () => {
   const [filterType, setFilterType] = useState<'ALL' | 'FALTA_JUSTIFICADA' | 'ABONO'>('ALL');
   const [filterSigeduc, setFilterSigeduc] = useState<'ALL' | 'PENDING' | 'SYNCED'>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDENTE' | 'EM_ANALISE' | 'VALIDADA'>('ALL');
-  const [filterRecurrence, setFilterRecurrence] = useState<'ALL' | 'INTERMITENTES' | 'NORMAIS' | 'ATIVOS' | 'BAIXADOS'>('ALL');
+  const [filterRecurrence, setFilterRecurrence] = useState<'ALL' | 'INTERMITENTES' | 'NORMAIS' | 'ATIVOS' | 'BAIXADOS' | 'RECORRENTES'>('ALL');
   const [filterGrade, setFilterGrade] = useState<'ALL' | string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingSigeducTotal, setPendingSigeducTotal] = useState(0);
+
+  useEffect(() => {
+    const tab = searchParams.get('aba');
+    const filter = searchParams.get('filtro');
+    const validTabs = ['dashboard', 'importacao', 'historico', 'diario', 'relatorios', 'planilha'];
+
+    if (tab && validTabs.includes(tab)) {
+      setActiveTab(tab as typeof activeTab);
+    }
+
+    if (filter === 'sigeduc-pending') {
+      setActiveTab('historico');
+      setFilterSigeduc('PENDING');
+      setEndDate(format(addYears(new Date(), 1), 'yyyy-MM-dd'));
+    }
+    if (filter === 'intermitentes' || filter === 'intermitentes-ativos' || filter === 'intermitentes-baixados') {
+      setActiveTab('historico');
+      setFilterRecurrence(filter === 'intermitentes-ativos' ? 'ATIVOS' : filter === 'intermitentes-baixados' ? 'BAIXADOS' : 'INTERMITENTES');
+    }
+    if (filter === 'reincidentes') {
+      setActiveTab('historico');
+      setFilterRecurrence('RECORRENTES');
+    }
+    if (filter === 'sem-justificativa') {
+      setActiveTab('historico');
+      setFilterStatus('PENDENTE');
+    }
+    if (filter === 'tendencia') {
+      setActiveTab('relatorios');
+    }
+    if (filter === 'hoje-faltas' || filter === 'hoje-abonos') {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      setActiveTab('historico');
+      setStartDate(today);
+      setEndDate(today);
+      setFilterType(filter === 'hoje-faltas' ? 'FALTA_JUSTIFICADA' : 'ABONO');
+    }
+  }, [searchParams]);
 
   // ── Planilha State ──────────────────────────────────────────────────────────
   const [planilhaStartDate, setPlanilhaStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -226,6 +266,17 @@ export const AbsencesReportPage: React.FC = () => {
     return 'PENDENTE';
   };
 
+  const recurrentStudentIds = useMemo(() => {
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    const counts = absences.reduce<Record<string, number>>((acc, record) => {
+      if (record.student_id && isAfter(parseISO(record.date), thirtyDaysAgo)) {
+        acc[record.student_id] = (acc[record.student_id] || 0) + 1;
+      }
+      return acc;
+    }, {});
+    return new Set(Object.entries(counts).filter(([, count]) => count >= 3).map(([studentId]) => studentId));
+  }, [absences]);
+
   const filteredAbsences = useMemo(() => {
     return absences.filter(a => {
       if (filterType !== 'ALL' && a.type !== filterType) return false;
@@ -237,6 +288,7 @@ export const AbsencesReportPage: React.FC = () => {
       if (filterRecurrence === 'NORMAIS' && a.is_intermittent) return false;
       if (filterRecurrence === 'ATIVOS' && (!a.is_intermittent || a.is_intermittent_active === false)) return false;
       if (filterRecurrence === 'BAIXADOS' && (!a.is_intermittent || a.is_intermittent_active !== false)) return false;
+      if (filterRecurrence === 'RECORRENTES' && !recurrentStudentIds.has(a.student_id || '')) return false;
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -249,11 +301,14 @@ export const AbsencesReportPage: React.FC = () => {
       }
       return true;
     });
-  }, [absences, filterType, filterSigeduc, filterStatus, filterRecurrence, filterGrade, searchQuery]);
+  }, [absences, filterType, filterSigeduc, filterStatus, filterRecurrence, recurrentStudentIds, filterGrade, searchQuery]);
 
   const pendentesCount = filteredAbsences.filter(a => !a.sigeduc_synced).length;
   const faltasCount = filteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length;
   const abonosCount = filteredAbsences.filter(a => a.type === 'ABONO').length;
+  const intermittentCount = filteredAbsences.filter(a => a.is_intermittent).length;
+  const activeIntermittentCount = filteredAbsences.filter(a => a.is_intermittent && a.is_intermittent_active !== false).length;
+  const closedIntermittentCount = filteredAbsences.filter(a => a.is_intermittent && a.is_intermittent_active === false).length;
 
   // ── Recurrence Logic (Alerta de Reincidência) ────────────────────────────────
   const recurrentStudents = useMemo(() => {
@@ -281,9 +336,10 @@ export const AbsencesReportPage: React.FC = () => {
   const chartDataBar = useMemo(() => {
     const gradesCounts = absences.reduce((acc, a) => {
       const grade = a.students?.grade || 'Sem Turma';
-      if (!acc[grade]) acc[grade] = { name: grade, Faltas: 0, Abonos: 0 };
+      if (!acc[grade]) acc[grade] = { name: grade, Faltas: 0, Abonos: 0, Intermitentes: 0 };
       if (a.type === 'FALTA_JUSTIFICADA') acc[grade].Faltas += 1;
       else acc[grade].Abonos += 1;
+      if (a.is_intermittent) acc[grade].Intermitentes += 1;
       return acc;
     }, {} as Record<string, any>);
     
@@ -308,13 +364,14 @@ export const AbsencesReportPage: React.FC = () => {
     const grouped = absences.reduce((acc, record) => {
       const grade = record.students?.grade || 'Sem turma';
       if (!acc[grade]) {
-        acc[grade] = { grade, faltas: 0, abonos: 0, total: 0 };
+        acc[grade] = { grade, faltas: 0, abonos: 0, intermitentes: 0, total: 0 };
       }
       acc[grade].total += 1;
       if (record.type === 'FALTA_JUSTIFICADA') acc[grade].faltas += 1;
       else acc[grade].abonos += 1;
+      if (record.is_intermittent) acc[grade].intermitentes += 1;
       return acc;
-    }, {} as Record<string, { grade: string; faltas: number; abonos: number; total: number }>);
+    }, {} as Record<string, { grade: string; faltas: number; abonos: number; intermitentes: number; total: number }>);
 
     return Object.values(grouped).sort((a, b) => b.total - a.total);
   }, [absences]);
@@ -324,13 +381,14 @@ export const AbsencesReportPage: React.FC = () => {
       const studentName = record.students?.full_name || 'Aluno sem nome';
       const key = record.student_id || studentName;
       if (!acc[key]) {
-        acc[key] = { student: studentName, grade: record.students?.grade || '-', faltas: 0, abonos: 0, total: 0 };
+        acc[key] = { student: studentName, grade: record.students?.grade || '-', faltas: 0, abonos: 0, intermitentes: 0, total: 0 };
       }
       acc[key].total += 1;
       if (record.type === 'FALTA_JUSTIFICADA') acc[key].faltas += 1;
       else acc[key].abonos += 1;
+      if (record.is_intermittent) acc[key].intermitentes += 1;
       return acc;
-    }, {} as Record<string, { student: string; grade: string; faltas: number; abonos: number; total: number }>);
+    }, {} as Record<string, { student: string; grade: string; faltas: number; abonos: number; intermitentes: number; total: number }>);
 
     return Object.values(grouped).sort((a, b) => b.total - a.total).slice(0, 10);
   }, [absences]);
@@ -1537,6 +1595,7 @@ export const AbsencesReportPage: React.FC = () => {
                 <button onClick={() => setFilterRecurrence('NORMAIS')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'NORMAIS' ? 'bg-sky-600 text-white border-sky-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Normais</button>
                 <button onClick={() => setFilterRecurrence('ATIVOS')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'ATIVOS' ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Intermitentes ativos</button>
                 <button onClick={() => setFilterRecurrence('BAIXADOS')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'BAIXADOS' ? 'bg-gray-600 text-white border-gray-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Intermitentes baixados</button>
+                <button onClick={() => setFilterRecurrence('RECORRENTES')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'RECORRENTES' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Reincidentes</button>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1922,7 +1981,7 @@ export const AbsencesReportPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid md:grid-cols-2 xl:grid-cols-6 gap-4">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-700">Faltas</p>
               <p className="mt-3 text-3xl font-black text-amber-700">{faltasCount}</p>
@@ -1939,6 +1998,15 @@ export const AbsencesReportPage: React.FC = () => {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-700">Reincidentes</p>
               <p className="mt-3 text-3xl font-black text-violet-700">{recurrentStudents.size}</p>
             </div>
+            <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-fuchsia-700">Intermitentes</p>
+              <p className="mt-3 text-3xl font-black text-fuchsia-700">{intermittentCount}</p>
+            </div>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Acompanhamentos ativos</p>
+              <p className="mt-3 text-3xl font-black text-sky-700">{activeIntermittentCount}</p>
+              <p className="mt-1 text-[11px] text-sky-700/70">{closedIntermittentCount} baixados</p>
+            </div>
           </div>
 
           <div className="grid xl:grid-cols-2 gap-6">
@@ -1951,18 +2019,20 @@ export const AbsencesReportPage: React.FC = () => {
                       <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300">Turma</th>
                       <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Faltas</th>
                       <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Abonos</th>
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Intermitentes</th>
                       <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {reportByGrade.length === 0 ? (
-                      <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">Sem registros no período.</td></tr>
+                      <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">Sem registros no período.</td></tr>
                     ) : (
                       reportByGrade.map(item => (
                         <tr key={item.grade} className="border-b border-gray-100 dark:border-zinc-700">
                           <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{item.grade}</td>
                           <td className="px-3 py-2 text-center text-amber-600 font-bold">{item.faltas}</td>
                           <td className="px-3 py-2 text-center text-emerald-600 font-bold">{item.abonos}</td>
+                          <td className="px-3 py-2 text-center text-fuchsia-600 font-bold">{item.intermitentes}</td>
                           <td className="px-3 py-2 text-center font-bold text-gray-700 dark:text-gray-200">{item.total}</td>
                         </tr>
                       ))
@@ -1981,12 +2051,13 @@ export const AbsencesReportPage: React.FC = () => {
                       <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300">Aluno</th>
                       <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Faltas</th>
                       <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Abonos</th>
+                      <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Intermitentes</th>
                       <th className="px-3 py-2 font-bold text-gray-600 dark:text-gray-300 text-center">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {reportByStudent.length === 0 ? (
-                      <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">Sem registros no período.</td></tr>
+                      <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">Sem registros no período.</td></tr>
                     ) : (
                       reportByStudent.map(item => (
                         <tr key={item.student} className="border-b border-gray-100 dark:border-zinc-700">
@@ -1996,6 +2067,7 @@ export const AbsencesReportPage: React.FC = () => {
                           </td>
                           <td className="px-3 py-2 text-center text-amber-600 font-bold">{item.faltas}</td>
                           <td className="px-3 py-2 text-center text-emerald-600 font-bold">{item.abonos}</td>
+                          <td className="px-3 py-2 text-center text-fuchsia-600 font-bold">{item.intermitentes}</td>
                           <td className="px-3 py-2 text-center font-bold text-gray-700 dark:text-gray-200">{item.total}</td>
                         </tr>
                       ))
