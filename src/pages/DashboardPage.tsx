@@ -8,6 +8,7 @@ interface DashboardAbsence {
   student_id: string | null;
   date: string;
   type: 'FALTA_JUSTIFICADA' | 'ABONO';
+  is_intermittent: boolean;
   reason: string | null;
   sigeduc_synced: boolean;
   students: { full_name: string; grade: string | null }[] | null;
@@ -23,7 +24,7 @@ interface AlertItem {
 }
 
 export const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, totalAlunos: 0 });
+  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0 });
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [studentsAtRisk, setStudentsAtRisk] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -50,7 +51,7 @@ export const DashboardPage: React.FC = () => {
     const [{ data: absenceData, error: absenceError }, { count: totalAlunos }] = await Promise.all([
       supabase
         .from('student_absences')
-        .select('id, student_id, date, type, reason, sigeduc_synced, students(full_name, grade)')
+        .select('id, student_id, date, type, is_intermittent, reason, sigeduc_synced, students(full_name, grade)')
         .gte('date', ninetyDaysAgo),
       supabase.from('students').select('*', { count: 'exact', head: true }),
     ]);
@@ -131,6 +132,7 @@ export const DashboardPage: React.FC = () => {
       pendentesSigeduc: pendingSync.filter(absence => absence.date <= today).length,
       faltasHoje: validUntilToday.filter(absence => absence.date === today && absence.type === 'FALTA_JUSTIFICADA').length,
       abonosHoje: validUntilToday.filter(absence => absence.date === today && absence.type === 'ABONO').length,
+      intermitentes: recentAbsences.filter(absence => absence.is_intermittent).length,
       totalAlunos: totalAlunos || 0
     });
     setAlerts(generatedAlerts);
@@ -159,7 +161,7 @@ export const DashboardPage: React.FC = () => {
           <span className="material-symbols-outlined text-4xl text-primary animate-spin">progress_activity</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
           
           <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-rose-500 relative overflow-hidden">
             <div className="absolute inset-0 bg-rose-500/5 group-hover:bg-rose-500/10 transition-colors"></div>
@@ -202,6 +204,19 @@ export const DashboardPage: React.FC = () => {
             <div>
               <p className="text-5xl font-headline font-extrabold text-emerald-500">{stats.abonosHoje}</p>
               <p className="text-on-surface-variant text-sm font-medium mt-1">Abonos (Hoje)</p>
+            </div>
+          </Link>
+
+          <Link to="/absences" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-violet-500">
+            <div className="flex justify-between items-start">
+              <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-violet-500/10 transition-all duration-500">
+                <span className="material-symbols-outlined text-violet-500 text-2xl">autorenew</span>
+              </div>
+              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">30 dias</span>
+            </div>
+            <div>
+              <p className="text-5xl font-headline font-extrabold text-violet-500">{stats.intermitentes}</p>
+              <p className="text-on-surface-variant text-sm font-medium mt-1">Acompanhamentos intermitentes</p>
             </div>
           </Link>
 
