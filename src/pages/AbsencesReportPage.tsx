@@ -122,8 +122,9 @@ export const AbsencesReportPage: React.FC = () => {
   // ── Modals & Inline Edit State ──────────────────────────────────────────────
   const [selectedTimelineStudent, setSelectedTimelineStudent] = useState<{id: string, name: string} | null>(null);
   const [quickAddStudent, setQuickAddStudent] = useState<{id: string, name: string, grade?: string} | null>(null);
-  const [quickAddDraft, setQuickAddDraft] = useState<{date: string, type: 'FALTA_JUSTIFICADA' | 'ABONO', reason: string, authorizedBy: string}>({
-    date: format(new Date(), 'yyyy-MM-dd'),
+  const [quickAddDraft, setQuickAddDraft] = useState<{startDate: string, endDate: string, type: 'FALTA_JUSTIFICADA' | 'ABONO', reason: string, authorizedBy: string}>({
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: format(new Date(), 'yyyy-MM-dd'),
     type: 'FALTA_JUSTIFICADA',
     reason: '',
     authorizedBy: '',
@@ -395,6 +396,10 @@ export const AbsencesReportPage: React.FC = () => {
 
   const handleQuickAddSave = async () => {
     if (!quickAddStudent) return;
+    if (!quickAddDraft.startDate || !quickAddDraft.endDate || quickAddDraft.endDate < quickAddDraft.startDate) {
+      alert('Informe um intervalo válido: a data final deve ser igual ou posterior à inicial.');
+      return;
+    }
 
     const { data: userData } = await supabase.auth.getUser();
     const aiSuggestion = await getAiAbsenceRecommendation({
@@ -406,14 +411,22 @@ export const AbsencesReportPage: React.FC = () => {
     });
     const finalType = aiSuggestion.type;
     const finalReason = aiSuggestion.suggestion.trim();
+    const records = [];
+    let currentDate = parseISO(quickAddDraft.startDate);
+    const lastDate = parseISO(quickAddDraft.endDate);
 
-    const { error } = await supabase.from('student_absences').insert({
-      student_id: quickAddStudent.id,
-      type: finalType,
-      date: quickAddDraft.date,
-      reason: finalReason || null,
-      created_by: userData.user?.id
-    });
+    while (currentDate <= lastDate) {
+      records.push({
+        student_id: quickAddStudent.id,
+        type: finalType,
+        date: format(currentDate, 'yyyy-MM-dd'),
+        reason: finalReason || null,
+        created_by: userData.user?.id
+      });
+      currentDate = addDays(currentDate, 1);
+    }
+
+    const { error } = await supabase.from('student_absences').insert(records);
 
     if (error) {
       alert('Erro ao registrar: ' + error.message);
@@ -422,11 +435,13 @@ export const AbsencesReportPage: React.FC = () => {
 
     setQuickAddStudent(null);
     setQuickAddDraft({
-      date: format(new Date(), 'yyyy-MM-dd'),
+      startDate: format(new Date(), 'yyyy-MM-dd'),
+      endDate: format(new Date(), 'yyyy-MM-dd'),
       type: 'FALTA_JUSTIFICADA',
       reason: '',
       authorizedBy: '',
     });
+    setEndDate(currentEndDate => currentEndDate < quickAddDraft.endDate ? quickAddDraft.endDate : currentEndDate);
     fetchAbsences();
     alert('Registro salvo com sucesso.');
   };
@@ -1127,6 +1142,7 @@ export const AbsencesReportPage: React.FC = () => {
                 <div>
                   <h3 className="font-bold text-lg">Registrar rápido</h3>
                   <p className="text-sm text-emerald-50">{quickAddStudent.name}</p>
+                  <p className="text-xs font-semibold text-emerald-100">Turma: {quickAddStudent.grade || 'Sem turma'}</p>
                 </div>
               </div>
             </div>
@@ -1134,8 +1150,13 @@ export const AbsencesReportPage: React.FC = () => {
             <div className="p-5 space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <label className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                  Data
-                  <input type="date" value={quickAddDraft.date} onChange={e => setQuickAddDraft(prev => ({ ...prev, date: e.target.value }))} className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200" />
+                  Data inicial
+                  <input type="date" value={quickAddDraft.startDate} onChange={e => setQuickAddDraft(prev => ({ ...prev, startDate: e.target.value }))} className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200" />
+                </label>
+
+                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                  Data final
+                  <input type="date" value={quickAddDraft.endDate} onChange={e => setQuickAddDraft(prev => ({ ...prev, endDate: e.target.value }))} className="mt-1 w-full border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 dark:text-white rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-200" />
                 </label>
 
                 <label className="text-sm font-bold text-gray-700 dark:text-gray-200">
@@ -1193,7 +1214,7 @@ export const AbsencesReportPage: React.FC = () => {
                 Cancelar
               </button>
               <button onClick={handleQuickAddSave} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-sm">
-                Salvar registro
+                Salvar registros
               </button>
             </div>
           </div>
@@ -2171,6 +2192,7 @@ export const AbsencesReportPage: React.FC = () => {
                   <th className="border border-gray-400 px-2 py-2 font-bold text-center w-8">Nº</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold w-20">RM</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold w-[30%]">ALUNO</th>
+                  <th className="border border-gray-400 px-2 py-2 font-bold w-28">TURMA</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold w-40 text-center">STATUS</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold w-48">AUTORIZADO POR</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold">MOTIVO / OBSERVAÇÕES</th>
@@ -2178,7 +2200,7 @@ export const AbsencesReportPage: React.FC = () => {
               </thead>
               <tbody>
                 {planilhaStudents.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-zinc-700">Nenhum aluno encontrado para esta turma.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-zinc-700">Nenhum aluno encontrado para esta turma.</td></tr>
                 ) : (
                   planilhaStudents.map((student, index) => {
                     const draft = getDraft(student.id);
@@ -2199,6 +2221,7 @@ export const AbsencesReportPage: React.FC = () => {
                             <span className="truncate">{student.full_name}</span>
                           </div>
                         </td>
+                        <td className="border border-gray-300 dark:border-zinc-700 px-2 py-2 text-gray-600 dark:text-gray-300 text-xs font-semibold">{student.grade || 'Sem turma'}</td>
                         <td className="border border-gray-300 dark:border-zinc-700 p-0 relative bg-white dark:bg-zinc-800">
                           <select aria-label={`Status de ${student.full_name}`} value={draft?.type || ''} onChange={(e) => handleDraftTypeChange(student.id, e.target.value)} className={`w-full h-full min-h-[46px] px-2 py-2 border-none outline-none text-sm font-bold cursor-pointer transition-colors ${draft?.type === 'FALTA_JUSTIFICADA' ? 'bg-amber-100 text-amber-800' : draft?.type === 'ABONO' ? 'bg-teal-100 text-teal-800' : 'bg-transparent text-gray-600 dark:text-gray-300'} focus:ring-2 focus:ring-inset focus:ring-[#00A859]`}>
                             <option value="">-- Selecione --</option>
