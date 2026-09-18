@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { addDays, differenceInCalendarDays, format, parseISO, subDays, isAfter } from 'date-fns';
+import { addDays, addYears, differenceInCalendarDays, format, parseISO, subDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -99,8 +99,10 @@ export const AbsencesReportPage: React.FC = () => {
   const [filterType, setFilterType] = useState<'ALL' | 'FALTA_JUSTIFICADA' | 'ABONO'>('ALL');
   const [filterSigeduc, setFilterSigeduc] = useState<'ALL' | 'PENDING' | 'SYNCED'>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDENTE' | 'EM_ANALISE' | 'VALIDADA'>('ALL');
+  const [filterRecurrence, setFilterRecurrence] = useState<'ALL' | 'INTERMITENTES' | 'NORMAIS'>('ALL');
   const [filterGrade, setFilterGrade] = useState<'ALL' | string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [pendingSigeducTotal, setPendingSigeducTotal] = useState(0);
 
   // ── Planilha State ──────────────────────────────────────────────────────────
   const [planilhaStartDate, setPlanilhaStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -158,6 +160,7 @@ export const AbsencesReportPage: React.FC = () => {
   useEffect(() => {
     fetchAllStudents();
     fetchGuestStudents();
+    fetchPendingSigeducTotal();
   }, []);
 
   // ── Data Fetching ───────────────────────────────────────────────────────────
@@ -177,6 +180,14 @@ export const AbsencesReportPage: React.FC = () => {
       .select('id, full_name, grade, created_at')
       .order('full_name');
     if (!error && data) setGuestStudents(data as GuestStudent[]);
+  };
+
+  const fetchPendingSigeducTotal = async () => {
+    const { count, error } = await supabase
+      .from('student_absences')
+      .select('id', { count: 'exact', head: true })
+      .eq('sigeduc_synced', false);
+    if (!error) setPendingSigeducTotal(count || 0);
   };
 
   const fetchAbsences = async () => {
@@ -212,12 +223,22 @@ export const AbsencesReportPage: React.FC = () => {
   };
 
   const filteredAbsences = useMemo(() => {
+    const studentCounts = absences.reduce((counts, record) => {
+      const studentKey = record.student_id || record.guest_student_id || record.students?.full_name;
+      if (studentKey) counts[studentKey] = (counts[studentKey] || 0) + 1;
+      return counts;
+    }, {} as Record<string, number>);
+
     return absences.filter(a => {
       if (filterType !== 'ALL' && a.type !== filterType) return false;
       if (filterSigeduc === 'PENDING' && a.sigeduc_synced) return false;
       if (filterSigeduc === 'SYNCED' && !a.sigeduc_synced) return false;
       if (filterStatus !== 'ALL' && getAbsenceStatus(a) !== filterStatus) return false;
       if (filterGrade !== 'ALL' && a.students?.grade !== filterGrade) return false;
+      const studentKey = a.student_id || a.guest_student_id || a.students?.full_name;
+      const isIntermittent = !!studentKey && (studentCounts[studentKey] || 0) > 1;
+      if (filterRecurrence === 'INTERMITENTES' && !isIntermittent) return false;
+      if (filterRecurrence === 'NORMAIS' && isIntermittent) return false;
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -230,7 +251,16 @@ export const AbsencesReportPage: React.FC = () => {
       }
       return true;
     });
-  }, [absences, filterType, filterSigeduc, filterStatus, filterGrade, searchQuery]);
+  }, [absences, filterType, filterSigeduc, filterStatus, filterRecurrence, filterGrade, searchQuery]);
+
+  const intermittentStudentIds = useMemo(() => {
+    const counts = absences.reduce((result, record) => {
+      const studentKey = record.student_id || record.guest_student_id || record.students?.full_name;
+      if (studentKey) result[studentKey] = (result[studentKey] || 0) + 1;
+      return result;
+    }, {} as Record<string, number>);
+    return new Set(Object.entries(counts).filter(([, count]) => count > 1).map(([id]) => id));
+  }, [absences]);
 
   const pendentesCount = filteredAbsences.filter(a => !a.sigeduc_synced).length;
   const faltasCount = filteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length;
@@ -357,6 +387,7 @@ export const AbsencesReportPage: React.FC = () => {
       .update({ sigeduc_synced: !currentStatus })
       .eq('id', id);
     if (error) alert('Erro ao atualizar status: ' + error.message);
+    else fetchPendingSigeducTotal();
   };
 
   const handleBatchSyncSigeduc = async () => {
@@ -365,7 +396,10 @@ export const AbsencesReportPage: React.FC = () => {
     if (!window.confirm(`Deseja marcar ${pendentes.length} registros como baixados no Sigeduc?`)) return;
     const { error } = await supabase.from('student_absences').update({ sigeduc_synced: true }).in('id', pendentes);
     if (error) alert('Erro ao atualizar em lote: ' + error.message);
-    else alert('Registros sincronizados com sucesso!');
+    else {
+      await fetchPendingSigeducTotal();
+      alert('Registros sincronizados com sucesso!');
+    }
   };
 
   const handleDelete = async (id: string, studentName: string) => {
@@ -593,6 +627,7 @@ export const AbsencesReportPage: React.FC = () => {
       setDraftRecords({});
       setEndDate(currentEndDate => currentEndDate < planilhaEndDate ? planilhaEndDate : currentEndDate);
       fetchAbsences();
+      fetchPendingSigeducTotal();
     }
     setIsSavingPlanilha(false);
   };
@@ -1136,10 +1171,19 @@ export const AbsencesReportPage: React.FC = () => {
                   <span className="material-symbols-outlined text-sm">medical_services</span>
                   {abonosCount} abonos
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 px-3 py-1.5 text-xs font-bold">
-                  <span className="material-symbols-outlined text-sm">schedule</span>
-                  {pendentesCount} pendentes
-                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('historico');
+                    setFilterSigeduc('PENDING');
+                    setEndDate(format(addYears(new Date(), 1), 'yyyy-MM-dd'));
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 px-3 py-1.5 text-xs font-bold hover:bg-yellow-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
+                  aria-label={`Ver ${pendingSigeducTotal} registros pendentes no Sigeduc`}
+                >
+                  <span className="material-symbols-outlined text-sm" aria-hidden="true">notifications_active</span>
+                  {pendingSigeducTotal} pendentes Sigeduc
+                </button>
               </div>
             </div>
 
@@ -1451,6 +1495,12 @@ export const AbsencesReportPage: React.FC = () => {
                 <button onClick={() => setFilterStatus('PENDENTE')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterStatus === 'PENDENTE' ? 'bg-yellow-500 text-white border-yellow-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Pendentes</button>
                 <button onClick={() => setFilterStatus('EM_ANALISE')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterStatus === 'EM_ANALISE' ? 'bg-orange-500 text-white border-orange-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Em análise</button>
                 <button onClick={() => setFilterStatus('VALIDADA')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterStatus === 'VALIDADA' ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Validadas</button>
+
+                <div className="w-px h-8 bg-gray-300 dark:bg-zinc-600 mx-1 hidden md:block"></div>
+
+                <button onClick={() => setFilterRecurrence('ALL')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'ALL' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Todos os alunos</button>
+                <button onClick={() => setFilterRecurrence('INTERMITENTES')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'INTERMITENTES' ? 'bg-violet-600 text-white border-violet-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Intermitentes</button>
+                <button onClick={() => setFilterRecurrence('NORMAIS')} className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${filterRecurrence === 'NORMAIS' ? 'bg-sky-600 text-white border-sky-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-zinc-700 hover:bg-gray-50'}`}>Normais</button>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1483,7 +1533,7 @@ export const AbsencesReportPage: React.FC = () => {
                 <thead>
                   <tr className="border-b dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/50">
                     <th className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300">Data</th>
-                    <th className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300">Aluno</th>
+                    <th className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300">Aluno / acompanhamento</th>
                     <th className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300 text-center">Tipo</th>
                     <th className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300 text-center">Sigeduc</th>
                     <th className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300">Motivo / Auditoria</th>
@@ -1504,7 +1554,7 @@ export const AbsencesReportPage: React.FC = () => {
                           {format(parseISO(r.date), 'dd/MM/yyyy')}
                         </td>
                         <td className="px-4 py-3">
-                           <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3">
                              <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200 bg-gray-100 dark:border-zinc-700 dark:bg-zinc-700 flex items-center justify-center shrink-0">
                                {r.students?.photo_url ? (
                                  <img src={r.students.photo_url} alt={r.students.full_name || 'Aluno'} className="w-full h-full object-cover" />
@@ -1515,7 +1565,7 @@ export const AbsencesReportPage: React.FC = () => {
                                )}
                              </div>
                              <div>
-                               <button 
+                               <button
                                  onClick={() => setSelectedTimelineStudent({ id: r.student_id, name: r.students?.full_name || '' })} 
                                  className="font-bold text-gray-800 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 underline decoration-indigo-300 underline-offset-2 transition-colors text-left"
                                  title="Ver Linha do Tempo"
@@ -1523,6 +1573,12 @@ export const AbsencesReportPage: React.FC = () => {
                                  {r.students?.full_name}
                                </button>
                                <div className="text-xs text-gray-500 dark:text-gray-400">{r.students?.grade} - {r.students?.enrollment_id}</div>
+                               {intermittentStudentIds.has(r.student_id || r.guest_student_id || r.students?.full_name) && (
+                                 <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                                   <span className="material-symbols-outlined text-xs" aria-hidden="true">event_repeat</span>
+                                   Intermitente
+                                 </span>
+                               )}
                              </div>
                            </div>
                            {recurrentStudents.has(r.student_id) && (
@@ -1711,7 +1767,7 @@ export const AbsencesReportPage: React.FC = () => {
               <div className="text-center py-10 text-gray-400 dark:text-gray-500">
                 <span className="material-symbols-outlined text-5xl text-gray-200 dark:text-zinc-600 mb-3 block">event_available</span>
                 <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Nenhum registro nesta data</p>
-                <p className="text-xs mt-1">Use o botão acima para adicionar um registro.</p>
+                <p className="text-xs mt-1">Os lançamentos são feitos exclusivamente na aba Diário.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
