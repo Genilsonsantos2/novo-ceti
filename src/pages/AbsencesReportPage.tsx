@@ -615,7 +615,10 @@ export const AbsencesReportPage: React.FC = () => {
     ]);
     const error = registeredResult.error || guestResult.error;
     if (error) {
-      alert('Erro ao salvar lançamentos: ' + error.message);
+      const missingIntermittentColumn = error.code === 'PGRST204' || error.message?.includes("is_intermittent");
+      alert(missingIntermittentColumn
+        ? 'O banco ainda não foi atualizado para o status Intermitente. Execute o arquivo supabase_intermittent_absences_migration.sql no SQL Editor do Supabase e tente novamente.'
+        : 'Erro ao salvar lançamentos: ' + error.message);
     } else {
       const skippedCount = keys.length * dates.length - totalToInsert;
       alert(`${totalToInsert} lançamento(s) salvo(s) com sucesso${skippedCount ? `; ${skippedCount} já existente(s) foram ignorado(s)` : ''}.`);

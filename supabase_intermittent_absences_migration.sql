@@ -3,3 +3,5 @@
 
 ALTER TABLE student_absences
   ADD COLUMN IF NOT EXISTS is_intermittent BOOLEAN DEFAULT false NOT NULL;
+
+NOTIFY pgrst, 'reload schema';
