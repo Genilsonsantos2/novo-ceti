@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { format, parseISO, subDays, isAfter } from 'date-fns';
+import { addDays, format, parseISO, subDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -103,7 +103,8 @@ export const AbsencesReportPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // ── Planilha State ──────────────────────────────────────────────────────────
-  const [planilhaDate, setPlanilhaDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [planilhaStartDate, setPlanilhaStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [planilhaEndDate, setPlanilhaEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [planilhaGrade, setPlanilhaGrade] = useState('');
   const [planilhaSearch, setPlanilhaSearch] = useState('');
   const [draftRecords, setDraftRecords] = useState<Record<string, DraftRecord>>({});
@@ -500,39 +501,53 @@ export const AbsencesReportPage: React.FC = () => {
   const handleBatchSavePlanilha = async () => {
     const keys = Object.keys(draftRecords);
     if (keys.length === 0) return alert('Nenhuma falta ou abono marcado para salvar.');
+    if (!planilhaStartDate || !planilhaEndDate || planilhaEndDate < planilhaStartDate) {
+      return alert('Informe um intervalo válido: a data final deve ser igual ou posterior à inicial.');
+    }
 
     setIsSavingPlanilha(true);
     const { data: userData } = await supabase.auth.getUser();
+    const dates = [];
+    let currentDate = parseISO(planilhaStartDate);
+    const lastDate = parseISO(planilhaEndDate);
+    while (currentDate <= lastDate) {
+      dates.push(format(currentDate, 'yyyy-MM-dd'));
+      currentDate = addDays(currentDate, 1);
+    }
 
-    const recordsToInsert = keys.filter(studentId => !guestStudents.some(student => student.id === studentId)).map(studentId => {
-      const data = draftRecords[studentId];
-      let finalReason = data.reason;
-      if (data.authorizedBy && data.authorizedBy.trim()) {
-        finalReason = `[Autorizado por: ${data.authorizedBy.trim()}] ${data.reason}`.trim();
-      }
-      return {
-        student_id: studentId,
-        type: data.type,
-        date: planilhaDate,
-        reason: finalReason || null,
-        created_by: userData.user?.id
-      };
-    });
+    const recordsToInsert = keys
+      .filter(studentId => !guestStudents.some(student => student.id === studentId))
+      .flatMap(studentId => dates.map(date => {
+        const data = draftRecords[studentId];
+        let finalReason = data.reason;
+        if (data.authorizedBy && data.authorizedBy.trim()) {
+          finalReason = `[Autorizado por: ${data.authorizedBy.trim()}] ${data.reason}`.trim();
+        }
+        return {
+          student_id: studentId,
+          type: data.type,
+          date,
+          reason: finalReason || null,
+          created_by: userData.user?.id
+        };
+      }));
 
-    const guestRecordsToInsert = keys.filter(studentId => guestStudents.some(student => student.id === studentId)).map(guestStudentId => {
-      const data = draftRecords[guestStudentId];
-      let finalReason = data.reason;
-      if (data.authorizedBy && data.authorizedBy.trim()) {
-        finalReason = `[Autorizado por: ${data.authorizedBy.trim()}] ${data.reason}`.trim();
-      }
-      return {
-        guest_student_id: guestStudentId,
-        type: data.type,
-        date: planilhaDate,
-        reason: finalReason || null,
-        created_by: userData.user?.id
-      };
-    });
+    const guestRecordsToInsert = keys
+      .filter(studentId => guestStudents.some(student => student.id === studentId))
+      .flatMap(guestStudentId => dates.map(date => {
+        const data = draftRecords[guestStudentId];
+        let finalReason = data.reason;
+        if (data.authorizedBy && data.authorizedBy.trim()) {
+          finalReason = `[Autorizado por: ${data.authorizedBy.trim()}] ${data.reason}`.trim();
+        }
+        return {
+          guest_student_id: guestStudentId,
+          type: data.type,
+          date,
+          reason: finalReason || null,
+          created_by: userData.user?.id
+        };
+      }));
 
     const [registeredResult, guestResult] = await Promise.all([
       recordsToInsert.length ? supabase.from('student_absences').insert(recordsToInsert) : Promise.resolve({ error: null }),
@@ -542,8 +557,9 @@ export const AbsencesReportPage: React.FC = () => {
     if (error) {
       alert('Erro ao salvar lançamentos: ' + error.message);
     } else {
-      alert(`${keys.length} lançamentos salvos com sucesso!`);
+      alert(`${keys.length * dates.length} lançamentos salvos com sucesso!`);
       setDraftRecords({});
+      setEndDate(currentEndDate => currentEndDate < planilhaEndDate ? planilhaEndDate : currentEndDate);
       fetchAbsences();
     }
     setIsSavingPlanilha(false);
@@ -1868,8 +1884,12 @@ export const AbsencesReportPage: React.FC = () => {
                
               <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                 <label className="flex min-h-[48px] items-center rounded-xl border border-white/20 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm">
-                    Data:
-                    <input aria-label="Data do diário" type="date" value={planilhaDate} onChange={e => setPlanilhaDate(e.target.value)} className="ml-2 min-h-[36px] border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400"/>
+                    Data inicial:
+                    <input aria-label="Data inicial do diário" type="date" value={planilhaStartDate} onChange={e => setPlanilhaStartDate(e.target.value)} className="ml-2 min-h-[36px] border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400"/>
+                  </label>
+                  <label className="flex min-h-[48px] items-center rounded-xl border border-white/20 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm">
+                    Data final:
+                    <input aria-label="Data final do diário" type="date" value={planilhaEndDate} onChange={e => setPlanilhaEndDate(e.target.value)} className="ml-2 min-h-[36px] border border-gray-200 rounded-md bg-white px-2 py-1 text-gray-700 text-xs font-medium outline-none focus:border-emerald-400"/>
                   </label>
                   <label className="flex min-h-[48px] items-center rounded-xl border border-white/20 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm">
                     Turma:
