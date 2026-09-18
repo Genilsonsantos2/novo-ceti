@@ -15,6 +15,7 @@ interface AbsenceRecord {
   student_id: string | null;
   guest_student_id?: string | null;
   type: 'FALTA_JUSTIFICADA' | 'ABONO';
+  is_intermittent?: boolean;
   date: string;
   reason: string | null;
   sigeduc_synced: boolean;
@@ -45,6 +46,7 @@ interface GuestStudent {
 
 interface DraftRecord {
   type: 'FALTA_JUSTIFICADA' | 'ABONO';
+  isIntermittent: boolean;
   reason: string;
   authorizedBy: string;
 }
@@ -223,22 +225,14 @@ export const AbsencesReportPage: React.FC = () => {
   };
 
   const filteredAbsences = useMemo(() => {
-    const studentCounts = absences.reduce((counts, record) => {
-      const studentKey = record.student_id || record.guest_student_id || record.students?.full_name;
-      if (studentKey) counts[studentKey] = (counts[studentKey] || 0) + 1;
-      return counts;
-    }, {} as Record<string, number>);
-
     return absences.filter(a => {
       if (filterType !== 'ALL' && a.type !== filterType) return false;
       if (filterSigeduc === 'PENDING' && a.sigeduc_synced) return false;
       if (filterSigeduc === 'SYNCED' && !a.sigeduc_synced) return false;
       if (filterStatus !== 'ALL' && getAbsenceStatus(a) !== filterStatus) return false;
       if (filterGrade !== 'ALL' && a.students?.grade !== filterGrade) return false;
-      const studentKey = a.student_id || a.guest_student_id || a.students?.full_name;
-      const isIntermittent = !!studentKey && (studentCounts[studentKey] || 0) > 1;
-      if (filterRecurrence === 'INTERMITENTES' && !isIntermittent) return false;
-      if (filterRecurrence === 'NORMAIS' && isIntermittent) return false;
+      if (filterRecurrence === 'INTERMITENTES' && !a.is_intermittent) return false;
+      if (filterRecurrence === 'NORMAIS' && a.is_intermittent) return false;
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -252,15 +246,6 @@ export const AbsencesReportPage: React.FC = () => {
       return true;
     });
   }, [absences, filterType, filterSigeduc, filterStatus, filterRecurrence, filterGrade, searchQuery]);
-
-  const intermittentStudentIds = useMemo(() => {
-    const counts = absences.reduce((result, record) => {
-      const studentKey = record.student_id || record.guest_student_id || record.students?.full_name;
-      if (studentKey) result[studentKey] = (result[studentKey] || 0) + 1;
-      return result;
-    }, {} as Record<string, number>);
-    return new Set(Object.entries(counts).filter(([, count]) => count > 1).map(([id]) => id));
-  }, [absences]);
 
   const pendentesCount = filteredAbsences.filter(a => !a.sigeduc_synced).length;
   const faltasCount = filteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length;
@@ -520,7 +505,15 @@ export const AbsencesReportPage: React.FC = () => {
     const type = typeStr as 'FALTA_JUSTIFICADA' | 'ABONO';
     setDraftRecords(prev => ({
       ...prev,
-      [studentId]: { type, reason: prev[studentId]?.reason || '', authorizedBy: prev[studentId]?.authorizedBy || '' }
+      [studentId]: { type, isIntermittent: prev[studentId]?.isIntermittent || false, reason: prev[studentId]?.reason || '', authorizedBy: prev[studentId]?.authorizedBy || '' }
+    }));
+  };
+
+  const handleDraftIntermittentChange = (studentId: string, value: string) => {
+    if (!draftRecords[studentId]) return;
+    setDraftRecords(prev => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], isIntermittent: value === 'INTERMITENTE' }
     }));
   };
 
@@ -583,6 +576,7 @@ export const AbsencesReportPage: React.FC = () => {
         return {
           student_id: studentId,
           type: data.type,
+          is_intermittent: data.isIntermittent,
           date,
           reason: finalReason || null,
           created_by: userData.user?.id
@@ -601,6 +595,7 @@ export const AbsencesReportPage: React.FC = () => {
         return {
           guest_student_id: guestStudentId,
           type: data.type,
+          is_intermittent: data.isIntermittent,
           date,
           reason: finalReason || null,
           created_by: userData.user?.id
@@ -1573,7 +1568,7 @@ export const AbsencesReportPage: React.FC = () => {
                                  {r.students?.full_name}
                                </button>
                                <div className="text-xs text-gray-500 dark:text-gray-400">{r.students?.grade} - {r.students?.enrollment_id}</div>
-                               {intermittentStudentIds.has(r.student_id || r.guest_student_id || r.students?.full_name) && (
+                               {r.is_intermittent && (
                                  <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
                                    <span className="material-symbols-outlined text-xs" aria-hidden="true">event_repeat</span>
                                    Intermitente
@@ -2060,13 +2055,14 @@ export const AbsencesReportPage: React.FC = () => {
                   <th className="border border-gray-400 px-2 py-2 font-bold w-[30%]">ALUNO</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold w-28">TURMA</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold w-40 text-center">STATUS</th>
+                  <th className="border border-gray-400 px-2 py-2 font-bold w-36 text-center">ACOMPANHAMENTO</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold w-48">AUTORIZADO POR</th>
                   <th className="border border-gray-400 px-2 py-2 font-bold">MOTIVO / OBSERVAÇÕES</th>
                 </tr>
               </thead>
               <tbody>
                 {planilhaStudents.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-zinc-700">Nenhum aluno encontrado para esta turma.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-8 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-zinc-700">Nenhum aluno encontrado para esta turma.</td></tr>
                 ) : (
                   planilhaStudents.map((student, index) => {
                     const draft = getDraft(student.id);
@@ -2093,6 +2089,13 @@ export const AbsencesReportPage: React.FC = () => {
                             <option value="">-- Selecione --</option>
                             <option value="FALTA_JUSTIFICADA">Falta Justificada</option>
                             <option value="ABONO">Abono</option>
+                          </select>
+                        </td>
+                        <td className={`border border-gray-300 dark:border-zinc-700 p-0 transition-colors ${!hasStatus ? 'bg-gray-100 dark:bg-zinc-900' : 'bg-white dark:bg-zinc-800'}`}>
+                          <select aria-label={`Acompanhamento de ${student.full_name}`} value={draft ? (draft.isIntermittent ? 'INTERMITENTE' : 'NORMAL') : ''} onChange={e => handleDraftIntermittentChange(student.id, e.target.value)} disabled={!hasStatus} className={`w-full h-full min-h-[46px] px-2 py-2 border-none outline-none text-xs font-bold cursor-pointer transition-colors ${draft?.isIntermittent ? 'bg-violet-100 text-violet-800' : 'bg-transparent text-gray-600 dark:text-gray-300'} focus:ring-2 focus:ring-inset focus:ring-[#00A859]`}>
+                            <option value="">-- Selecione --</option>
+                            <option value="NORMAL">Normal</option>
+                            <option value="INTERMITENTE">Intermitente</option>
                           </select>
                         </td>
                         <td className={`border border-gray-300 dark:border-zinc-700 p-0 transition-colors ${!hasStatus ? 'bg-gray-100 dark:bg-zinc-900' : 'bg-white dark:bg-zinc-800'}`}>
