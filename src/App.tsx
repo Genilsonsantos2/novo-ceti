@@ -17,6 +17,7 @@ import { PrintTermsPage } from './pages/PrintTermsPage';
 // import { DailyAccessReportPage } from './pages/DailyAccessReportPage';
 import { DevolutivaPage } from './pages/DevolutivaPage';
 import { AbsencesReportPage } from './pages/AbsencesReportPage';
+import { OccurrencesPage } from './pages/OccurrencesPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
   const { user, profile, loading } = useAuth();
@@ -56,7 +57,7 @@ function AppRoutes() {
         <Route path="/" element={
           <ProtectedRoute>
             {profile?.role === 'ADM' || profile?.role === 'DIRETOR' ? <DashboardPage /> : 
-             <StudentCardPage />}
+             <OccurrencesPage />}
           </ProtectedRoute>
         } />
 
@@ -141,6 +142,12 @@ function AppRoutes() {
         <Route path="/absences" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
             <AbsencesReportPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/occurrences" element={
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR', 'PORTEIRO']}>
+            <OccurrencesPage />
           </ProtectedRoute>
         } />
       </Route>

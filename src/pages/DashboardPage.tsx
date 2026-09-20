@@ -312,6 +312,16 @@ export const DashboardPage: React.FC = () => {
               <p className="text-xs text-gray-500 mt-0.5">Anexar termos de alunos</p>
             </div>
           </Link>
+
+          <Link to="/occurrences" className="p-4 rounded-xl bg-white/40 border border-white/60 hover:bg-white/80 transition-all flex items-center gap-4 group">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
+              <span className="material-symbols-outlined">report</span>
+            </div>
+            <div>
+              <p className="font-bold text-gray-800 text-sm">Ocorrências</p>
+              <p className="text-xs text-gray-500 mt-0.5">Consultar registros da portaria</p>
+            </div>
+          </Link>
         </div>
       </div>
     </div>
