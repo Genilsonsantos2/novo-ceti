@@ -1,5 +1,6 @@
+-- Execute este arquivo no SQL Editor do projeto Supabase.
 -- Ocorrencias registradas na portaria, com ou sem carteira estudantil.
-CREATE TABLE gate_occurrences (
+CREATE TABLE IF NOT EXISTS gate_occurrences (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   student_id UUID REFERENCES students(id) ON DELETE SET NULL,
   student_name TEXT NOT NULL,
@@ -15,8 +16,20 @@ CREATE TABLE gate_occurrences (
 
 ALTER TABLE gate_occurrences ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can manage gate occurrences" ON gate_occurrences;
 CREATE POLICY "Authenticated users can manage gate occurrences"
   ON gate_occurrences FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
 
-ALTER PUBLICATION supabase_realtime ADD TABLE gate_occurrences;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'gate_occurrences'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE gate_occurrences;
+  END IF;
+END $$;

@@ -117,7 +117,10 @@ export const OccurrencesPage: React.FC = () => {
 
     if (error) {
       console.error(error);
-      setMessage(`Não foi possível salvar: ${error.message}`);
+      const tableMissing = error.message.includes("Could not find the table 'public.gate_occurrences'") || error.code === '42P01';
+      setMessage(tableMissing
+        ? 'A tabela ainda não foi criada no Supabase. Execute supabase_occurrences_migration.sql no SQL Editor e recarregue a página.'
+        : `Não foi possível salvar: ${error.message}`);
     } else {
       setMessage('Ocorrência registrada.');
       clearStudent();
