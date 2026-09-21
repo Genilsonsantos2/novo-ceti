@@ -14,6 +14,13 @@ interface DashboardAbsence {
   students: { full_name: string; grade: string | null }[] | null;
 }
 
+interface DashboardOccurrence {
+  id: string;
+  occurred_at: string;
+  has_card: boolean;
+  reason: string;
+}
+
 interface AlertItem {
   id: string;
   severity: 'Alta' | 'Média' | 'Baixa';
@@ -24,7 +31,7 @@ interface AlertItem {
 }
 
 export const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0 });
+  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0, ocorrenciasHoje: 0, semCarteira30Dias: 0 });
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [studentsAtRisk, setStudentsAtRisk] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -39,8 +46,16 @@ export const DashboardPage: React.FC = () => {
       })
       .subscribe();
 
+    const occurrencesSubscription = supabase
+      .channel('public:gate_occurrences_dash')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gate_occurrences' }, () => {
+        fetchStats();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(absencesSubscription);
+      supabase.removeChannel(occurrencesSubscription);
     };
   }, []);
 
@@ -48,24 +63,34 @@ export const DashboardPage: React.FC = () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const ninetyDaysAgo = format(subDays(new Date(), 90), 'yyyy-MM-dd');
 
-    const [{ data: absenceData, error: absenceError }, { count: totalAlunos }] = await Promise.all([
+    const [{ data: absenceData, error: absenceError }, { count: totalAlunos }, { data: occurrenceData, error: occurrenceError }] = await Promise.all([
       supabase
         .from('student_absences')
         .select('id, student_id, date, type, is_intermittent, reason, sigeduc_synced, students(full_name, grade)')
         .gte('date', ninetyDaysAgo),
       supabase.from('students').select('*', { count: 'exact', head: true }),
+      supabase
+        .from('gate_occurrences')
+        .select('id, occurred_at, has_card, reason')
+        .gte('occurred_at', `${ninetyDaysAgo}T00:00:00`),
     ]);
 
     if (absenceError) {
       console.error('Erro ao montar alertas do dashboard:', absenceError);
     }
+    if (occurrenceError && !occurrenceError.message.includes("Could not find the table 'public.gate_occurrences'")) {
+      console.error('Erro ao buscar ocorrências do dashboard:', occurrenceError);
+    }
 
     const absences = (absenceData || []) as DashboardAbsence[];
+    const occurrences = (occurrenceData || []) as DashboardOccurrence[];
     const validUntilToday = absences.filter(absence => absence.date <= today);
     const recentAbsences = validUntilToday.filter(absence => absence.date >= format(subDays(new Date(), 30), 'yyyy-MM-dd'));
     const lastSevenDays = validUntilToday.filter(absence => absence.date >= format(subDays(new Date(), 7), 'yyyy-MM-dd'));
     const pendingSync = validUntilToday.filter(absence => !absence.sigeduc_synced);
     const missingReason = validUntilToday.filter(absence => !absence.reason?.trim());
+    const todayOccurrences = occurrences.filter(occurrence => occurrence.occurred_at.slice(0, 10) === today);
+    const recentOccurrencesWithoutCard = occurrences.filter(occurrence => !occurrence.has_card);
 
     const countsByStudent = recentAbsences.reduce<Record<string, { count: number; lastSeven: number; name: string; grade: string }>>((acc, absence) => {
       if (!absence.student_id) return acc;
@@ -127,13 +152,25 @@ export const DashboardPage: React.FC = () => {
         href: '/absences?aba=relatorios&filtro=tendencia',
       });
     }
+    if (todayOccurrences.length > 0) {
+      generatedAlerts.push({
+        id: 'gate-occurrences',
+        severity: todayOccurrences.some(occurrence => !occurrence.has_card) ? 'Alta' : 'Média',
+        title: `${todayOccurrences.length} ocorrência(s) na portaria hoje`,
+        description: `${todayOccurrences.filter(occurrence => !occurrence.has_card).length} registro(s) envolveram aluno sem carteira apresentada.`,
+        actionLabel: 'Ver ocorrências',
+        href: '/occurrences',
+      });
+    }
 
     setStats({
       pendentesSigeduc: pendingSync.filter(absence => absence.date <= today).length,
       faltasHoje: validUntilToday.filter(absence => absence.date === today && absence.type === 'FALTA_JUSTIFICADA').length,
       abonosHoje: validUntilToday.filter(absence => absence.date === today && absence.type === 'ABONO').length,
       intermitentes: recentAbsences.filter(absence => absence.is_intermittent).length,
-      totalAlunos: totalAlunos || 0
+      totalAlunos: totalAlunos || 0,
+      ocorrenciasHoje: todayOccurrences.length,
+      semCarteira30Dias: recentOccurrencesWithoutCard.length
     });
     setAlerts(generatedAlerts);
     setStudentsAtRisk(riskStudents.length);
@@ -221,6 +258,27 @@ export const DashboardPage: React.FC = () => {
           </Link>
 
         </div>
+      )}
+
+      {!loading && (
+        <section className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <Link to="/occurrences" className="glass-card rounded-[2rem] p-6 flex items-center justify-between group border-l-4 border-l-amber-500 hover:scale-[1.01] transition-all">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-700">Portaria hoje</p>
+              <p className="mt-2 text-4xl font-headline font-extrabold text-amber-600">{stats.ocorrenciasHoje}</p>
+              <p className="mt-1 text-sm font-medium text-on-surface-variant">Ocorrências registradas</p>
+            </div>
+            <span className="material-symbols-outlined text-4xl text-amber-500/50 group-hover:text-amber-500 transition-colors">report</span>
+          </Link>
+          <Link to="/occurrences" className="glass-card rounded-[2rem] p-6 flex items-center justify-between group border-l-4 border-l-rose-500 hover:scale-[1.01] transition-all">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-rose-700">Atenção da portaria</p>
+              <p className="mt-2 text-4xl font-headline font-extrabold text-rose-600">{stats.semCarteira30Dias}</p>
+              <p className="mt-1 text-sm font-medium text-on-surface-variant">Sem carteira nos últimos 30 dias</p>
+            </div>
+            <span className="material-symbols-outlined text-4xl text-rose-500/50 group-hover:text-rose-500 transition-colors">badge</span>
+          </Link>
+        </section>
       )}
 
       {!loading && (
