@@ -53,6 +53,7 @@ export const OccurrencesPage: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     fetchStudents();
@@ -97,14 +98,39 @@ export const OccurrencesPage: React.FC = () => {
 
   const fetchOccurrences = async () => {
     setLoading(true);
+    setLoadError('');
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T23:59:59.999`);
     const { data, error } = await supabase
       .from('gate_occurrences')
-      .select('*, students(photo_url)')
-      .gte('occurred_at', `${startDate}T00:00:00`)
-      .lte('occurred_at', `${endDate}T23:59:59`)
+      .select('*')
+      .gte('occurred_at', start.toISOString())
+      .lte('occurred_at', end.toISOString())
       .order('occurred_at', { ascending: false });
-    if (!error) setOccurrences(data || []);
-    else console.error('Erro ao buscar ocorrências:', error);
+
+    if (error) {
+      console.error('Erro ao buscar ocorrências:', error);
+      setLoadError(`Não foi possível carregar as ocorrências: ${error.message}`);
+      setOccurrences([]);
+      setLoading(false);
+      return;
+    }
+
+    const occurrenceData = (data || []) as Occurrence[];
+    const studentIds = occurrenceData.map(item => item.student_id).filter((id): id is string => Boolean(id));
+    if (studentIds.length > 0) {
+      const { data: photoData, error: photoError } = await supabase
+        .from('students')
+        .select('id, photo_url')
+        .in('id', studentIds);
+      if (!photoError) {
+        const photos = new Map((photoData || []).map(student => [student.id, student.photo_url]));
+        occurrenceData.forEach(item => {
+          item.students = item.student_id ? { photo_url: photos.get(item.student_id) || null } : null;
+        });
+      }
+    }
+    setOccurrences(occurrenceData);
     setLoading(false);
   };
 
@@ -197,7 +223,7 @@ export const OccurrencesPage: React.FC = () => {
       setHasCard(false);
       setReason(reasons[0]);
       setDetails('');
-      fetchOccurrences();
+      await fetchOccurrences();
     }
     setSaving(false);
   };
@@ -270,6 +296,7 @@ export const OccurrencesPage: React.FC = () => {
         </form>
 
         <section className="glass-card rounded-[2rem] p-6 border border-white/30 h-fit print:rounded-none print:p-0 print:border-0 print:shadow-none">
+          {loadError && <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 print:hidden">{loadError}</div>}
           <div className="hidden print:flex items-center gap-5 border-b-2 border-gray-900 pb-5 mb-6">
             <img src="/ceti-logo.png" alt="Brasão do CETI" className="h-20 w-20 object-contain" />
             <div className="flex-1 text-center">
