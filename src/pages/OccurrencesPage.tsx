@@ -25,7 +25,7 @@ interface Occurrence {
 const reasons = ['Tentativa de saída sem autorização', 'Carteira não apresentada', 'Carteira irregular ou danificada', 'Outro'];
 
 export const OccurrencesPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [occurrences, setOccurrences] = useState<Occurrence[]>([]);
   const [search, setSearch] = useState('');
@@ -40,7 +40,9 @@ export const OccurrencesPage: React.FC = () => {
   const [filterCard, setFilterCard] = useState<'ALL' | 'WITH' | 'WITHOUT'>('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
     fetchStudents();
@@ -98,12 +100,14 @@ export const OccurrencesPage: React.FC = () => {
     event.preventDefault();
     const studentName = selectedStudent?.full_name || manualName.trim();
     if (!studentName) {
+      setMessageType('error');
       setMessage('Informe o aluno ou selecione um cadastro.');
       return;
     }
 
     setSaving(true);
     setMessage('');
+    setMessageType('success');
     const { error } = await supabase.from('gate_occurrences').insert({
       student_id: selectedStudent?.id || null,
       student_name: studentName,
@@ -118,6 +122,7 @@ export const OccurrencesPage: React.FC = () => {
     if (error) {
       console.error(error);
       const tableMissing = error.message.includes("Could not find the table 'public.gate_occurrences'") || error.code === '42P01';
+      setMessageType('error');
       setMessage(tableMissing
         ? 'A tabela ainda não foi criada no Supabase. Execute supabase_occurrences_migration.sql no SQL Editor e recarregue a página.'
         : `Não foi possível salvar: ${error.message}`);
@@ -133,6 +138,29 @@ export const OccurrencesPage: React.FC = () => {
     }
     setSaving(false);
   };
+
+  const deleteOccurrence = async (occurrence: Occurrence) => {
+    if (!window.confirm(`Deseja apagar a ocorrência de ${occurrence.student_name}? Esta ação não pode ser desfeita.`)) return;
+
+    setDeletingId(occurrence.id);
+    const { error } = await supabase
+      .from('gate_occurrences')
+      .delete()
+      .eq('id', occurrence.id);
+
+    if (error) {
+      console.error(error);
+      setMessageType('error');
+      setMessage(`Não foi possível apagar: ${error.message}`);
+    } else {
+      setOccurrences(current => current.filter(item => item.id !== occurrence.id));
+      setMessageType('success');
+      setMessage('Ocorrência apagada.');
+    }
+    setDeletingId(null);
+  };
+
+  const canDelete = profile?.role === 'ADM' || profile?.role === 'DIRETOR';
 
   const withCardCount = visibleOccurrences.filter(item => item.has_card).length;
   const withoutCardCount = visibleOccurrences.length - withCardCount;
@@ -170,13 +198,13 @@ export const OccurrencesPage: React.FC = () => {
           <div className="mt-5"><label className="block text-[10px] font-black uppercase tracking-widest text-outline mb-2">Motivo</label><select value={reason} onChange={event => setReason(event.target.value)} className="w-full px-4 py-3 bg-white/70 border border-outline/20 rounded-xl font-bold outline-none focus:border-primary">{reasons.map(item => <option key={item}>{item}</option>)}</select></div>
           <div className="mt-5"><label className="block text-[10px] font-black uppercase tracking-widest text-outline mb-2">Observação</label><textarea value={details} onChange={event => setDetails(event.target.value)} rows={3} placeholder="Detalhes relevantes para a direção..." className="w-full px-4 py-3 bg-white/70 border border-outline/20 rounded-xl font-medium outline-none focus:border-primary resize-none" /></div>
           <button disabled={saving} className="w-full mt-5 py-3.5 bg-primary text-white rounded-xl font-black uppercase tracking-wide disabled:opacity-50">{saving ? 'Salvando...' : 'Registrar ocorrência'}</button>
-          {message && <p className={`mt-3 text-sm font-bold ${message.startsWith('Não') ? 'text-error' : 'text-emerald-600'}`}>{message}</p>}
+          {message && <p className={`mt-3 text-sm font-bold ${messageType === 'error' ? 'text-error' : 'text-emerald-600'}`}>{message}</p>}
         </form>
 
         <section className="glass-card rounded-[2rem] p-6 border border-white/30 h-fit">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-5"><div><h2 className="font-headline font-extrabold text-xl text-on-surface">Relatório para a direção</h2><p className="text-xs text-outline font-medium">Filtre o período e a situação da carteira.</p></div><div className="flex flex-wrap gap-2"><input type="date" value={startDate} onChange={event => setStartDate(event.target.value)} className="px-3 py-2 bg-white/70 border border-outline/20 rounded-lg text-sm font-bold" /><input type="date" value={endDate} onChange={event => setEndDate(event.target.value)} className="px-3 py-2 bg-white/70 border border-outline/20 rounded-lg text-sm font-bold" /><select value={filterCard} onChange={event => setFilterCard(event.target.value as typeof filterCard)} className="px-3 py-2 bg-white/70 border border-outline/20 rounded-lg text-sm font-bold"><option value="ALL">Todas</option><option value="WITH">Com carteira</option><option value="WITHOUT">Sem carteira</option></select></div></div>
           <div className="grid grid-cols-3 gap-3 mb-5"><div className="bg-primary/5 rounded-xl p-3"><p className="text-2xl font-black text-primary">{visibleOccurrences.length}</p><p className="text-[10px] font-black uppercase tracking-widest text-outline">Total</p></div><div className="bg-emerald-500/10 rounded-xl p-3"><p className="text-2xl font-black text-emerald-600">{withCardCount}</p><p className="text-[10px] font-black uppercase tracking-widest text-outline">Com carteira</p></div><div className="bg-rose-500/10 rounded-xl p-3"><p className="text-2xl font-black text-rose-600">{withoutCardCount}</p><p className="text-[10px] font-black uppercase tracking-widest text-outline">Sem carteira</p></div></div>
-          <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b border-outline/10"><th className="py-3 pr-3 text-[10px] font-black uppercase tracking-widest text-outline">Data/hora</th><th className="py-3 pr-3 text-[10px] font-black uppercase tracking-widest text-outline">Aluno</th><th className="py-3 pr-3 text-[10px] font-black uppercase tracking-widest text-outline">Carteira</th><th className="py-3 text-[10px] font-black uppercase tracking-widest text-outline">Motivo</th></tr></thead><tbody>{loading ? <tr><td colSpan={4} className="py-12 text-center text-outline font-bold">Carregando...</td></tr> : visibleOccurrences.length === 0 ? <tr><td colSpan={4} className="py-12 text-center text-outline font-bold">Nenhuma ocorrência no período.</td></tr> : visibleOccurrences.map(item => <tr key={item.id} className="border-b border-outline/10"><td className="py-3 pr-3 text-xs font-mono font-bold text-outline whitespace-nowrap">{format(parseISO(item.occurred_at), 'dd/MM/yyyy HH:mm')}</td><td className="py-3 pr-3"><p className="font-black text-sm text-on-surface uppercase">{item.student_name}</p><p className="text-[10px] text-outline">{item.enrollment_id ? `RM ${item.enrollment_id}` : 'Não cadastrado'} {item.grade ? `• ${item.grade}` : ''}</p></td><td className="py-3 pr-3"><span className={`inline-flex px-2 py-1 rounded-lg text-[10px] font-black uppercase ${item.has_card ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.has_card ? 'Sim' : 'Não'}</span></td><td className="py-3 text-xs font-bold text-on-surface-variant">{item.reason}{item.details && <span className="block text-[10px] text-outline font-medium mt-1">{item.details}</span>}</td></tr>)}</tbody></table></div>
+          <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b border-outline/10"><th className="py-3 pr-3 text-[10px] font-black uppercase tracking-widest text-outline">Data/hora</th><th className="py-3 pr-3 text-[10px] font-black uppercase tracking-widest text-outline">Aluno</th><th className="py-3 pr-3 text-[10px] font-black uppercase tracking-widest text-outline">Carteira</th><th className="py-3 pr-3 text-[10px] font-black uppercase tracking-widest text-outline">Motivo</th>{canDelete && <th className="py-3 text-[10px] font-black uppercase tracking-widest text-outline text-right">Ação</th>}</tr></thead><tbody>{loading ? <tr><td colSpan={canDelete ? 5 : 4} className="py-12 text-center text-outline font-bold">Carregando...</td></tr> : visibleOccurrences.length === 0 ? <tr><td colSpan={canDelete ? 5 : 4} className="py-12 text-center text-outline font-bold">Nenhuma ocorrência no período.</td></tr> : visibleOccurrences.map(item => <tr key={item.id} className="border-b border-outline/10"><td className="py-3 pr-3 text-xs font-mono font-bold text-outline whitespace-nowrap">{format(parseISO(item.occurred_at), 'dd/MM/yyyy HH:mm')}</td><td className="py-3 pr-3"><p className="font-black text-sm text-on-surface uppercase">{item.student_name}</p><p className="text-[10px] text-outline">{item.enrollment_id ? `RM ${item.enrollment_id}` : 'Não cadastrado'} {item.grade ? `• ${item.grade}` : ''}</p></td><td className="py-3 pr-3"><span className={`inline-flex px-2 py-1 rounded-lg text-[10px] font-black uppercase ${item.has_card ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.has_card ? 'Sim' : 'Não'}</span></td><td className="py-3 pr-3 text-xs font-bold text-on-surface-variant">{item.reason}{item.details && <span className="block text-[10px] text-outline font-medium mt-1">{item.details}</span>}</td>{canDelete && <td className="py-3 text-right"><button type="button" onClick={() => deleteOccurrence(item)} disabled={deletingId === item.id} title="Apagar ocorrência" className="inline-flex w-9 h-9 items-center justify-center rounded-lg text-error hover:bg-error/10 disabled:opacity-50"><span className="material-symbols-outlined text-lg">{deletingId === item.id ? 'progress_activity' : 'delete'}</span></button></td>}</tr>)}</tbody></table></div>
         </section>
       </section>
 
