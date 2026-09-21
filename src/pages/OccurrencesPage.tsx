@@ -99,13 +99,23 @@ export const OccurrencesPage: React.FC = () => {
   const fetchOccurrences = async () => {
     setLoading(true);
     setLoadError('');
+    if (startDate > endDate) {
+      setOccurrences([]);
+      setLoadError('A data inicial não pode ser posterior à data final.');
+      setLoading(false);
+      return;
+    }
     const start = new Date(`${startDate}T00:00:00`);
     const end = new Date(`${endDate}T23:59:59.999`);
+    const queryStart = new Date(start);
+    const queryEnd = new Date(end);
+    queryStart.setDate(queryStart.getDate() - 1);
+    queryEnd.setDate(queryEnd.getDate() + 1);
     const { data, error } = await supabase
       .from('gate_occurrences')
       .select('*')
-      .gte('occurred_at', start.toISOString())
-      .lte('occurred_at', end.toISOString())
+      .gte('occurred_at', queryStart.toISOString())
+      .lte('occurred_at', queryEnd.toISOString())
       .order('occurred_at', { ascending: false });
 
     if (error) {
@@ -116,7 +126,10 @@ export const OccurrencesPage: React.FC = () => {
       return;
     }
 
-    const occurrenceData = (data || []) as Occurrence[];
+    const occurrenceData = ((data || []) as Occurrence[]).filter(item => {
+      const localDate = format(parseISO(item.occurred_at), 'yyyy-MM-dd');
+      return localDate >= startDate && localDate <= endDate;
+    });
     const studentIds = occurrenceData.map(item => item.student_id).filter((id): id is string => Boolean(id));
     if (studentIds.length > 0) {
       const { data: photoData, error: photoError } = await supabase
