@@ -40,7 +40,11 @@ export const OccurrencesPage: React.FC = () => {
   const [details, setDetails] = useState('');
   const [manualName, setManualName] = useState('');
   const [manualGrade, setManualGrade] = useState('');
-  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return format(date, 'yyyy-MM-dd');
+  });
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterCard, setFilterCard] = useState<'ALL' | 'WITH' | 'WITHOUT'>('ALL');
   const [reportSearch, setReportSearch] = useState('');
