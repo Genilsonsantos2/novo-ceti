@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -8,6 +9,8 @@ interface Student {
   full_name: string;
   enrollment_id: string;
   grade: string | null;
+  qr_code_id?: string;
+  is_authorized?: boolean;
 }
 
 interface Occurrence {
@@ -40,6 +43,9 @@ export const OccurrencesPage: React.FC = () => {
   const [filterCard, setFilterCard] = useState<'ALL' | 'WITH' | 'WITHOUT'>('ALL');
   const [reportSearch, setReportSearch] = useState('');
   const [filterReason, setFilterReason] = useState('ALL');
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [qrScannerLoading, setQrScannerLoading] = useState(false);
+  const [qrScannerError, setQrScannerError] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -54,8 +60,36 @@ export const OccurrencesPage: React.FC = () => {
     fetchOccurrences();
   }, [startDate, endDate]);
 
+  useEffect(() => {
+    if (!isQrScannerOpen) return;
+
+    const scanner = new Html5Qrcode('occurrence-qr-reader', {
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      verbose: false,
+    });
+    setQrScannerLoading(true);
+    setQrScannerError('');
+
+    scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
+      decodedText => handleQrCode(decodedText),
+      () => undefined,
+    ).then(() => setQrScannerLoading(false)).catch(error => {
+      console.error('Erro ao iniciar leitor de carteira:', error);
+      setQrScannerLoading(false);
+      setQrScannerError('Não foi possível acessar a câmera. Verifique a permissão do navegador.');
+    });
+
+    return () => {
+      if (scanner.isScanning) {
+        scanner.stop().catch(error => console.error('Erro ao fechar leitor de carteira:', error));
+      }
+    };
+  }, [isQrScannerOpen]);
+
   const fetchStudents = async () => {
-    const { data, error } = await supabase.from('students').select('id, full_name, enrollment_id, grade').order('full_name');
+    const { data, error } = await supabase.from('students').select('id, full_name, enrollment_id, grade, qr_code_id, is_authorized').order('full_name');
     if (!error) setStudents(data || []);
   };
 
@@ -89,16 +123,38 @@ export const OccurrencesPage: React.FC = () => {
     return true;
   }), [occurrences, filterCard, filterReason, reportSearch]);
 
-  const chooseStudent = (student: Student) => {
+  const chooseStudent = (student: Student, presented = false) => {
     setSelectedStudent(student);
     setSearch(student.full_name);
     setManualName('');
     setManualGrade('');
+    setHasCard(presented);
   };
 
   const clearStudent = () => {
     setSelectedStudent(null);
     setSearch('');
+    setHasCard(false);
+  };
+
+  const handleQrCode = async (decodedText: string) => {
+    const qrId = decodedText.trim().split('/').filter(Boolean).pop();
+    if (!qrId) return;
+
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, full_name, enrollment_id, grade, qr_code_id, is_authorized')
+      .eq('qr_code_id', qrId)
+      .maybeSingle();
+
+    if (error || !data) {
+      setQrScannerError('Carteirinha não encontrada no cadastro.');
+      return;
+    }
+
+    chooseStudent(data, true);
+    setQrScannerError('');
+    setIsQrScannerOpen(false);
   };
 
   const saveOccurrence = async (event: React.FormEvent) => {
@@ -192,12 +248,17 @@ export const OccurrencesPage: React.FC = () => {
 
           <label className="block text-[10px] font-black uppercase tracking-widest text-outline mb-2">Aluno cadastrado</label>
           <div className="relative">
-            <input value={search} onChange={event => { setSearch(event.target.value); setSelectedStudent(null); }} placeholder="Nome ou matrícula..." className="w-full px-4 py-3 bg-white/70 border border-outline/20 rounded-xl font-bold outline-none focus:border-primary" />
+            <input value={search} onChange={event => { setSearch(event.target.value); setSelectedStudent(null); }} placeholder="Nome ou matrícula..." className="w-full px-4 py-3 pr-12 bg-white/70 border border-outline/20 rounded-xl font-bold outline-none focus:border-primary" />
             {selectedStudent && <button type="button" onClick={clearStudent} className="absolute right-3 top-3 text-outline hover:text-error"><span className="material-symbols-outlined text-lg">close</span></button>}
             {studentResults.length > 0 && <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-outline/10 rounded-xl shadow-xl z-20 overflow-hidden">{studentResults.map(student => <button type="button" key={student.id} onClick={() => chooseStudent(student)} className="w-full text-left px-4 py-3 hover:bg-primary/5 border-b border-outline/10 last:border-0"><span className="block font-bold text-sm text-on-surface">{student.full_name}</span><span className="text-xs text-outline">RM {student.enrollment_id} {student.grade ? `• ${student.grade}` : ''}</span></button>)}</div>}
           </div>
+          <button type="button" onClick={() => setIsQrScannerOpen(open => !open)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm font-black text-primary hover:bg-primary/10">
+            <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
+            {isQrScannerOpen ? 'Fechar leitor' : 'Ler QR Code da carteirinha'}
+          </button>
+          {isQrScannerOpen && <div className="mt-3 overflow-hidden rounded-2xl border border-primary/20 bg-gray-950 p-3"><div id="occurrence-qr-reader" className="min-h-[220px] overflow-hidden rounded-xl" />{qrScannerLoading && <p className="mt-2 text-center text-xs font-bold text-white/70">Abrindo câmera...</p>}{qrScannerError && <p className="mt-2 text-center text-xs font-bold text-rose-300">{qrScannerError}</p>}</div>}
           {!selectedStudent && <div className="grid grid-cols-2 gap-3 mt-3"><input value={manualName} onChange={event => setManualName(event.target.value)} placeholder="Nome não cadastrado" className="px-3 py-2.5 bg-white/70 border border-outline/20 rounded-xl text-sm font-bold outline-none focus:border-primary" /><input value={manualGrade} onChange={event => setManualGrade(event.target.value)} placeholder="Turma (opcional)" className="px-3 py-2.5 bg-white/70 border border-outline/20 rounded-xl text-sm font-bold outline-none focus:border-primary" /></div>}
-          {selectedStudent && <p className="mt-2 text-xs font-bold text-primary">Cadastro selecionado: RM {selectedStudent.enrollment_id}</p>}
+          {selectedStudent && <div className={`mt-3 rounded-xl border px-4 py-3 ${selectedStudent.is_authorized ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-on-surface">{selectedStudent.full_name}</p><p className="text-[11px] text-outline">RM {selectedStudent.enrollment_id} {selectedStudent.grade ? `• ${selectedStudent.grade}` : ''}</p></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${selectedStudent.is_authorized ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'}`}>{selectedStudent.is_authorized ? 'Carteira ativa' : 'Carteira bloqueada'}</span></div></div>}
 
           <div className="mt-5"><label className="block text-[10px] font-black uppercase tracking-widest text-outline mb-2">Carteira apresentada?</label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setHasCard(true)} className={`py-3 rounded-xl font-black text-sm border ${hasCard ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white/60 text-outline border-outline/20'}`}>Sim</button><button type="button" onClick={() => setHasCard(false)} className={`py-3 rounded-xl font-black text-sm border ${!hasCard ? 'bg-rose-500 text-white border-rose-500' : 'bg-white/60 text-outline border-outline/20'}`}>Não</button></div></div>
           <div className="mt-5"><label className="block text-[10px] font-black uppercase tracking-widest text-outline mb-2">Motivo</label><select value={reason} onChange={event => setReason(event.target.value)} className="w-full px-4 py-3 bg-white/70 border border-outline/20 rounded-xl font-bold outline-none focus:border-primary">{reasons.map(item => <option key={item}>{item}</option>)}</select></div>
