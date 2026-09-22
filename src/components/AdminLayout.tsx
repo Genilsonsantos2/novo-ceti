@@ -45,7 +45,7 @@ export const AdminLayout: React.FC = () => {
         <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">
           {(profile?.role === 'ADM' || profile?.role === 'DIRETOR') && (
             <>
-              <NavLink 
+              <NavLink
                 to="/dashboard" 
                 className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
               >
@@ -53,7 +53,7 @@ export const AdminLayout: React.FC = () => {
                 Dashboard
               </NavLink>
 
-              <NavLink 
+              <NavLink
                 to="/students" 
                 className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
               >
@@ -62,6 +62,14 @@ export const AdminLayout: React.FC = () => {
               </NavLink>
 
               <NavLink 
+                to="/workflow"
+                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
+              >
+                <span className="material-symbols-outlined text-lg">account_tree</span>
+                Processos
+              </NavLink>
+
+              <NavLink
                 to="/devolutiva" 
                 className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
               >
@@ -189,6 +197,13 @@ export const AdminLayout: React.FC = () => {
             <NavLink to="/students" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
               <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>groups</span>
               <span className="text-[8px] font-black uppercase tracking-tighter">Alunos</span>
+            </NavLink>
+          )}
+
+          {(profile?.role === 'ADM' || profile?.role === 'DIRETOR') && (
+            <NavLink to="/workflow" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
+              <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>account_tree</span>
+              <span className="text-[8px] font-black uppercase tracking-tighter">Processos</span>
             </NavLink>
           )}
 
