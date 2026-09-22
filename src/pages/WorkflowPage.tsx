@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useOfflineWorkflow } from '../hooks/useOfflineWorkflow';
 
 const statusOptions = [
   { value: 'RECEBIDO', label: 'Recebido', color: 'bg-sky-100 text-sky-700' },
@@ -33,6 +34,10 @@ interface WorkflowMovement {
 interface WorkflowProcess {
   id: string;
   process_number: string;
+  student_id: string | null;
+  student_name: string | null;
+  guest_enrollment_id: string | null;
+  guest_name: string | null;
   subject: string;
   description: string | null;
   priority: WorkflowPriority;
@@ -44,11 +49,18 @@ interface WorkflowProcess {
   workflow_movements?: WorkflowMovement[];
 }
 
+interface Student {
+  id: string;
+  enrollment_id: string;
+  full_name: string;
+}
+
 const getStatus = (status: WorkflowStatus) => statusOptions.find(option => option.value === status) || statusOptions[0];
 const formatDate = (date: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(date));
 
 export const WorkflowPage: React.FC = () => {
   const { user, profile } = useAuth();
+  const { isOnline, enqueue, cacheProcesses, getCachedProcesses, cacheStudents, getCachedStudents } = useOfflineWorkflow();
   const operatorName = profile?.full_name || user?.email || 'Operador não identificado';
   const [processes, setProcesses] = useState<WorkflowProcess[]>([]);
   const [selectedProcess, setSelectedProcess] = useState<WorkflowProcess | null>(null);
@@ -60,10 +72,17 @@ export const WorkflowPage: React.FC = () => {
   const [showNewProcess, setShowNewProcess] = useState(false);
   const [movementNote, setMovementNote] = useState('');
   const [nextStatus, setNextStatus] = useState<WorkflowStatus>('EM_ANALISE');
-  const [newProcess, setNewProcess] = useState({ processNumber: '', subject: '', responsibleName: '', priority: 'NORMAL' as WorkflowPriority, description: '' });
+  const [students, setStudents] = useState<Student[]>([]);
+  const [newProcess, setNewProcess] = useState({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL' as WorkflowPriority, description: '' });
 
   const fetchProcesses = async (keepSelected = true) => {
     setLoading(true);
+    const cached = await getCachedProcesses<WorkflowProcess>();
+    if (!navigator.onLine && cached.length > 0) {
+      setProcesses(cached);
+      setLoading(false);
+      return;
+    }
     const { data, error: queryError } = await supabase
       .from('workflow_processes')
       .select('*, workflow_movements(*)')
@@ -77,6 +96,7 @@ export const WorkflowPage: React.FC = () => {
     } else {
       const nextProcesses = (data || []) as WorkflowProcess[];
       setProcesses(nextProcesses);
+      await cacheProcesses(nextProcesses);
       if (keepSelected && selectedProcess) {
         setSelectedProcess(nextProcesses.find(process => process.id === selectedProcess.id) || null);
       }
@@ -86,6 +106,7 @@ export const WorkflowPage: React.FC = () => {
 
   useEffect(() => {
     fetchProcesses(false);
+    getCachedStudents<Student>().then(setStudents);
     const channel = supabase
       .channel('workflow-processes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workflow_processes' }, () => fetchProcesses())
@@ -93,6 +114,16 @@ export const WorkflowPage: React.FC = () => {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  useEffect(() => {
+    if (!navigator.onLine) return;
+    supabase.from('students').select('id, enrollment_id, full_name').order('full_name').then(({ data }) => {
+      if (data) {
+        setStudents(data as Student[]);
+        cacheStudents(data);
+      }
+    });
+  }, [isOnline, cacheStudents, getCachedStudents]);
 
   const filteredProcesses = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim();
@@ -108,42 +139,62 @@ export const WorkflowPage: React.FC = () => {
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!newProcess.processNumber.trim() || !newProcess.subject.trim()) return;
+    const selectedStudent = students.find(student => student.id === newProcess.studentId);
+    const processNumber = selectedStudent?.enrollment_id || newProcess.guestEnrollmentId.trim() || newProcess.processNumber.trim();
+    const subjectName = selectedStudent?.full_name || newProcess.guestName.trim();
+    if (!processNumber || !subjectName || !newProcess.subject.trim()) return;
     setSaving(true);
     setError('');
-    const { data, error: insertError } = await supabase
-      .from('workflow_processes')
-      .insert({
-        process_number: newProcess.processNumber.trim(),
-        subject: newProcess.subject.trim(),
-        description: newProcess.description.trim() || null,
-        responsible_name: newProcess.responsibleName.trim() || null,
-        priority: newProcess.priority,
-        status: 'RECEBIDO',
-        operator_id: user?.id,
-        operator_name: operatorName,
-      })
-      .select()
-      .single();
-
-    if (insertError || !data) {
-      setError(insertError?.message.includes('duplicate') ? 'Já existe um processo para essa matrícula.' : insertError?.message || 'Não foi possível abrir o processo.');
-      setSaving(false);
-      return;
-    }
-
-    const { error: movementError } = await supabase.from('workflow_movements').insert({
-      process_id: data.id,
+    const processId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const processPayload = {
+      id: processId,
+      process_number: processNumber,
+      student_id: selectedStudent?.id || null,
+      student_name: selectedStudent?.full_name || null,
+      guest_enrollment_id: selectedStudent ? null : newProcess.guestEnrollmentId.trim(),
+      guest_name: selectedStudent ? null : newProcess.guestName.trim(),
+      subject: newProcess.subject.trim(),
+      description: newProcess.description.trim() || null,
+      responsible_name: newProcess.responsibleName.trim() || null,
+      priority: newProcess.priority,
+      status: 'RECEBIDO',
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const movementPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: processId,
+      from_status: null,
       to_status: 'RECEBIDO',
       note: 'Processo aberto e distribuído para análise.',
-      operator_id: user?.id,
+      operator_id: user?.id || null,
       operator_name: operatorName,
-    });
-    if (movementError) setError(`Processo criado, mas o histórico inicial não foi registrado: ${movementError.message}`);
-    setNewProcess({ processNumber: '', subject: '', responsibleName: '', priority: 'NORMAL', description: '' });
+      created_at: new Date().toISOString(),
+    };
+
+    if (!isOnline) {
+      await enqueue('workflow_processes', processPayload);
+      await enqueue('workflow_movements', movementPayload);
+      const nextProcesses = [processPayload as WorkflowProcess, ...processes];
+      setProcesses(nextProcesses);
+      await cacheProcesses(nextProcesses);
+      setSelectedProcess({ ...processPayload, workflow_movements: [movementPayload as WorkflowMovement] } as WorkflowProcess);
+    } else {
+      const { data, error: insertError } = await supabase.from('workflow_processes').insert(processPayload).select().single();
+      if (insertError || !data) {
+        setError(insertError?.message.includes('duplicate') ? 'Já existe um processo para essa matrícula.' : insertError?.message || 'Não foi possível abrir o processo.');
+        setSaving(false);
+        return;
+      }
+      const { error: movementError } = await supabase.from('workflow_movements').insert(movementPayload);
+      if (movementError) setError(`Processo criado, mas o histórico inicial não foi registrado: ${movementError.message}`);
+      await fetchProcesses(false);
+      setSelectedProcess({ ...data, workflow_movements: [movementPayload] } as WorkflowProcess);
+    }
+    setNewProcess({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL', description: '' });
     setShowNewProcess(false);
-    await fetchProcesses(false);
-    setSelectedProcess({ ...data, workflow_movements: [] } as WorkflowProcess);
     setSaving(false);
   };
 
@@ -152,21 +203,50 @@ export const WorkflowPage: React.FC = () => {
     if (!selectedProcess || !movementNote.trim()) return;
     setSaving(true);
     setError('');
-    const { error: movementError } = await supabase.from('workflow_movements').insert({
+    const movementPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
       process_id: selectedProcess.id,
       from_status: selectedProcess.status,
       to_status: nextStatus,
       note: movementNote.trim(),
-      operator_id: user?.id,
+      operator_id: user?.id || null,
       operator_name: operatorName,
-    });
-    if (movementError) {
-      setError(`Não foi possível registrar a movimentação: ${movementError.message}`);
-      setSaving(false);
-      return;
+      created_at: new Date().toISOString(),
+    };
+    const processUpdate = {
+      id: selectedProcess.id,
+      process_number: selectedProcess.process_number,
+      student_id: selectedProcess.student_id,
+      student_name: selectedProcess.student_name,
+      guest_enrollment_id: selectedProcess.guest_enrollment_id,
+      guest_name: selectedProcess.guest_name,
+      subject: selectedProcess.subject,
+      description: selectedProcess.description,
+      priority: selectedProcess.priority,
+      status: nextStatus,
+      responsible_name: selectedProcess.responsible_name,
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: selectedProcess.created_at,
+      updated_at: new Date().toISOString(),
+    };
+    if (!isOnline) {
+      await enqueue('workflow_movements', movementPayload);
+      await enqueue('workflow_processes', { ...processUpdate });
+      const nextProcesses = processes.map(process => process.id === selectedProcess.id ? processUpdate : process);
+      setProcesses(nextProcesses);
+      setSelectedProcess({ ...processUpdate, workflow_movements: [...(selectedProcess.workflow_movements || []), movementPayload] });
+      await cacheProcesses(nextProcesses);
+    } else {
+      const { error: movementError } = await supabase.from('workflow_movements').insert(movementPayload);
+      if (movementError) {
+        setError(`Não foi possível registrar a movimentação: ${movementError.message}`);
+        setSaving(false);
+        return;
+      }
+      const { error: updateError } = await supabase.from('workflow_processes').update({ status: nextStatus, updated_at: processUpdate.updated_at }).eq('id', selectedProcess.id);
+      if (updateError) setError(`Movimentação registrada, mas o status não foi atualizado: ${updateError.message}`);
     }
-    const { error: updateError } = await supabase.from('workflow_processes').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', selectedProcess.id);
-    if (updateError) setError(`Movimentação registrada, mas o status não foi atualizado: ${updateError.message}`);
     setMovementNote('');
     await fetchProcesses();
     setSaving(false);
@@ -187,6 +267,26 @@ export const WorkflowPage: React.FC = () => {
       </header>
 
       {error && <div className="mb-6 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><span className="material-symbols-outlined">error</span><p>{error}</p></div>}
+
+      <section className="glass-card mb-8 rounded-[2rem] p-5 md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+          <label className="flex-1 text-sm font-bold text-on-surface">Origem da solicitação
+            <select value={newProcess.studentId} onChange={event => { const student = students.find(item => item.id === event.target.value); setNewProcess({ ...newProcess, studentId: event.target.value, processNumber: student?.enrollment_id || '', guestEnrollmentId: '', guestName: '' }); }} className="mt-2 w-full rounded-xl border border-primary/10 bg-white/70 px-3 py-3 text-sm outline-none focus:border-primary">
+              <option value="">Aluno não cadastrado / solicitação avulsa</option>
+              {students.map(student => <option key={student.id} value={student.id}>{student.enrollment_id} - {student.full_name}</option>)}
+            </select>
+          </label>
+          {!newProcess.studentId && <>
+            <label className="flex-1 text-sm font-bold text-on-surface">Matrícula informada
+              <input value={newProcess.guestEnrollmentId} onChange={event => setNewProcess({ ...newProcess, guestEnrollmentId: event.target.value, processNumber: event.target.value })} placeholder="Matrícula não localizada" className="mt-2 w-full rounded-xl border border-primary/10 bg-white/70 px-3 py-3 font-mono text-sm outline-none focus:border-primary" />
+            </label>
+            <label className="flex-1 text-sm font-bold text-on-surface">Nome informado
+              <input value={newProcess.guestName} onChange={event => setNewProcess({ ...newProcess, guestName: event.target.value })} placeholder="Nome do solicitante" className="mt-2 w-full rounded-xl border border-primary/10 bg-white/70 px-3 py-3 text-sm outline-none focus:border-primary" />
+            </label>
+          </>}
+        </div>
+        <p className="mt-3 text-xs text-on-surface-variant">O processo será autuado com o número da matrícula. Sem cadastro, a solicitação ficará identificada como avulsa e será sincronizada quando a conexão voltar.</p>
+      </section>
 
       <section className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {statusOptions.map(status => (

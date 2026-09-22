@@ -4,6 +4,10 @@
 CREATE TABLE workflow_processes (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   process_number TEXT UNIQUE NOT NULL,
+  student_id UUID REFERENCES students(id),
+  student_name TEXT,
+  guest_enrollment_id TEXT,
+  guest_name TEXT,
   subject TEXT NOT NULL,
   description TEXT,
   priority TEXT CHECK (priority IN ('BAIXA', 'NORMAL', 'ALTA', 'URGENTE')) DEFAULT 'NORMAL' NOT NULL,
@@ -14,6 +18,10 @@ CREATE TABLE workflow_processes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE workflow_processes
+  ADD CONSTRAINT workflow_processes_subject_source_check
+  CHECK ((student_id IS NOT NULL AND guest_name IS NULL) OR (student_id IS NULL AND guest_name IS NOT NULL));
 
 CREATE TABLE workflow_movements (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
