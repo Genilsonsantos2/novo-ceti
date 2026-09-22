@@ -38,6 +38,12 @@ SET guest_name = NULL,
     guest_enrollment_id = NULL
 WHERE student_id IS NOT NULL;
 
+UPDATE workflow_processes AS workflow
+SET student_name = students.full_name
+FROM students
+WHERE workflow.student_id = students.id
+  AND (workflow.student_name IS NULL OR workflow.student_name = '');
+
 DO $$
 BEGIN
   IF NOT EXISTS (
