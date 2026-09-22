@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { TermDevolutivaModal } from '../components/TermDevolutivaModal';
 
@@ -8,9 +8,16 @@ export const DevolutivaPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
+  const processStats = useMemo(() => ({
+    total: students.length,
+    regularizados: students.filter((student) => student.term_attachments?.length > 0).length,
+    pendentes: students.filter((student) => !student.term_attachments?.length).length,
+  }), [students]);
+
   useEffect(() => {
     if (searchTerm.length >= 3) {
-      searchStudents();
+      const timer = window.setTimeout(searchStudents, 300);
+      return () => window.clearTimeout(timer);
     } else if (searchTerm.length === 0) {
       setStudents([]);
     }
@@ -33,16 +40,48 @@ export const DevolutivaPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 px-6 md:px-10 py-8 min-h-screen">
-      <header className="mb-10">
-        <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Secretaria</p>
-        <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Devolutiva do Termo</h2>
-        <p className="text-on-surface-variant font-medium mt-1">Pesquise o aluno para anexar o termo assinado</p>
+    <div className="flex-1 px-4 md:px-10 py-6 md:py-8 min-h-screen">
+      <header className="relative overflow-hidden rounded-[2rem] bg-[#071b33] text-white p-6 md:p-9 mb-7 shadow-2xl shadow-[#071b33]/20">
+        <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full border-[24px] border-[#c79b52]/20" />
+        <div className="absolute right-10 -bottom-28 h-52 w-52 rounded-full border border-white/10" />
+        <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+          <div>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="material-symbols-outlined text-[#d7b16a] text-2xl">account_balance</span>
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#d7b16a]">Secretaria • Núcleo de registros</p>
+            </div>
+            <h2 className="font-headline font-extrabold text-3xl md:text-4xl tracking-tight">Central de Processos</h2>
+            <p className="text-blue-100/70 font-medium mt-2 max-w-xl">Gestão, conferência e protocolo dos termos de autorização dos estudantes.</p>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-100/70 border border-white/15 rounded-xl px-3 py-2 w-fit">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" /> Sistema operacional
+          </div>
+        </div>
       </header>
 
-      <div className="max-w-2xl mx-auto">
-        <div className="glass-card p-6 rounded-[2.5rem] border border-white/20 shadow-xl mb-8">
-          <div className="flex items-center gap-4 px-5 py-4 bg-white/60 rounded-2xl border border-gray-200 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          {[
+            { label: 'Processos em consulta', value: processStats.total, icon: 'folder_copy', tone: 'text-primary bg-primary/10' },
+            { label: 'Termos regularizados', value: processStats.regularizados, icon: 'verified', tone: 'text-emerald-700 bg-emerald-100' },
+            { label: 'Aguardando devolutiva', value: processStats.pendentes, icon: 'pending_actions', tone: 'text-amber-700 bg-amber-100' },
+          ].map((stat) => (
+            <div key={stat.label} className="glass-card rounded-2xl px-4 py-4 flex items-center gap-3 border border-white/30">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.tone}`}><span className="material-symbols-outlined">{stat.icon}</span></div>
+              <div><p className="text-2xl font-black text-on-surface leading-none">{stat.value}</p><p className="text-[9px] font-black uppercase tracking-wider text-outline mt-1">{stat.label}</p></div>
+            </div>
+          ))}
+        </div>
+
+        <div className="glass-card p-5 md:p-6 rounded-3xl border border-white/30 shadow-xl mb-7">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b2843d]">Pesquisa de autos</p>
+              <h3 className="font-headline text-lg font-extrabold text-on-surface mt-1">Localizar processo do estudante</h3>
+            </div>
+            <span className="material-symbols-outlined text-outline/50 hidden sm:block">manage_search</span>
+          </div>
+          <div className="flex items-center gap-4 px-5 py-4 bg-white/70 dark:bg-zinc-900/60 rounded-2xl border border-gray-200 dark:border-zinc-700 focus-within:border-[#b2843d] focus-within:ring-4 focus-within:ring-[#b2843d]/10 transition-all">
             <span className="material-symbols-outlined text-primary text-2xl">search</span>
             <input
               type="text"
@@ -52,9 +91,10 @@ export const DevolutivaPage: React.FC = () => {
               className="bg-transparent border-none text-lg font-bold text-gray-700 w-full outline-none placeholder:text-gray-400"
               autoFocus
             />
+            {searchTerm && <button type="button" onClick={() => setSearchTerm('')} className="text-outline hover:text-primary" title="Limpar pesquisa"><span className="material-symbols-outlined">close</span></button>}
           </div>
-          <p className="text-[10px] text-outline font-bold uppercase tracking-widest mt-4 ml-4 opacity-60">
-            {searchTerm.length < 3 ? 'Digite pelo menos 3 caracteres' : `Encontrados ${students.length} resultados`}
+          <p className="text-[10px] text-outline font-bold uppercase tracking-widest mt-3 ml-2 opacity-70">
+            {searchTerm.length < 3 ? 'Busque por nome completo ou número da matrícula (RM)' : loading ? 'Atualizando consulta...' : `${students.length} processo(s) localizado(s)`}
           </p>
         </div>
 
@@ -68,7 +108,7 @@ export const DevolutivaPage: React.FC = () => {
             students.map((student) => (
               <div 
                 key={student.id}
-                className="glass-card p-5 rounded-3xl border border-white/20 hover:border-primary/30 hover:bg-primary/5 transition-all group flex items-center justify-between gap-4"
+                className="glass-card p-5 md:p-6 rounded-2xl border border-white/30 hover:border-[#c79b52]/70 hover:bg-[#c79b52]/5 transition-all group flex flex-col sm:flex-row sm:items-center justify-between gap-5"
               >
                 <div className="flex items-center gap-4">
                   <div className="relative">
@@ -78,24 +118,29 @@ export const DevolutivaPage: React.FC = () => {
                       className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white shadow-sm"
                     />
                     {student.term_attachments && student.term_attachments.length > 0 && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-sm border-2 border-white">
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-sm border-2 border-white">
                         <span className="material-symbols-outlined text-[10px] font-bold">verified</span>
                       </div>
                     )}
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-900 notranslate" translate="no">{student.full_name}</h4>
-                    <p className="text-xs text-outline font-medium">#{student.enrollment_id} • {student.grade}</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#b2843d] mb-1">PROC. RM-{student.enrollment_id || 'PENDENTE'}</p>
+                    <h4 className="font-headline font-extrabold text-gray-900 dark:text-white notranslate" translate="no">{student.full_name}</h4>
+                    <p className="text-xs text-outline font-medium mt-1">Matrícula <span className="font-mono font-bold text-on-surface">{student.enrollment_id || 'Não informada'}</span> <span className="mx-1">•</span> {student.grade || 'Turma não informada'}</p>
                   </div>
                 </div>
-                
-                <button
-                  onClick={() => setSelectedStudent(student)}
-                  className="px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-base">attach_file</span>
-                  Gerenciar Termos
-                </button>
+                <div className="flex items-center justify-between sm:justify-end gap-4 sm:min-w-[225px]">
+                  <span className={`text-[9px] font-black uppercase tracking-wider ${student.term_attachments?.length ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {student.term_attachments?.length ? 'Autos regularizados' : 'Aguardando termo'}
+                  </span>
+                  <button
+                    onClick={() => setSelectedStudent(student)}
+                    className="px-4 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg shadow-primary/20 hover:bg-[#b2843d] active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-base">gavel</span>
+                    Abrir autos
+                  </button>
+                </div>
               </div>
             ))
           ) : searchTerm.length >= 3 ? (
