@@ -1,7 +1,7 @@
 -- Acompanhamento de processos administrativos no modelo de fluxo judicial.
 -- O numero do processo e o numero da matricula do servidor interessado.
 
-CREATE TABLE workflow_processes (
+CREATE TABLE IF NOT EXISTS workflow_processes (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   process_number TEXT UNIQUE NOT NULL,
   student_id UUID REFERENCES students(id),
@@ -20,10 +20,38 @@ CREATE TABLE workflow_processes (
 );
 
 ALTER TABLE workflow_processes
-  ADD CONSTRAINT workflow_processes_subject_source_check
-  CHECK ((student_id IS NOT NULL AND guest_name IS NULL) OR (student_id IS NULL AND guest_name IS NOT NULL));
+  ADD COLUMN IF NOT EXISTS student_id UUID REFERENCES students(id),
+  ADD COLUMN IF NOT EXISTS student_name TEXT,
+  ADD COLUMN IF NOT EXISTS guest_enrollment_id TEXT,
+  ADD COLUMN IF NOT EXISTS guest_name TEXT;
 
-CREATE TABLE workflow_movements (
+-- Registros antigos ainda não tinham uma origem vinculada.
+-- Mantém esses processos como solicitações avulsas para permitir a migração.
+UPDATE workflow_processes
+SET guest_enrollment_id = COALESCE(guest_enrollment_id, process_number),
+    guest_name = COALESCE(NULLIF(guest_name, ''), 'Solicitação avulsa (registro legado)')
+WHERE student_id IS NULL
+  AND (guest_name IS NULL OR guest_name = '');
+
+UPDATE workflow_processes
+SET guest_name = NULL,
+    guest_enrollment_id = NULL
+WHERE student_id IS NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'workflow_processes_subject_source_check'
+      AND conrelid = 'workflow_processes'::regclass
+  ) THEN
+    ALTER TABLE workflow_processes
+      ADD CONSTRAINT workflow_processes_subject_source_check
+      CHECK ((student_id IS NOT NULL AND guest_name IS NULL) OR (student_id IS NULL AND guest_name IS NOT NULL));
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS workflow_movements (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   process_id UUID REFERENCES workflow_processes(id) ON DELETE CASCADE NOT NULL,
   from_status TEXT,
@@ -37,16 +65,31 @@ CREATE TABLE workflow_movements (
 ALTER TABLE workflow_processes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workflow_movements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can manage workflow processes" ON workflow_processes;
 CREATE POLICY "Authenticated users can manage workflow processes"
   ON workflow_processes FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Authenticated users can manage workflow movements" ON workflow_movements;
 CREATE POLICY "Authenticated users can manage workflow movements"
   ON workflow_movements FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
 
-ALTER PUBLICATION supabase_realtime ADD TABLE workflow_processes;
-ALTER PUBLICATION supabase_realtime ADD TABLE workflow_movements;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'workflow_processes'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE workflow_processes;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'workflow_movements'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE workflow_movements;
+  END IF;
+END $$;
 
-CREATE INDEX workflow_processes_status_idx ON workflow_processes(status);
-CREATE INDEX workflow_movements_process_id_idx ON workflow_movements(process_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS workflow_processes_status_idx ON workflow_processes(status);
+CREATE INDEX IF NOT EXISTS workflow_movements_process_id_idx ON workflow_movements(process_id, created_at DESC);
