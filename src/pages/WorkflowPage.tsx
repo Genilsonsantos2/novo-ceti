@@ -70,6 +70,7 @@ export const WorkflowPage: React.FC = () => {
   const [selectedProcess, setSelectedProcess] = useState<WorkflowProcess | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState<SearchField>('TODOS');
@@ -272,6 +273,29 @@ export const WorkflowPage: React.FC = () => {
     setSaving(false);
   };
 
+  const handleDeleteProcess = async () => {
+    if (!selectedProcess || deleting) return;
+    if (!isOnline) {
+      setError('Conecte-se à internet para excluir um processo com segurança.');
+      return;
+    }
+    const confirmed = window.confirm(`Excluir o processo de ${getProcessPersonName(selectedProcess)}? Esta ação também removerá o histórico de movimentações e não pode ser desfeita.`);
+    if (!confirmed) return;
+    setDeleting(true);
+    setError('');
+    const { error: deleteError } = await supabase
+      .from('workflow_processes')
+      .delete()
+      .eq('id', selectedProcess.id);
+    if (deleteError) {
+      setError(`Não foi possível excluir o processo: ${deleteError.message}`);
+    } else {
+      setProcesses(current => current.filter(process => process.id !== selectedProcess.id));
+      setSelectedProcess(null);
+    }
+    setDeleting(false);
+  };
+
   return (
     <div className="flex-1 px-4 py-6 md:px-10 md:py-10 pb-32 min-h-screen">
       <header className="relative mb-8 overflow-hidden rounded-[2rem] bg-[#071b33] px-6 py-7 text-white shadow-2xl shadow-[#071b33]/20 md:px-9 md:py-8">
@@ -349,7 +373,7 @@ export const WorkflowPage: React.FC = () => {
 
         <aside className="glass-card rounded-[2rem] border border-white/70 border-t-4 border-t-[#b2843d] p-6 shadow-xl shadow-slate-200/40 dark:border-zinc-800 dark:shadow-black/20">
           {selectedProcess && <div className="mb-6 rounded-2xl border border-primary/15 bg-primary/5 p-4">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-primary"><span className="material-symbols-outlined text-base">badge</span> Identificação do processo</div>
+            <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-primary"><span className="material-symbols-outlined text-base">badge</span> Identificação do processo</div><button type="button" onClick={handleDeleteProcess} disabled={deleting} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide text-rose-700 transition hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50" title="Excluir processo"><span className="material-symbols-outlined text-sm">{deleting ? 'progress_activity' : 'delete'}</span>{deleting ? 'Excluindo' : 'Excluir'}</button></div>
             <p className="mt-3 text-lg font-extrabold text-on-surface">{getProcessPersonName(selectedProcess)}</p>
             <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-on-surface-variant"><span className="rounded-lg bg-white/70 px-2 py-1">Matrícula: {getProcessEnrollment(selectedProcess)}</span><span className="rounded-lg bg-white/70 px-2 py-1">{selectedProcess.student_id ? 'Aluno cadastrado' : 'Solicitação avulsa'}</span></div>
           </div>}
