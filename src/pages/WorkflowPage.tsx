@@ -44,6 +44,7 @@ interface WorkflowProcess {
   priority: WorkflowPriority;
   status: WorkflowStatus;
   responsible_name: string | null;
+  due_at: string | null;
   operator_name: string;
   created_at: string;
   updated_at: string;
@@ -61,6 +62,21 @@ const getProcessPersonName = (process: WorkflowProcess) => process.student_name 
 const getProcessEnrollment = (process: WorkflowProcess) => process.process_number || process.guest_enrollment_id || 'Matrícula não informada';
 const getInitials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 const formatDate = (date: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(date));
+const getDeadlineState = (dueAt: string | null, status: WorkflowStatus) => {
+  if (!dueAt || status === 'CONCLUIDO' || status === 'ARQUIVADO') return 'NO_DEADLINE';
+  const dueTime = new Date(dueAt).getTime();
+  const now = Date.now();
+  if (dueTime < now) return 'OVERDUE';
+  if (dueTime <= now + 24 * 60 * 60 * 1000) return 'TODAY';
+  return 'ON_TIME';
+};
+const getSuggestedDeadline = (priority: WorkflowPriority) => {
+  const daysByPriority: Record<WorkflowPriority, number> = { URGENTE: 2, ALTA: 5, NORMAL: 10, BAIXA: 15 };
+  const deadline = new Date();
+  deadline.setDate(deadline.getDate() + daysByPriority[priority]);
+  deadline.setHours(23, 59, 59, 0);
+  return deadline.toISOString();
+};
 
 export const WorkflowPage: React.FC = () => {
   const { user, profile } = useAuth();
@@ -79,7 +95,7 @@ export const WorkflowPage: React.FC = () => {
   const [movementNote, setMovementNote] = useState('');
   const [nextStatus, setNextStatus] = useState<WorkflowStatus>('EM_ANALISE');
   const [students, setStudents] = useState<Student[]>([]);
-  const [newProcess, setNewProcess] = useState({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL' as WorkflowPriority, description: '' });
+  const [newProcess, setNewProcess] = useState({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL' as WorkflowPriority, description: '', dueAt: '' });
 
   const fetchProcesses = async (keepSelected = true) => {
     setLoading(true);
@@ -156,10 +172,10 @@ export const WorkflowPage: React.FC = () => {
 
   const countByStatus = (status: WorkflowStatus) => processes.filter(process => process.status === status).length;
   const completedCount = countByStatus('CONCLUIDO');
-  const urgentCount = processes.filter(process => process.priority === 'URGENTE').length;
+  const overdueCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'OVERDUE').length;
 
   const exportProcesses = () => {
-    const headers = ['Processo', 'Nome do aluno', 'Matrícula', 'Assunto', 'Prioridade', 'Status', 'Última atualização'];
+    const headers = ['Processo', 'Nome do aluno', 'Matrícula', 'Assunto', 'Prioridade', 'Status', 'Prazo', 'Última atualização'];
     const rows = filteredProcesses.map(process => [
       `PROC. RM-${process.process_number}`,
       getProcessPersonName(process),
@@ -167,6 +183,7 @@ export const WorkflowPage: React.FC = () => {
       process.subject,
       priorityOptions.find(option => option.value === process.priority)?.label || process.priority,
       getStatus(process.status).label,
+      process.due_at ? formatDate(process.due_at) : 'Sem prazo',
       formatDate(process.updated_at),
     ]);
     const csv = [headers, ...rows].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -198,6 +215,7 @@ export const WorkflowPage: React.FC = () => {
       responsible_name: newProcess.responsibleName.trim() || null,
       priority: newProcess.priority,
       status: 'RECEBIDO',
+      due_at: newProcess.dueAt ? new Date(`${newProcess.dueAt}T23:59:59`).toISOString() : getSuggestedDeadline(newProcess.priority),
       operator_id: user?.id || null,
       operator_name: operatorName,
       created_at: new Date().toISOString(),
@@ -233,7 +251,7 @@ export const WorkflowPage: React.FC = () => {
       await fetchProcesses(false);
       setSelectedProcess({ ...data, workflow_movements: [movementPayload] } as WorkflowProcess);
     }
-    setNewProcess({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL', description: '' });
+    setNewProcess({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL', description: '', dueAt: '' });
     setShowNewProcess(false);
     setSaving(false);
   };
@@ -264,6 +282,7 @@ export const WorkflowPage: React.FC = () => {
       description: selectedProcess.description,
       priority: selectedProcess.priority,
       status: nextStatus,
+      due_at: selectedProcess.due_at,
       responsible_name: selectedProcess.responsible_name,
       operator_id: user?.id || null,
       operator_name: operatorName,
@@ -332,7 +351,7 @@ export const WorkflowPage: React.FC = () => {
           </button>
         </div>
         <div className="relative mt-7 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 sm:grid-cols-4">
-          {[{ label: 'Total na central', value: processes.length, icon: 'folder_copy' }, { label: 'Em andamento', value: processes.length - completedCount, icon: 'pending_actions' }, { label: 'Concluídos', value: completedCount, icon: 'verified' }, { label: 'Prioridade urgente', value: urgentCount, icon: 'priority_high' }].map(metric => <div key={metric.label} className="flex items-center gap-2"><span className="material-symbols-outlined text-[#d5ae68]">{metric.icon}</span><div><p className="text-xl font-black leading-none">{metric.value}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">{metric.label}</p></div></div>)}
+          {[{ label: 'Total na central', value: processes.length, icon: 'folder_copy' }, { label: 'Em andamento', value: processes.length - completedCount, icon: 'pending_actions' }, { label: 'Concluídos', value: completedCount, icon: 'verified' }, { label: 'Atrasados', value: overdueCount, icon: 'schedule' }].map(metric => <div key={metric.label} className="flex items-center gap-2"><span className="material-symbols-outlined text-[#d5ae68]">{metric.icon}</span><div><p className="text-xl font-black leading-none">{metric.value}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">{metric.label}</p></div></div>)}
         </div>
       </header>
 
@@ -387,7 +406,7 @@ export const WorkflowPage: React.FC = () => {
               <label className="relative min-w-0 flex-1"><span className="sr-only">Pesquisar na fila</span><span className="material-symbols-outlined absolute left-3 top-2.5 text-lg text-outline">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder={searchPlaceholder} className="w-full rounded-xl border border-primary/10 bg-white/60 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-[#b2843d] focus:ring-4 focus:ring-[#b2843d]/10" />{search && <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-2.5 text-outline hover:text-primary" aria-label="Limpar pesquisa"><span className="material-symbols-outlined text-lg">close</span></button>}</label>
             </div>
           </div>
-          {loading ? <div className="flex justify-center p-16"><span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div> : filteredProcesses.length === 0 ? <div className="p-12 text-center"><span className="material-symbols-outlined text-5xl text-primary/30">folder_open</span><p className="mt-3 font-bold text-on-surface">Nenhum processo na fila</p><p className="mt-1 text-sm text-on-surface-variant">Abra um processo para iniciar o acompanhamento.</p></div> : <div className="divide-y divide-white/60">{filteredProcesses.map(process => { const status = getStatus(process.status); const personName = getProcessPersonName(process); return <button key={process.id} onClick={() => { setSelectedProcess(process); setNextStatus(process.status === 'RECEBIDO' ? 'EM_ANALISE' : process.status); }} className={`group flex w-full items-center gap-4 p-5 text-left transition hover:bg-[#b2843d]/5 ${selectedProcess?.id === process.id ? 'bg-[#b2843d]/10' : ''}`}><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#071b33] text-xs font-black text-[#d5ae68] shadow-md">{getInitials(personName)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-mono text-[11px] font-black tracking-wide text-[#b2843d]">PROC. RM-{process.process_number}</p><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${status.color}`}>{status.label}</span>{process.priority === 'URGENTE' && <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-black uppercase text-red-700">Urgente</span>}</div><p className="mt-1 truncate font-headline text-base font-extrabold text-on-surface">{personName}</p><p className="mt-1 truncate text-xs font-medium text-on-surface-variant"><span className="font-mono font-bold">RM {getProcessEnrollment(process)}</span> <span className="mx-1 text-outline/50">•</span> {process.subject}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-outline">Atualizado em {formatDate(process.updated_at)} · {process.operator_name}</p></div><span className="material-symbols-outlined text-outline transition group-hover:translate-x-1 group-hover:text-[#b2843d]">chevron_right</span></button>; })}</div>}
+          {loading ? <div className="flex justify-center p-16"><span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div> : filteredProcesses.length === 0 ? <div className="p-12 text-center"><span className="material-symbols-outlined text-5xl text-primary/30">folder_open</span><p className="mt-3 font-bold text-on-surface">Nenhum processo na fila</p><p className="mt-1 text-sm text-on-surface-variant">Abra um processo para iniciar o acompanhamento.</p></div> : <div className="divide-y divide-white/60">{filteredProcesses.map(process => { const status = getStatus(process.status); const personName = getProcessPersonName(process); const deadlineState = getDeadlineState(process.due_at, process.status); return <button key={process.id} onClick={() => { setSelectedProcess(process); setNextStatus(process.status === 'RECEBIDO' ? 'EM_ANALISE' : process.status); }} className={`group flex w-full items-center gap-4 p-5 text-left transition hover:bg-[#b2843d]/5 ${selectedProcess?.id === process.id ? 'bg-[#b2843d]/10' : ''}`}><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#071b33] text-xs font-black text-[#d5ae68] shadow-md">{getInitials(personName)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-mono text-[11px] font-black tracking-wide text-[#b2843d]">PROC. RM-{process.process_number}</p><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${status.color}`}>{status.label}</span>{process.priority === 'URGENTE' && <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-black uppercase text-red-700">Urgente</span>}{deadlineState === 'OVERDUE' && <span className="rounded-full bg-rose-100 px-2 py-1 text-[10px] font-black uppercase text-rose-700">Atrasado</span>}{deadlineState === 'TODAY' && <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase text-amber-700">Vence hoje</span>}</div><p className="mt-1 truncate font-headline text-base font-extrabold text-on-surface">{personName}</p><p className="mt-1 truncate text-xs font-medium text-on-surface-variant"><span className="font-mono font-bold">RM {getProcessEnrollment(process)}</span> <span className="mx-1 text-outline/50">•</span> {process.subject}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-outline">{process.due_at ? `Prazo ${formatDate(process.due_at)}` : 'Sem prazo definido'} · Atualizado em {formatDate(process.updated_at)}</p></div><span className="material-symbols-outlined text-outline transition group-hover:translate-x-1 group-hover:text-[#b2843d]">chevron_right</span></button>; })}</div>}
         </section>
 
         <aside className="glass-card rounded-[2rem] border border-white/70 border-t-4 border-t-[#b2843d] p-6 shadow-xl shadow-slate-200/40 dark:border-zinc-800 dark:shadow-black/20">

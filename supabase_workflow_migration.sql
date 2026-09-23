@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS workflow_processes (
   priority TEXT CHECK (priority IN ('BAIXA', 'NORMAL', 'ALTA', 'URGENTE')) DEFAULT 'NORMAL' NOT NULL,
   status TEXT CHECK (status IN ('RECEBIDO', 'EM_ANALISE', 'PENDENTE', 'DECISAO', 'CONCLUIDO', 'ARQUIVADO')) DEFAULT 'RECEBIDO' NOT NULL,
   responsible_name TEXT,
+  due_at TIMESTAMP WITH TIME ZONE,
   operator_id UUID REFERENCES auth.users(id),
   operator_name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -23,7 +24,8 @@ ALTER TABLE workflow_processes
   ADD COLUMN IF NOT EXISTS student_id UUID REFERENCES students(id),
   ADD COLUMN IF NOT EXISTS student_name TEXT,
   ADD COLUMN IF NOT EXISTS guest_enrollment_id TEXT,
-  ADD COLUMN IF NOT EXISTS guest_name TEXT;
+  ADD COLUMN IF NOT EXISTS guest_name TEXT,
+  ADD COLUMN IF NOT EXISTS due_at TIMESTAMP WITH TIME ZONE;
 
 -- Registros antigos ainda não tinham uma origem vinculada.
 -- Mantém esses processos como solicitações avulsas para permitir a migração.

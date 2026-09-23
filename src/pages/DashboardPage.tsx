@@ -29,6 +29,7 @@ interface DashboardProcess {
   subject: string;
   priority: 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
   status: 'RECEBIDO' | 'EM_ANALISE' | 'PENDENTE' | 'DECISAO' | 'CONCLUIDO' | 'ARQUIVADO';
+  due_at: string | null;
   updated_at: string;
 }
 
@@ -89,7 +90,7 @@ export const DashboardPage: React.FC = () => {
         .gte('occurred_at', `${ninetyDaysAgo}T00:00:00`),
       supabase
         .from('workflow_processes')
-        .select('id, process_number, student_name, guest_name, subject, priority, status, updated_at')
+        .select('id, process_number, student_name, guest_name, subject, priority, status, due_at, updated_at')
         .neq('status', 'ARQUIVADO'),
     ]);
 
@@ -186,6 +187,7 @@ export const DashboardPage: React.FC = () => {
     }
     const urgentProcesses = processes.filter(process => process.priority === 'URGENTE');
     const pendingProcesses = processes.filter(process => process.status === 'PENDENTE' || process.status === 'DECISAO');
+    const overdueProcesses = processes.filter(process => process.due_at && new Date(process.due_at).getTime() < Date.now() && !['CONCLUIDO', 'ARQUIVADO'].includes(process.status));
     if (urgentProcesses.length > 0) {
       const process = urgentProcesses[0];
       generatedAlerts.push({
@@ -204,6 +206,17 @@ export const DashboardPage: React.FC = () => {
         title: `${pendingProcesses.length} processo(s) aguardando decisão`,
         description: 'Há processos pendentes ou encaminhados para decisão na fila administrativa.',
         actionLabel: 'Revisar processos',
+        href: '/workflow',
+      });
+    }
+    if (overdueProcesses.length > 0) {
+      const process = overdueProcesses[0];
+      generatedAlerts.push({
+        id: 'overdue-processes',
+        severity: overdueProcesses.length >= 3 ? 'Alta' : 'Média',
+        title: `${overdueProcesses.length} processo(s) atrasado(s)`,
+        description: `${process.student_name || process.guest_name || 'Solicitante não identificado'} possui prazo vencido no processo RM-${process.process_number}.`,
+        actionLabel: 'Ver atrasados',
         href: '/workflow',
       });
     }
