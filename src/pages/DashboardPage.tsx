@@ -21,6 +21,17 @@ interface DashboardOccurrence {
   reason: string;
 }
 
+interface DashboardProcess {
+  id: string;
+  process_number: string;
+  student_name: string | null;
+  guest_name: string | null;
+  subject: string;
+  priority: 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
+  status: 'RECEBIDO' | 'EM_ANALISE' | 'PENDENTE' | 'DECISAO' | 'CONCLUIDO' | 'ARQUIVADO';
+  updated_at: string;
+}
+
 interface AlertItem {
   id: string;
   severity: 'Alta' | 'Média' | 'Baixa';
@@ -31,7 +42,7 @@ interface AlertItem {
 }
 
 export const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0, ocorrenciasHoje: 0, semCarteira30Dias: 0 });
+  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0, ocorrenciasHoje: 0, semCarteira30Dias: 0, processosAbertos: 0, processosUrgentes: 0, processosPendentes: 0 });
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [studentsAtRisk, setStudentsAtRisk] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -51,6 +62,9 @@ export const DashboardPage: React.FC = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gate_occurrences' }, () => {
         fetchStats();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workflow_processes' }, () => {
+        fetchStats();
+      })
       .subscribe();
 
     return () => {
@@ -63,7 +77,7 @@ export const DashboardPage: React.FC = () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const ninetyDaysAgo = format(subDays(new Date(), 90), 'yyyy-MM-dd');
 
-    const [{ data: absenceData, error: absenceError }, { count: totalAlunos }, { data: occurrenceData, error: occurrenceError }] = await Promise.all([
+    const [{ data: absenceData, error: absenceError }, { count: totalAlunos }, { data: occurrenceData, error: occurrenceError }, { data: processData, error: processError }] = await Promise.all([
       supabase
         .from('student_absences')
         .select('id, student_id, date, type, is_intermittent, reason, sigeduc_synced, students(full_name, grade)')
@@ -73,6 +87,10 @@ export const DashboardPage: React.FC = () => {
         .from('gate_occurrences')
         .select('id, occurred_at, has_card, reason')
         .gte('occurred_at', `${ninetyDaysAgo}T00:00:00`),
+      supabase
+        .from('workflow_processes')
+        .select('id, process_number, student_name, guest_name, subject, priority, status, updated_at')
+        .neq('status', 'ARQUIVADO'),
     ]);
 
     if (absenceError) {
@@ -81,9 +99,13 @@ export const DashboardPage: React.FC = () => {
     if (occurrenceError && !occurrenceError.message.includes("Could not find the table 'public.gate_occurrences'")) {
       console.error('Erro ao buscar ocorrências do dashboard:', occurrenceError);
     }
+    if (processError && !processError.message.includes("Could not find the table 'public.workflow_processes'")) {
+      console.error('Erro ao buscar processos do dashboard:', processError);
+    }
 
     const absences = (absenceData || []) as DashboardAbsence[];
     const occurrences = (occurrenceData || []) as DashboardOccurrence[];
+    const processes = (processData || []) as DashboardProcess[];
     const validUntilToday = absences.filter(absence => absence.date <= today);
     const recentAbsences = validUntilToday.filter(absence => absence.date >= format(subDays(new Date(), 30), 'yyyy-MM-dd'));
     const lastSevenDays = validUntilToday.filter(absence => absence.date >= format(subDays(new Date(), 7), 'yyyy-MM-dd'));
@@ -162,6 +184,29 @@ export const DashboardPage: React.FC = () => {
         href: '/occurrences',
       });
     }
+    const urgentProcesses = processes.filter(process => process.priority === 'URGENTE');
+    const pendingProcesses = processes.filter(process => process.status === 'PENDENTE' || process.status === 'DECISAO');
+    if (urgentProcesses.length > 0) {
+      const process = urgentProcesses[0];
+      generatedAlerts.push({
+        id: 'urgent-processes',
+        severity: 'Alta',
+        title: `${urgentProcesses.length} processo(s) urgente(s)`,
+        description: `${process.student_name || process.guest_name || 'Solicitante não identificado'} aguarda atenção no processo RM-${process.process_number}.`,
+        actionLabel: 'Abrir Central',
+        href: '/workflow',
+      });
+    }
+    if (pendingProcesses.length > 0) {
+      generatedAlerts.push({
+        id: 'pending-processes',
+        severity: pendingProcesses.length >= 5 ? 'Alta' : 'Média',
+        title: `${pendingProcesses.length} processo(s) aguardando decisão`,
+        description: 'Há processos pendentes ou encaminhados para decisão na fila administrativa.',
+        actionLabel: 'Revisar processos',
+        href: '/workflow',
+      });
+    }
 
     setStats({
       pendentesSigeduc: pendingSync.filter(absence => absence.date <= today).length,
@@ -170,7 +215,10 @@ export const DashboardPage: React.FC = () => {
       intermitentes: recentAbsences.filter(absence => absence.is_intermittent).length,
       totalAlunos: totalAlunos || 0,
       ocorrenciasHoje: todayOccurrences.length,
-      semCarteira30Dias: recentOccurrencesWithoutCard.length
+      semCarteira30Dias: recentOccurrencesWithoutCard.length,
+      processosAbertos: processes.length,
+      processosUrgentes: urgentProcesses.length,
+      processosPendentes: pendingProcesses.length,
     });
     setAlerts(generatedAlerts);
     setStudentsAtRisk(riskStudents.length);
@@ -278,6 +326,35 @@ export const DashboardPage: React.FC = () => {
             </div>
             <span className="material-symbols-outlined text-4xl text-rose-500/50 group-hover:text-rose-500 transition-colors">badge</span>
           </Link>
+        </section>
+      )}
+
+      {!loading && (
+        <section className="mb-12 grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <Link to="/workflow" className="group relative overflow-hidden rounded-[2rem] bg-[#071b33] p-6 text-white shadow-xl shadow-[#071b33]/20 transition hover:-translate-y-0.5 md:p-8">
+            <div className="absolute -right-12 -top-16 h-44 w-44 rounded-full border-[18px] border-[#d5ae68]/15" />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#d5ae68]">Central de Processos</p>
+                <h3 className="mt-2 font-headline text-2xl font-extrabold">Fila administrativa</h3>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-blue-100/70">Acompanhe os autos ativos, decisões pendentes e prioridades da secretaria.</p>
+              </div>
+              <span className="material-symbols-outlined text-3xl text-[#d5ae68]">account_tree</span>
+            </div>
+            <div className="relative mt-7 grid grid-cols-3 gap-3 border-t border-white/10 pt-5">
+              <div><p className="text-3xl font-black">{stats.processosAbertos}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">Ativos</p></div>
+              <div><p className="text-3xl font-black text-[#f3c979]">{stats.processosUrgentes}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">Urgentes</p></div>
+              <div><p className="text-3xl font-black text-rose-300">{stats.processosPendentes}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">Decisão</p></div>
+            </div>
+          </Link>
+          <div className="glass-card rounded-[2rem] border border-[#d5ae68]/30 bg-[#fffaf0] p-6 md:p-8">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#9a6d28]">Comando executivo</p>
+            <h3 className="mt-2 font-headline text-2xl font-extrabold text-[#071b33]">Ações prioritárias</h3>
+            <div className="mt-5 space-y-3">
+              <Link to="/workflow" className="flex items-center justify-between rounded-xl border border-[#d5ae68]/30 bg-white/70 p-3 text-sm font-bold text-[#071b33] transition hover:bg-white"><span><span className="mr-2 text-[#b2843d]">01</span>Revisar processos pendentes</span><span className="material-symbols-outlined text-[#b2843d]">arrow_forward</span></Link>
+              <Link to="/students" className="flex items-center justify-between rounded-xl border border-[#d5ae68]/30 bg-white/70 p-3 text-sm font-bold text-[#071b33] transition hover:bg-white"><span><span className="mr-2 text-[#b2843d]">02</span>Consultar cadastro de alunos</span><span className="material-symbols-outlined text-[#b2843d]">arrow_forward</span></Link>
+            </div>
+          </div>
         </section>
       )}
 

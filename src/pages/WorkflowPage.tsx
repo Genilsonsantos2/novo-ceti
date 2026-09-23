@@ -158,6 +158,25 @@ export const WorkflowPage: React.FC = () => {
   const completedCount = countByStatus('CONCLUIDO');
   const urgentCount = processes.filter(process => process.priority === 'URGENTE').length;
 
+  const exportProcesses = () => {
+    const headers = ['Processo', 'Nome do aluno', 'Matrícula', 'Assunto', 'Prioridade', 'Status', 'Última atualização'];
+    const rows = filteredProcesses.map(process => [
+      `PROC. RM-${process.process_number}`,
+      getProcessPersonName(process),
+      getProcessEnrollment(process),
+      process.subject,
+      priorityOptions.find(option => option.value === process.priority)?.label || process.priority,
+      getStatus(process.status).label,
+      formatDate(process.updated_at),
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' }));
+    link.download = `Central_de_Processos_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
     const selectedStudent = students.find(student => student.id === newProcess.studentId);
@@ -354,7 +373,7 @@ export const WorkflowPage: React.FC = () => {
           <div className="border-b border-white/60 p-5 md:p-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div><div className="flex items-center gap-2"><span className="material-symbols-outlined text-[#b2843d]">manage_search</span><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b2843d]">Pesquisa inteligente</p></div><h3 className="mt-1 font-headline text-xl font-extrabold text-on-surface">Fila de processos</h3><p className="mt-1 text-xs text-on-surface-variant">{filteredProcesses.length} processo(s) encontrado(s) · identificação por nome e matrícula</p></div>
-              <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Todos os status</option>{statusOptions.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select>
+              <div className="flex gap-2"><select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Todos os status</option>{statusOptions.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select><button type="button" onClick={exportProcesses} className="inline-flex items-center gap-1.5 rounded-xl border border-[#b2843d]/30 bg-[#fffaf0] px-3 py-2.5 text-[10px] font-black uppercase tracking-wide text-[#8b6222] transition hover:bg-[#f7e8c5]" title="Exportar resultados"><span className="material-symbols-outlined text-base">download</span><span className="hidden sm:inline">Exportar</span></button></div>
             </div>
             <div className="mt-5 flex flex-col gap-3 lg:flex-row">
               <div className="flex shrink-0 overflow-x-auto rounded-xl border border-primary/10 bg-slate-100/70 p-1 dark:bg-zinc-900/70">
