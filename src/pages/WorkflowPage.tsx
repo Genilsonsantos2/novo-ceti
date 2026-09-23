@@ -93,6 +93,8 @@ export const WorkflowPage: React.FC = () => {
   const [searchField, setSearchField] = useState<SearchField>('TODOS');
   const [statusFilter, setStatusFilter] = useState('TODOS');
   const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>('TODOS');
+  const [priorityFilter, setPriorityFilter] = useState<WorkflowPriority | 'TODOS'>('TODOS');
+  const [responsibleFilter, setResponsibleFilter] = useState('TODOS');
   const [showNewProcess, setShowNewProcess] = useState(false);
   const [movementNote, setMovementNote] = useState('');
   const [nextStatus, setNextStatus] = useState<WorkflowStatus>('EM_ANALISE');
@@ -154,6 +156,8 @@ export const WorkflowPage: React.FC = () => {
     return processes.filter(process => {
       const matchesStatus = statusFilter === 'TODOS' || process.status === statusFilter;
       const matchesDeadline = deadlineFilter === 'TODOS' || getDeadlineState(process.due_at, process.status) === deadlineFilter;
+      const matchesPriority = priorityFilter === 'TODOS' || process.priority === priorityFilter;
+      const matchesResponsible = responsibleFilter === 'TODOS' || (process.responsible_name || 'A definir') === responsibleFilter;
       const searchValues: Record<SearchField, string[]> = {
         TODOS: [process.process_number, getProcessPersonName(process), process.subject, process.responsible_name || '', process.operator_name],
         NOME: [getProcessPersonName(process)],
@@ -162,9 +166,9 @@ export const WorkflowPage: React.FC = () => {
       };
       const matchesSearch = !normalizedSearch || searchValues[searchField]
         .some(value => value.toLowerCase().includes(normalizedSearch));
-      return matchesStatus && matchesDeadline && matchesSearch;
+      return matchesStatus && matchesDeadline && matchesPriority && matchesResponsible && matchesSearch;
     });
-  }, [processes, search, searchField, statusFilter, deadlineFilter]);
+  }, [processes, search, searchField, statusFilter, deadlineFilter, priorityFilter, responsibleFilter]);
 
   const searchPlaceholder = {
     TODOS: 'Nome, matrícula ou assunto...',
@@ -178,6 +182,7 @@ export const WorkflowPage: React.FC = () => {
   const overdueCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'OVERDUE').length;
   const dueTodayCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'TODAY').length;
   const onTimeCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'ON_TIME').length;
+  const responsibleOptions = Array.from(new Set(processes.map(process => process.responsible_name || 'A definir'))).sort();
 
   const exportProcesses = () => {
     const headers = ['Processo', 'Nome do aluno', 'Matrícula', 'Assunto', 'Prioridade', 'Status', 'Prazo', 'Última atualização'];
@@ -406,7 +411,7 @@ export const WorkflowPage: React.FC = () => {
           <div className="border-b border-white/60 p-5 md:p-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div><div className="flex items-center gap-2"><span className="material-symbols-outlined text-[#b2843d]">manage_search</span><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b2843d]">Pesquisa inteligente</p></div><h3 className="mt-1 font-headline text-xl font-extrabold text-on-surface">Fila de processos</h3><p className="mt-1 text-xs text-on-surface-variant">{filteredProcesses.length} processo(s) encontrado(s) · identificação por nome e matrícula</p></div>
-              <div className="flex gap-2"><select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Todos os status</option>{statusOptions.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select><button type="button" onClick={exportProcesses} className="inline-flex items-center gap-1.5 rounded-xl border border-[#b2843d]/30 bg-[#fffaf0] px-3 py-2.5 text-[10px] font-black uppercase tracking-wide text-[#8b6222] transition hover:bg-[#f7e8c5]" title="Exportar resultados"><span className="material-symbols-outlined text-base">download</span><span className="hidden sm:inline">Exportar</span></button></div>
+              <div className="flex flex-wrap gap-2"><select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Todos os status</option>{statusOptions.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select><select value={priorityFilter} onChange={event => setPriorityFilter(event.target.value as WorkflowPriority | 'TODOS')} className="rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Prioridade</option>{priorityOptions.map(priority => <option key={priority.value} value={priority.value}>{priority.label}</option>)}</select><select value={responsibleFilter} onChange={event => setResponsibleFilter(event.target.value)} className="max-w-[150px] rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Responsável</option>{responsibleOptions.map(responsible => <option key={responsible} value={responsible}>{responsible}</option>)}</select><button type="button" onClick={exportProcesses} className="inline-flex items-center gap-1.5 rounded-xl border border-[#b2843d]/30 bg-[#fffaf0] px-3 py-2.5 text-[10px] font-black uppercase tracking-wide text-[#8b6222] transition hover:bg-[#f7e8c5]" title="Exportar resultados"><span className="material-symbols-outlined text-base">download</span><span className="hidden sm:inline">Exportar</span></button></div>
             </div>
             <div className="mt-5 flex flex-col gap-3 lg:flex-row">
               <div className="flex shrink-0 overflow-x-auto rounded-xl border border-primary/10 bg-slate-100/70 p-1 dark:bg-zinc-900/70">
