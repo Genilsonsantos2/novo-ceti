@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useDarkMode } from '../contexts/DarkModeContext';
@@ -9,6 +9,15 @@ export const AdminLayout: React.FC = () => {
   const { darkMode, toggleDarkMode } = useDarkMode();
   const { isOnline, pendingLogs } = useOfflineSync();
   const navigate = useNavigate();
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentDate(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const currentTime = currentDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const currentDay = currentDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   const handleSignOut = async () => {
     await signOut();
@@ -39,6 +48,13 @@ export const AdminLayout: React.FC = () => {
                 Offline ({pendingLogs.length})
               </div>
             )}
+          </div>
+          <div className="mt-5 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3">
+            <div className="flex items-center gap-2 text-primary">
+              <span className="material-symbols-outlined text-lg">schedule</span>
+              <span className="font-mono text-xl font-black tracking-tight tabular-nums">{currentTime}</span>
+            </div>
+            <p className="mt-1 text-[9px] font-bold capitalize tracking-wide text-outline">{currentDay}</p>
           </div>
         </div>
 
@@ -143,6 +159,10 @@ export const AdminLayout: React.FC = () => {
              <h1 className="font-headline font-extrabold text-lg text-primary tracking-tight">CETI</h1>
            </div>
             <div className="flex items-center gap-2.5">
+             <div className="hidden text-right sm:block">
+               <p className="font-mono text-sm font-black leading-none tabular-nums text-primary">{currentTime}</p>
+               <p className="mt-1 text-[8px] font-bold capitalize leading-none text-outline">{currentDay}</p>
+             </div>
              <div className="text-right">
                <p className="text-[8px] font-black uppercase text-primary tracking-widest leading-none">{profile?.role}</p>
                <p className="text-[10px] font-bold text-outline leading-tight">{profile?.full_name?.split(' ')[0]}</p>
