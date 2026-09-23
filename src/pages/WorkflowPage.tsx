@@ -22,6 +22,7 @@ const priorityOptions = [
 type WorkflowStatus = typeof statusOptions[number]['value'];
 type WorkflowPriority = typeof priorityOptions[number]['value'];
 type SearchField = 'TODOS' | 'NOME' | 'MATRICULA' | 'ASSUNTO';
+type DeadlineFilter = 'TODOS' | 'OVERDUE' | 'TODAY' | 'ON_TIME';
 
 interface WorkflowMovement {
   id: string;
@@ -91,6 +92,7 @@ export const WorkflowPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState<SearchField>('TODOS');
   const [statusFilter, setStatusFilter] = useState('TODOS');
+  const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>('TODOS');
   const [showNewProcess, setShowNewProcess] = useState(false);
   const [movementNote, setMovementNote] = useState('');
   const [nextStatus, setNextStatus] = useState<WorkflowStatus>('EM_ANALISE');
@@ -151,6 +153,7 @@ export const WorkflowPage: React.FC = () => {
     const normalizedSearch = search.toLowerCase().trim();
     return processes.filter(process => {
       const matchesStatus = statusFilter === 'TODOS' || process.status === statusFilter;
+      const matchesDeadline = deadlineFilter === 'TODOS' || getDeadlineState(process.due_at, process.status) === deadlineFilter;
       const searchValues: Record<SearchField, string[]> = {
         TODOS: [process.process_number, getProcessPersonName(process), process.subject, process.responsible_name || '', process.operator_name],
         NOME: [getProcessPersonName(process)],
@@ -159,9 +162,9 @@ export const WorkflowPage: React.FC = () => {
       };
       const matchesSearch = !normalizedSearch || searchValues[searchField]
         .some(value => value.toLowerCase().includes(normalizedSearch));
-      return matchesStatus && matchesSearch;
+      return matchesStatus && matchesDeadline && matchesSearch;
     });
-  }, [processes, search, searchField, statusFilter]);
+  }, [processes, search, searchField, statusFilter, deadlineFilter]);
 
   const searchPlaceholder = {
     TODOS: 'Nome, matrícula ou assunto...',
@@ -173,6 +176,8 @@ export const WorkflowPage: React.FC = () => {
   const countByStatus = (status: WorkflowStatus) => processes.filter(process => process.status === status).length;
   const completedCount = countByStatus('CONCLUIDO');
   const overdueCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'OVERDUE').length;
+  const dueTodayCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'TODAY').length;
+  const onTimeCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'ON_TIME').length;
 
   const exportProcesses = () => {
     const headers = ['Processo', 'Nome do aluno', 'Matrícula', 'Assunto', 'Prioridade', 'Status', 'Prazo', 'Última atualização'];
@@ -385,6 +390,15 @@ export const WorkflowPage: React.FC = () => {
             <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-on-surface-variant">{status.label}</p>
           </button>
         ))}
+      </section>
+
+      <section className="mb-8 rounded-2xl border border-[#d5ae68]/30 bg-[#fffaf0] p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9a6d28]">Prazos de tramitação</p><p className="mt-1 text-sm font-bold text-[#071b33]">Filtre a fila pelas tarefas que exigem atenção agora.</p></div>
+          <div className="flex flex-wrap gap-2">
+            {[{ value: 'TODOS' as DeadlineFilter, label: 'Todos', count: processes.length }, { value: 'OVERDUE' as DeadlineFilter, label: 'Atrasados', count: overdueCount }, { value: 'TODAY' as DeadlineFilter, label: 'Vencem hoje', count: dueTodayCount }, { value: 'ON_TIME' as DeadlineFilter, label: 'No prazo', count: onTimeCount }].map(filter => <button key={filter.value} type="button" onClick={() => setDeadlineFilter(filter.value)} className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wide transition ${deadlineFilter === filter.value ? 'bg-[#071b33] text-white shadow-md' : 'border border-[#d5ae68]/40 bg-white/70 text-[#8b6222] hover:bg-white'}`}>{filter.label} <span className="ml-1 opacity-70">{filter.count}</span></button>)}
+          </div>
+        </div>
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
