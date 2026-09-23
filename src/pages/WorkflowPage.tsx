@@ -59,6 +59,7 @@ interface Student {
 const getStatus = (status: WorkflowStatus) => statusOptions.find(option => option.value === status) || statusOptions[0];
 const getProcessPersonName = (process: WorkflowProcess) => process.student_name || process.guest_name || 'Solicitante não identificado';
 const getProcessEnrollment = (process: WorkflowProcess) => process.process_number || process.guest_enrollment_id || 'Matrícula não informada';
+const getInitials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 const formatDate = (date: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(date));
 
 export const WorkflowPage: React.FC = () => {
@@ -153,6 +154,8 @@ export const WorkflowPage: React.FC = () => {
   }[searchField];
 
   const countByStatus = (status: WorkflowStatus) => processes.filter(process => process.status === status).length;
+  const completedCount = countByStatus('CONCLUIDO');
+  const urgentCount = processes.filter(process => process.priority === 'URGENTE').length;
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -270,17 +273,24 @@ export const WorkflowPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 px-6 py-8 md:px-10 md:py-10 pb-32 min-h-screen">
-      <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70">Tramitação administrativa</p>
-          <h2 className="mt-2 font-headline text-3xl font-extrabold tracking-tight text-on-surface md:text-4xl">Central de Processos</h2>
-          <p className="mt-2 max-w-2xl text-sm text-on-surface-variant">Autuação, tramitação e acompanhamento no modelo judicial, com nome do aluno e matrícula identificando cada processo.</p>
+    <div className="flex-1 px-4 py-6 md:px-10 md:py-10 pb-32 min-h-screen">
+      <header className="relative mb-8 overflow-hidden rounded-[2rem] bg-[#071b33] px-6 py-7 text-white shadow-2xl shadow-[#071b33]/20 md:px-9 md:py-8">
+        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full border-[26px] border-[#d5ae68]/15" />
+        <div className="absolute right-16 -bottom-32 h-64 w-64 rounded-full border border-white/10" />
+        <div className="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="mb-5 flex items-center gap-3 text-[#d5ae68]"><span className="material-symbols-outlined">account_balance</span><p className="text-[10px] font-black uppercase tracking-[0.28em]">Secretaria • Núcleo de registros</p></div>
+            <h2 className="font-headline text-3xl font-extrabold tracking-tight md:text-5xl">Central de Processos</h2>
+            <p className="mt-3 max-w-2xl text-sm font-medium leading-relaxed text-blue-100/70">Autuação, tramitação e acompanhamento dos estudantes em uma visão executiva, com cada processo identificado por nome e matrícula.</p>
+          </div>
+          <button onClick={() => setShowNewProcess(true)} className="relative flex items-center justify-center gap-2 rounded-xl bg-[#d5ae68] px-5 py-3.5 text-sm font-black text-[#071b33] shadow-xl shadow-black/20 transition hover:bg-[#e4c484] hover:-translate-y-0.5">
+            <span className="material-symbols-outlined">add_circle</span>
+            Abrir novo processo
+          </button>
         </div>
-        <button onClick={() => setShowNewProcess(true)} className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:scale-[1.02]">
-          <span className="material-symbols-outlined">add_circle</span>
-          Abrir processo
-        </button>
+        <div className="relative mt-7 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 sm:grid-cols-4">
+          {[{ label: 'Total na central', value: processes.length, icon: 'folder_copy' }, { label: 'Em andamento', value: processes.length - completedCount, icon: 'pending_actions' }, { label: 'Concluídos', value: completedCount, icon: 'verified' }, { label: 'Prioridade urgente', value: urgentCount, icon: 'priority_high' }].map(metric => <div key={metric.label} className="flex items-center gap-2"><span className="material-symbols-outlined text-[#d5ae68]">{metric.icon}</span><div><p className="text-xl font-black leading-none">{metric.value}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">{metric.label}</p></div></div>)}
+        </div>
       </header>
 
       {error && <div className="mb-6 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><span className="material-symbols-outlined">error</span><p>{error}</p></div>}
@@ -307,15 +317,16 @@ export const WorkflowPage: React.FC = () => {
 
       <section className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {statusOptions.map(status => (
-          <button key={status.value} onClick={() => setStatusFilter(statusFilter === status.value ? 'TODOS' : status.value)} className={`glass-card rounded-2xl p-4 text-left ${statusFilter === status.value ? 'ring-2 ring-primary' : ''}`}>
+          <button key={status.value} onClick={() => setStatusFilter(statusFilter === status.value ? 'TODOS' : status.value)} className={`group relative overflow-hidden rounded-2xl border bg-white/75 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-zinc-900/70 ${statusFilter === status.value ? 'border-[#b2843d] ring-2 ring-[#d5ae68]/30' : 'border-white/60 dark:border-zinc-800'}`}>
+            <div className={`absolute inset-x-0 top-0 h-1 ${status.color.split(' ')[0]}`} />
             <p className="text-2xl font-black text-on-surface">{countByStatus(status.value)}</p>
-            <p className="mt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{status.label}</p>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-on-surface-variant">{status.label}</p>
           </button>
         ))}
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
-        <section className="glass-card overflow-hidden rounded-[2rem]">
+        <section className="glass-card overflow-hidden rounded-[2rem] border border-white/70 shadow-xl shadow-slate-200/40 dark:border-zinc-800 dark:shadow-black/20">
           <div className="border-b border-white/60 p-5 md:p-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div><div className="flex items-center gap-2"><span className="material-symbols-outlined text-[#b2843d]">manage_search</span><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b2843d]">Pesquisa inteligente</p></div><h3 className="mt-1 font-headline text-xl font-extrabold text-on-surface">Fila de processos</h3><p className="mt-1 text-xs text-on-surface-variant">{filteredProcesses.length} processo(s) encontrado(s) · identificação por nome e matrícula</p></div>
@@ -333,10 +344,10 @@ export const WorkflowPage: React.FC = () => {
               <label className="relative min-w-0 flex-1"><span className="sr-only">Pesquisar na fila</span><span className="material-symbols-outlined absolute left-3 top-2.5 text-lg text-outline">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder={searchPlaceholder} className="w-full rounded-xl border border-primary/10 bg-white/60 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-[#b2843d] focus:ring-4 focus:ring-[#b2843d]/10" />{search && <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-2.5 text-outline hover:text-primary" aria-label="Limpar pesquisa"><span className="material-symbols-outlined text-lg">close</span></button>}</label>
             </div>
           </div>
-          {loading ? <div className="flex justify-center p-16"><span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div> : filteredProcesses.length === 0 ? <div className="p-12 text-center"><span className="material-symbols-outlined text-5xl text-primary/30">folder_open</span><p className="mt-3 font-bold text-on-surface">Nenhum processo na fila</p><p className="mt-1 text-sm text-on-surface-variant">Abra um processo para iniciar o acompanhamento.</p></div> : <div className="divide-y divide-white/60">{filteredProcesses.map(process => { const status = getStatus(process.status); return <button key={process.id} onClick={() => { setSelectedProcess(process); setNextStatus(process.status === 'RECEBIDO' ? 'EM_ANALISE' : process.status); }} className={`flex w-full items-center gap-4 p-5 text-left transition hover:bg-primary/5 ${selectedProcess?.id === process.id ? 'bg-primary/5' : ''}`}><div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:flex"><span className="material-symbols-outlined">folder_managed</span></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-mono text-sm font-extrabold text-primary">PROC. RM-{process.process_number}</p><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${status.color}`}>{status.label}</span></div><p className="mt-1 truncate font-bold text-on-surface">{getProcessPersonName(process)}</p><p className="mt-1 truncate text-xs text-on-surface-variant">Matrícula {getProcessEnrollment(process)} · {process.subject}</p><p className="mt-1 text-xs text-on-surface-variant">Atualizado em {formatDate(process.updated_at)} · Operado por {process.operator_name}</p></div><span className="material-symbols-outlined text-outline">chevron_right</span></button>; })}</div>}
+          {loading ? <div className="flex justify-center p-16"><span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div> : filteredProcesses.length === 0 ? <div className="p-12 text-center"><span className="material-symbols-outlined text-5xl text-primary/30">folder_open</span><p className="mt-3 font-bold text-on-surface">Nenhum processo na fila</p><p className="mt-1 text-sm text-on-surface-variant">Abra um processo para iniciar o acompanhamento.</p></div> : <div className="divide-y divide-white/60">{filteredProcesses.map(process => { const status = getStatus(process.status); const personName = getProcessPersonName(process); return <button key={process.id} onClick={() => { setSelectedProcess(process); setNextStatus(process.status === 'RECEBIDO' ? 'EM_ANALISE' : process.status); }} className={`group flex w-full items-center gap-4 p-5 text-left transition hover:bg-[#b2843d]/5 ${selectedProcess?.id === process.id ? 'bg-[#b2843d]/10' : ''}`}><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#071b33] text-xs font-black text-[#d5ae68] shadow-md">{getInitials(personName)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-mono text-[11px] font-black tracking-wide text-[#b2843d]">PROC. RM-{process.process_number}</p><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${status.color}`}>{status.label}</span>{process.priority === 'URGENTE' && <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-black uppercase text-red-700">Urgente</span>}</div><p className="mt-1 truncate font-headline text-base font-extrabold text-on-surface">{personName}</p><p className="mt-1 truncate text-xs font-medium text-on-surface-variant"><span className="font-mono font-bold">RM {getProcessEnrollment(process)}</span> <span className="mx-1 text-outline/50">•</span> {process.subject}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-outline">Atualizado em {formatDate(process.updated_at)} · {process.operator_name}</p></div><span className="material-symbols-outlined text-outline transition group-hover:translate-x-1 group-hover:text-[#b2843d]">chevron_right</span></button>; })}</div>}
         </section>
 
-        <aside className="glass-card rounded-[2rem] border-t-4 border-t-primary p-6">
+        <aside className="glass-card rounded-[2rem] border border-white/70 border-t-4 border-t-[#b2843d] p-6 shadow-xl shadow-slate-200/40 dark:border-zinc-800 dark:shadow-black/20">
           {selectedProcess && <div className="mb-6 rounded-2xl border border-primary/15 bg-primary/5 p-4">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-primary"><span className="material-symbols-outlined text-base">badge</span> Identificação do processo</div>
             <p className="mt-3 text-lg font-extrabold text-on-surface">{getProcessPersonName(selectedProcess)}</p>
