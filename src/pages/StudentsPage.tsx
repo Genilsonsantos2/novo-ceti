@@ -432,6 +432,9 @@ export const StudentsPage: React.FC = () => {
         setPrintFilter={setPrintFilter}
         grades={grades}
         totalStudents={students.length}
+        filteredStudents={filteredData.length}
+        authorizedStudents={students.filter(student => student.is_authorized).length}
+        pendingPrintStudents={students.filter(student => !student.is_printed).length}
         onSelectAllWithPhoto={handleSelectAllWithPhoto}
       />
 
