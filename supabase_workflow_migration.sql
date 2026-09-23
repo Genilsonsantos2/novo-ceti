@@ -70,8 +70,19 @@ CREATE TABLE IF NOT EXISTS workflow_movements (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS workflow_audit_logs (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  process_id UUID REFERENCES workflow_processes(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  details JSONB DEFAULT '{}'::jsonb NOT NULL,
+  operator_id UUID REFERENCES auth.users(id),
+  operator_name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 ALTER TABLE workflow_processes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workflow_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workflow_audit_logs ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Authenticated users can manage workflow processes" ON workflow_processes;
 CREATE POLICY "Authenticated users can manage workflow processes"
@@ -81,6 +92,11 @@ CREATE POLICY "Authenticated users can manage workflow processes"
 DROP POLICY IF EXISTS "Authenticated users can manage workflow movements" ON workflow_movements;
 CREATE POLICY "Authenticated users can manage workflow movements"
   ON workflow_movements FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated users can manage workflow audit logs" ON workflow_audit_logs;
+CREATE POLICY "Authenticated users can manage workflow audit logs"
+  ON workflow_audit_logs FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
 
 DO $$
@@ -101,3 +117,4 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS workflow_processes_status_idx ON workflow_processes(status);
 CREATE INDEX IF NOT EXISTS workflow_movements_process_id_idx ON workflow_movements(process_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS workflow_audit_logs_process_id_idx ON workflow_audit_logs(process_id, created_at DESC);

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 
 export interface WorkflowQueueItem {
   id: string;
-  table: 'workflow_processes' | 'workflow_movements';
+  table: 'workflow_processes' | 'workflow_movements' | 'workflow_audit_logs';
   payload: Record<string, unknown>;
   createdAt: string;
 }

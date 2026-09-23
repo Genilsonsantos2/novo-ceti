@@ -241,10 +241,20 @@ export const WorkflowPage: React.FC = () => {
       operator_name: operatorName,
       created_at: new Date().toISOString(),
     };
+    const auditPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: processId,
+      action: 'PROCESSO_ABERTO',
+      details: { process_number: processNumber, student_name: subjectName, priority: newProcess.priority },
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
 
     if (!isOnline) {
       await enqueue('workflow_processes', processPayload);
       await enqueue('workflow_movements', movementPayload);
+      await enqueue('workflow_audit_logs', auditPayload);
       const nextProcesses = [processPayload as WorkflowProcess, ...processes];
       setProcesses(nextProcesses);
       await cacheProcesses(nextProcesses);
@@ -258,6 +268,7 @@ export const WorkflowPage: React.FC = () => {
       }
       const { error: movementError } = await supabase.from('workflow_movements').insert(movementPayload);
       if (movementError) setError(`Processo criado, mas o histórico inicial não foi registrado: ${movementError.message}`);
+      await supabase.from('workflow_audit_logs').insert(auditPayload);
       await fetchProcesses(false);
       setSelectedProcess({ ...data, workflow_movements: [movementPayload] } as WorkflowProcess);
     }
@@ -277,6 +288,15 @@ export const WorkflowPage: React.FC = () => {
       from_status: selectedProcess.status,
       to_status: nextStatus,
       note: movementNote.trim(),
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
+    const auditPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: selectedProcess.id,
+      action: 'STATUS_ALTERADO',
+      details: { from_status: selectedProcess.status, to_status: nextStatus, note: movementNote.trim() },
       operator_id: user?.id || null,
       operator_name: operatorName,
       created_at: new Date().toISOString(),
@@ -301,6 +321,7 @@ export const WorkflowPage: React.FC = () => {
     };
     if (!isOnline) {
       await enqueue('workflow_movements', movementPayload);
+      await enqueue('workflow_audit_logs', auditPayload);
       await enqueue('workflow_processes', { ...processUpdate });
       const nextProcesses = processes.map(process => process.id === selectedProcess.id ? processUpdate : process);
       setProcesses(nextProcesses);
@@ -313,6 +334,7 @@ export const WorkflowPage: React.FC = () => {
         setSaving(false);
         return;
       }
+      await supabase.from('workflow_audit_logs').insert(auditPayload);
       const { error: updateError } = await supabase.from('workflow_processes').update({ status: nextStatus, updated_at: processUpdate.updated_at }).eq('id', selectedProcess.id);
       if (updateError) setError(`Movimentação registrada, mas o status não foi atualizado: ${updateError.message}`);
     }
@@ -331,6 +353,21 @@ export const WorkflowPage: React.FC = () => {
     if (!confirmed) return;
     setDeleting(true);
     setError('');
+    const auditPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: selectedProcess.id,
+      action: 'PROCESSO_EXCLUIDO',
+      details: { process_number: selectedProcess.process_number, student_name: getProcessPersonName(selectedProcess) },
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
+    const { error: auditError } = await supabase.from('workflow_audit_logs').insert(auditPayload);
+    if (auditError) {
+      setError(`Não foi possível registrar a auditoria da exclusão: ${auditError.message}`);
+      setDeleting(false);
+      return;
+    }
     const { error: deleteError } = await supabase
       .from('workflow_processes')
       .delete()
