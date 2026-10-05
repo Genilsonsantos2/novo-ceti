@@ -42,11 +42,28 @@ interface AlertItem {
   href: string;
 }
 
+interface RecentAuditItem {
+  id: string;
+  action: string;
+  summary: string;
+  operatorName: string;
+  createdAt: string;
+}
+
+const RANGE_OPTIONS = [
+  { key: '7d', label: '7 dias', days: 7 },
+  { key: '30d', label: '30 dias', days: 30 },
+  { key: '90d', label: '90 dias', days: 90 },
+] as const;
+
 export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0, ocorrenciasHoje: 0, semCarteira30Dias: 0, processosAbertos: 0, processosUrgentes: 0, processosPendentes: 0 });
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [studentsAtRisk, setStudentsAtRisk] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<RecentAuditItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRange, setSelectedRange] = useState<(typeof RANGE_OPTIONS)[number]['key']>('30d');
+  const currentRange = RANGE_OPTIONS.find(option => option.key === selectedRange) ?? RANGE_OPTIONS[1];
 
   useEffect(() => {
     fetchStats();
@@ -72,26 +89,33 @@ export const DashboardPage: React.FC = () => {
       supabase.removeChannel(absencesSubscription);
       supabase.removeChannel(occurrencesSubscription);
     };
-  }, []);
+  }, [selectedRange]);
 
   const fetchStats = async () => {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const ninetyDaysAgo = format(subDays(new Date(), 90), 'yyyy-MM-dd');
+    const rangeDays = RANGE_OPTIONS.find(option => option.key === selectedRange)?.days ?? 30;
+    const rangeStart = format(subDays(new Date(), rangeDays), 'yyyy-MM-dd');
+    const historyStart = format(subDays(new Date(), 90), 'yyyy-MM-dd');
 
-    const [{ data: absenceData, error: absenceError }, { count: totalAlunos }, { data: occurrenceData, error: occurrenceError }, { data: processData, error: processError }] = await Promise.all([
+    const [{ data: absenceData, error: absenceError }, { count: totalAlunos }, { data: occurrenceData, error: occurrenceError }, { data: processData, error: processError }, { data: auditData, error: auditError }] = await Promise.all([
       supabase
         .from('student_absences')
         .select('id, student_id, date, type, is_intermittent, reason, sigeduc_synced, students(full_name, grade)')
-        .gte('date', ninetyDaysAgo),
+        .gte('date', historyStart),
       supabase.from('students').select('*', { count: 'exact', head: true }),
       supabase
         .from('gate_occurrences')
         .select('id, occurred_at, has_card, reason')
-        .gte('occurred_at', `${ninetyDaysAgo}T00:00:00`),
+        .gte('occurred_at', `${historyStart}T00:00:00`),
       supabase
         .from('workflow_processes')
         .select('id, process_number, student_name, guest_name, subject, priority, status, due_at, updated_at')
         .neq('status', 'ARQUIVADO'),
+      supabase
+        .from('workflow_audit_logs')
+        .select('id, action, details, operator_name, created_at')
+        .order('created_at', { ascending: false })
+        .limit(8),
     ]);
 
     if (absenceError) {
@@ -103,17 +127,21 @@ export const DashboardPage: React.FC = () => {
     if (processError && !processError.message.includes("Could not find the table 'public.workflow_processes'")) {
       console.error('Erro ao buscar processos do dashboard:', processError);
     }
+    if (auditError && !auditError.message.includes("Could not find the table 'public.workflow_audit_logs'")) {
+      console.error('Erro ao buscar auditoria do dashboard:', auditError);
+    }
 
     const absences = (absenceData || []) as DashboardAbsence[];
     const occurrences = (occurrenceData || []) as DashboardOccurrence[];
     const processes = (processData || []) as DashboardProcess[];
+    const auditEntries = (auditData || []) as Array<{ id: string; action: string; details: Record<string, any>; operator_name: string | null; created_at: string }>;
     const validUntilToday = absences.filter(absence => absence.date <= today);
-    const recentAbsences = validUntilToday.filter(absence => absence.date >= format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+    const recentAbsences = validUntilToday.filter(absence => absence.date >= rangeStart);
     const lastSevenDays = validUntilToday.filter(absence => absence.date >= format(subDays(new Date(), 7), 'yyyy-MM-dd'));
-    const pendingSync = validUntilToday.filter(absence => !absence.sigeduc_synced);
-    const missingReason = validUntilToday.filter(absence => !absence.reason?.trim());
+    const pendingSync = validUntilToday.filter(absence => !absence.sigeduc_synced && absence.date >= rangeStart);
+    const missingReason = validUntilToday.filter(absence => !absence.reason?.trim() && absence.date >= rangeStart);
     const todayOccurrences = occurrences.filter(occurrence => occurrence.occurred_at.slice(0, 10) === today);
-    const recentOccurrencesWithoutCard = occurrences.filter(occurrence => !occurrence.has_card);
+    const recentOccurrencesWithoutCard = occurrences.filter(occurrence => !occurrence.has_card && occurrence.occurred_at.slice(0, 10) >= rangeStart);
 
     const countsByStudent = recentAbsences.reduce<Record<string, { count: number; lastSeven: number; name: string; grade: string }>>((acc, absence) => {
       if (!absence.student_id) return acc;
@@ -130,7 +158,7 @@ export const DashboardPage: React.FC = () => {
     }, {});
 
     const riskStudents = Object.entries(countsByStudent)
-      .filter(([, item]) => item.count >= 3)
+      .filter(([, item]) => item.count >= Math.max(1, Math.ceil(rangeDays / 15)))
       .sort(([, first], [, second]) => second.count - first.count);
 
     const generatedAlerts: AlertItem[] = [];
@@ -140,7 +168,7 @@ export const DashboardPage: React.FC = () => {
         id: 'recurrence',
         severity: riskStudents.length >= 3 ? 'Alta' : 'Média',
         title: `${riskStudents.length} aluno(s) com recorrência`,
-        description: `${student.name} lidera a lista com ${student.count} registros nos últimos 30 dias (${student.lastSeven} na última semana).`,
+        description: `${student.name} lidera a lista com ${student.count} registros nos últimos ${rangeDays} dias (${student.lastSeven} na última semana).`,
         actionLabel: 'Revisar histórico',
         href: '/absences?aba=historico&filtro=reincidentes',
       });
@@ -150,7 +178,7 @@ export const DashboardPage: React.FC = () => {
         id: 'missing-reason',
         severity: 'Alta',
         title: `${missingReason.length} registro(s) sem justificativa`,
-        description: 'Esses lançamentos precisam de revisão antes de serem considerados válidos.',
+        description: `Esses lançamentos precisam de revisão antes de serem considerados válidos no período de ${RANGE_OPTIONS.find(option => option.key === selectedRange)?.label.toLowerCase()}.`,
         actionLabel: 'Completar justificativas',
         href: '/absences?aba=historico&filtro=sem-justificativa',
       });
@@ -170,7 +198,7 @@ export const DashboardPage: React.FC = () => {
         id: 'trend',
         severity: 'Média',
         title: 'Aumento recente de ausências',
-        description: `${lastSevenDays.length} registros ocorreram na última semana. Vale investigar a tendência por turma.`,
+        description: `${lastSevenDays.length} registros ocorreram na última semana. Vale investigar a tendência por turma dentro do período atual.`,
         actionLabel: 'Abrir relatórios',
         href: '/absences?aba=relatorios&filtro=tendencia',
       });
@@ -235,6 +263,28 @@ export const DashboardPage: React.FC = () => {
     });
     setAlerts(generatedAlerts);
     setStudentsAtRisk(riskStudents.length);
+    setRecentActivity(auditEntries.map(entry => {
+      const details = entry.details || {};
+      const actionLabel = {
+        PROCESSO_ABERTO: 'Processo aberto',
+        STATUS_ALTERADO: 'Status alterado',
+        PROCESSO_EXCLUIDO: 'Processo excluído',
+      }[entry.action] || entry.action.replace(/_/g, ' ').toLowerCase();
+
+      const summary =
+        details.note ||
+        details.student_name ||
+        details.process_number ||
+        `Ação registrada em ${entry.created_at}`;
+
+      return {
+        id: entry.id,
+        action: actionLabel,
+        summary: summary.length > 80 ? `${summary.slice(0, 77)}...` : summary,
+        operatorName: entry.operator_name || 'Sistema',
+        createdAt: entry.created_at,
+      };
+    }));
     
     setLoading(false);
   };
@@ -252,6 +302,23 @@ export const DashboardPage: React.FC = () => {
           <span className="material-symbols-outlined text-primary text-lg">groups</span>
           <p className="text-sm font-bold text-primary">{stats.totalAlunos} <span className="text-xs font-medium text-primary/70">alunos cadastrados</span></p>
         </div>
+      </div>
+
+      <div className="mb-8 flex flex-wrap items-center gap-2">
+        {RANGE_OPTIONS.map(option => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => setSelectedRange(option.key)}
+            className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] transition-all ${
+              selectedRange === option.key
+                ? 'bg-primary text-white shadow-md shadow-primary/20'
+                : 'bg-white/60 text-on-surface-variant border border-primary/10 hover:bg-primary/5'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -310,7 +377,7 @@ export const DashboardPage: React.FC = () => {
               <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-violet-500/10 transition-all duration-500">
                 <span className="material-symbols-outlined text-violet-500 text-2xl">autorenew</span>
               </div>
-              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">30 dias</span>
+              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">{currentRange.label}</span>
             </div>
             <div>
               <p className="text-5xl font-headline font-extrabold text-violet-500">{stats.intermitentes}</p>
@@ -335,7 +402,7 @@ export const DashboardPage: React.FC = () => {
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-rose-700">Atenção da portaria</p>
               <p className="mt-2 text-4xl font-headline font-extrabold text-rose-600">{stats.semCarteira30Dias}</p>
-              <p className="mt-1 text-sm font-medium text-on-surface-variant">Sem carteira nos últimos 30 dias</p>
+              <p className="mt-1 text-sm font-medium text-on-surface-variant">Sem carteira nos últimos {currentRange.label.toLowerCase()}</p>
             </div>
             <span className="material-symbols-outlined text-4xl text-rose-500/50 group-hover:text-rose-500 transition-colors">badge</span>
           </Link>
@@ -423,6 +490,41 @@ export const DashboardPage: React.FC = () => {
               </Link>
               <p className="text-xs leading-relaxed text-on-surface-variant">Os alertas são recomendações baseadas nos dados disponíveis e precisam de validação da equipe.</p>
             </div>
+          </div>
+        </section>
+      )}
+
+      {!loading && (
+        <section className="mb-12">
+          <div className="glass-card rounded-[2rem] p-6 md:p-8">
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary/70">Auditoria</p>
+                <h3 className="mt-2 font-headline text-2xl font-extrabold text-on-surface">Atividades recentes</h3>
+              </div>
+              <Link to="/workflow" className="text-sm font-bold text-primary hover:text-primary/80">Ver central</Link>
+            </div>
+
+            {recentActivity.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-5 text-sm text-on-surface-variant">
+                Nenhuma ação registrada recentemente.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map(item => (
+                  <div key={item.id} className="flex flex-col gap-2 rounded-2xl border border-primary/10 bg-white/60 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-bold text-on-surface">{item.action}</p>
+                      <p className="mt-1 text-sm text-on-surface-variant">{item.summary}</p>
+                    </div>
+                    <div className="text-left md:text-right">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary/70">{item.operatorName}</p>
+                      <p className="mt-1 text-xs text-on-surface-variant">{new Date(item.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
