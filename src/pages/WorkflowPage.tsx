@@ -343,6 +343,65 @@ export const WorkflowPage: React.FC = () => {
     setSaving(false);
   };
 
+  const handleRevertLastMovement = async () => {
+    if (!selectedProcess) return;
+    const sortedMovements = [...(selectedProcess.workflow_movements || [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const latestMovement = sortedMovements[0];
+    if (!latestMovement || !latestMovement.from_status) {
+      setError('Não há uma alteração anterior para reverter neste processo.');
+      return;
+    }
+
+    const previousStatus = latestMovement.from_status;
+    const movementPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: selectedProcess.id,
+      from_status: selectedProcess.status,
+      to_status: previousStatus,
+      note: `Reversão da última alteração: ${latestMovement.note || 'sem observação'}`,
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
+    const auditPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: selectedProcess.id,
+      action: 'STATUS_ALTERADO',
+      details: { from_status: selectedProcess.status, to_status: previousStatus, note: movementPayload.note },
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
+
+    setSaving(true);
+    setError('');
+
+    if (!isOnline) {
+      await enqueue('workflow_movements', movementPayload);
+      await enqueue('workflow_audit_logs', auditPayload);
+      await enqueue('workflow_processes', { ...selectedProcess, status: previousStatus, updated_at: new Date().toISOString(), workflow_movements: [...(selectedProcess.workflow_movements || []), movementPayload] });
+      const nextProcesses = processes.map(process => process.id === selectedProcess.id ? { ...process, status: previousStatus, updated_at: new Date().toISOString(), workflow_movements: [...(process.workflow_movements || []), movementPayload] } : process);
+      setProcesses(nextProcesses);
+      setSelectedProcess({ ...selectedProcess, status: previousStatus, updated_at: new Date().toISOString(), workflow_movements: [...(selectedProcess.workflow_movements || []), movementPayload] });
+      await cacheProcesses(nextProcesses);
+    } else {
+      const { error: movementError } = await supabase.from('workflow_movements').insert(movementPayload);
+      if (movementError) {
+        setError(`Não foi possível registrar a reversão: ${movementError.message}`);
+        setSaving(false);
+        return;
+      }
+      await supabase.from('workflow_audit_logs').insert(auditPayload);
+      const { error: updateError } = await supabase.from('workflow_processes').update({ status: previousStatus, updated_at: new Date().toISOString() }).eq('id', selectedProcess.id);
+      if (updateError) {
+        setError(`Reversão registrada, mas o status não foi atualizado: ${updateError.message}`);
+      }
+    }
+
+    await fetchProcesses();
+    setSaving(false);
+  };
+
   const handleDeleteProcess = async () => {
     if (!selectedProcess || deleting) return;
     if (!isOnline) {
@@ -467,7 +526,15 @@ export const WorkflowPage: React.FC = () => {
 
         <aside className="glass-card rounded-[2rem] border border-white/70 border-t-4 border-t-[#b2843d] p-6 shadow-xl shadow-slate-200/40 dark:border-zinc-800 dark:shadow-black/20">
           {selectedProcess && <div className="mb-6 rounded-2xl border border-primary/15 bg-primary/5 p-4">
-            <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-primary"><span className="material-symbols-outlined text-base">badge</span> Identificação do processo</div><button type="button" onClick={handleDeleteProcess} disabled={deleting} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide text-rose-700 transition hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50" title="Excluir processo"><span className="material-symbols-outlined text-sm">{deleting ? 'progress_activity' : 'delete'}</span>{deleting ? 'Excluindo' : 'Excluir'}</button></div>
+            <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-primary"><span className="material-symbols-outlined text-base">badge</span> Identificação do processo</div><div className="flex gap-2">
+              {(selectedProcess.workflow_movements || []).some(movement => movement.from_status) && (
+                <button type="button" onClick={handleRevertLastMovement} disabled={saving} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700 transition hover:bg-amber-100 disabled:cursor-wait disabled:opacity-50" title="Reverter última alteração">
+                  <span className="material-symbols-outlined text-sm">undo</span>
+                  Reverter
+                </button>
+              )}
+              <button type="button" onClick={handleDeleteProcess} disabled={deleting} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide text-rose-700 transition hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50" title="Excluir processo"><span className="material-symbols-outlined text-sm">{deleting ? 'progress_activity' : 'delete'}</span>{deleting ? 'Excluindo' : 'Excluir'}</button>
+            </div></div>
             <p className="mt-3 text-lg font-extrabold text-on-surface">{getProcessPersonName(selectedProcess)}</p>
             <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-on-surface-variant"><span className="rounded-lg bg-white/70 px-2 py-1">Matrícula: {getProcessEnrollment(selectedProcess)}</span><span className="rounded-lg bg-white/70 px-2 py-1">{selectedProcess.student_id ? 'Aluno cadastrado' : 'Solicitação avulsa'}</span></div>
           </div>}
