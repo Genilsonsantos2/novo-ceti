@@ -100,6 +100,13 @@ export const AbsencesReportPage: React.FC = () => {
     return format(d, 'yyyy-MM-dd');
   });
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [reportStartDate, setReportStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return format(d, 'yyyy-MM-dd');
+  });
+  const [reportEndDate, setReportEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [reportGradeFilter, setReportGradeFilter] = useState<'ALL' | string>('ALL');
 
   // ── Filters ─────────────────────────────────────────────────────────────────
   const [filterType, setFilterType] = useState<'ALL' | 'FALTA_JUSTIFICADA' | 'ABONO'>('ALL');
@@ -360,8 +367,16 @@ export const AbsencesReportPage: React.FC = () => {
     return Object.values(counts).sort((a, b) => b.total - a.total).slice(0, 5);
   }, [absences]);
 
+  const reportFilteredAbsences = useMemo(() => {
+    return absences.filter(record => {
+      const inDateRange = (!reportStartDate || record.date >= reportStartDate) && (!reportEndDate || record.date <= reportEndDate);
+      const matchesGrade = reportGradeFilter === 'ALL' || record.students?.grade === reportGradeFilter;
+      return inDateRange && matchesGrade;
+    });
+  }, [absences, reportStartDate, reportEndDate, reportGradeFilter]);
+
   const reportByGrade = useMemo(() => {
-    const grouped = absences.reduce((acc, record) => {
+    const grouped = reportFilteredAbsences.reduce((acc, record) => {
       const grade = record.students?.grade || 'Sem turma';
       if (!acc[grade]) {
         acc[grade] = { grade, faltas: 0, abonos: 0, intermitentes: 0, total: 0 };
@@ -374,10 +389,10 @@ export const AbsencesReportPage: React.FC = () => {
     }, {} as Record<string, { grade: string; faltas: number; abonos: number; intermitentes: number; total: number }>);
 
     return Object.values(grouped).sort((a, b) => b.total - a.total);
-  }, [absences]);
+  }, [reportFilteredAbsences]);
 
   const reportByStudent = useMemo(() => {
-    const grouped = absences.reduce((acc, record) => {
+    const grouped = reportFilteredAbsences.reduce((acc, record) => {
       const studentName = record.students?.full_name || 'Aluno sem nome';
       const key = record.student_id || studentName;
       if (!acc[key]) {
@@ -391,7 +406,7 @@ export const AbsencesReportPage: React.FC = () => {
     }, {} as Record<string, { student: string; grade: string; faltas: number; abonos: number; intermitentes: number; total: number }>);
 
     return Object.values(grouped).sort((a, b) => b.total - a.total).slice(0, 10);
-  }, [absences]);
+  }, [reportFilteredAbsences]);
 
   // ── Filtered Data (Planilha) ─────────────────────────────────────────────────
   const allGrades = useMemo(() => {
@@ -529,6 +544,26 @@ export const AbsencesReportPage: React.FC = () => {
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `Faltas_Abonos_${startDate}_a_${endDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportExecutiveReportCSV = () => {
+    const headers = ['Turma', 'Faltas', 'Abonos', 'Intermitentes', 'Total'];
+    const rows = reportByGrade.map(item => [
+      `"${item.grade}"`,
+      `"${item.faltas}"`,
+      `"${item.abonos}"`,
+      `"${item.intermitentes}"`,
+      `"${item.total}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Resumo_Turmas_${reportStartDate}_a_${reportEndDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1969,43 +2004,63 @@ export const AbsencesReportPage: React.FC = () => {
       {activeTab === 'relatorios' && (
         <div ref={reportRef} className="space-y-6">
           <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 p-5 shadow-sm backdrop-blur-sm">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-violet-300">Relatórios</p>
                 <h3 className="mt-2 text-xl font-extrabold text-gray-900 dark:text-white">Resumo executivo</h3>
               </div>
-              <button onClick={handleExportReportPDF} className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm">
-                <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
-                Exportar PDF
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700">
+                  De
+                  <input type="date" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none" />
+                </label>
+                <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700">
+                  Até
+                  <input type="date" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none" />
+                </label>
+                <select value={reportGradeFilter} onChange={e => setReportGradeFilter(e.target.value)} className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 outline-none">
+                  <option value="ALL">Todas as turmas</option>
+                  {allGrades.map(grade => (
+                    <option key={grade} value={grade}>{grade}</option>
+                  ))}
+                </select>
+                <button onClick={handleExportExecutiveReportCSV} className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-colors shadow-sm">
+                  <span className="material-symbols-outlined text-base">download</span>
+                  CSV resumido
+                </button>
+                <button onClick={handleExportReportPDF} className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm">
+                  <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
+                  Exportar PDF
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 xl:grid-cols-6 gap-4">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-700">Faltas</p>
-              <p className="mt-3 text-3xl font-black text-amber-700">{faltasCount}</p>
+              <p className="mt-3 text-3xl font-black text-amber-700">{reportFilteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length}</p>
             </div>
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Abonos</p>
-              <p className="mt-3 text-3xl font-black text-emerald-700">{abonosCount}</p>
+              <p className="mt-3 text-3xl font-black text-emerald-700">{reportFilteredAbsences.filter(a => a.type === 'ABONO').length}</p>
             </div>
             <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-700">Pendentes</p>
-              <p className="mt-3 text-3xl font-black text-yellow-700">{pendentesCount}</p>
+              <p className="mt-3 text-3xl font-black text-yellow-700">{reportFilteredAbsences.filter(a => !a.sigeduc_synced).length}</p>
             </div>
             <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-700">Reincidentes</p>
-              <p className="mt-3 text-3xl font-black text-violet-700">{recurrentStudents.size}</p>
+              <p className="mt-3 text-3xl font-black text-violet-700">{new Set(reportFilteredAbsences.filter(a => a.student_id).map(a => a.student_id)).size}</p>
             </div>
             <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-fuchsia-700">Intermitentes</p>
-              <p className="mt-3 text-3xl font-black text-fuchsia-700">{intermittentCount}</p>
+              <p className="mt-3 text-3xl font-black text-fuchsia-700">{reportFilteredAbsences.filter(a => a.is_intermittent).length}</p>
             </div>
             <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Acompanhamentos ativos</p>
-              <p className="mt-3 text-3xl font-black text-sky-700">{activeIntermittentCount}</p>
-              <p className="mt-1 text-[11px] text-sky-700/70">{closedIntermittentCount} baixados</p>
+              <p className="mt-3 text-3xl font-black text-sky-700">{reportFilteredAbsences.filter(a => a.is_intermittent && a.is_intermittent_active !== false).length}</p>
+              <p className="mt-1 text-[11px] text-sky-700/70">{reportFilteredAbsences.filter(a => a.is_intermittent && a.is_intermittent_active === false).length} baixados</p>
             </div>
           </div>
 
