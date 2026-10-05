@@ -50,16 +50,36 @@ interface RecentAuditItem {
   createdAt: string;
 }
 
+interface GradeRiskItem {
+  grade: string;
+  turno: string;
+  total: number;
+  faltas: number;
+  abonos: number;
+  intermitentes: number;
+  risk: 'Alta' | 'Média' | 'Baixa';
+}
+
 const RANGE_OPTIONS = [
   { key: '7d', label: '7 dias', days: 7 },
   { key: '30d', label: '30 dias', days: 30 },
   { key: '90d', label: '90 dias', days: 90 },
 ] as const;
 
+const inferTurno = (gradeLabel: string): string => {
+  const normalized = gradeLabel.toLowerCase();
+  if (normalized.includes('manha') || normalized.includes('matutino') || normalized.includes('m') && normalized.includes('manhã')) return 'Manhã';
+  if (normalized.includes('tarde') || normalized.includes('vespertino')) return 'Tarde';
+  if (normalized.includes('noite') || normalized.includes('noturno')) return 'Noite';
+  if (normalized.includes('integral')) return 'Integral';
+  return 'Sem turno';
+};
+
 export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0, ocorrenciasHoje: 0, semCarteira30Dias: 0, processosAbertos: 0, processosUrgentes: 0, processosPendentes: 0 });
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [studentsAtRisk, setStudentsAtRisk] = useState(0);
+  const [gradeRisk, setGradeRisk] = useState<GradeRiskItem[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentAuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRange, setSelectedRange] = useState<(typeof RANGE_OPTIONS)[number]['key']>('30d');
@@ -156,6 +176,31 @@ export const DashboardPage: React.FC = () => {
       acc[absence.student_id] = current;
       return acc;
     }, {});
+
+    const gradeRiskData: GradeRiskItem[] = Object.values(
+      recentAbsences.reduce<Record<string, { grade: string; turno: string; total: number; faltas: number; abonos: number; intermitentes: number }>>((acc, absence) => {
+        const grade = absence.students?.[0]?.grade || 'Sem turma';
+        const turno = inferTurno(grade);
+        const bucket = acc[grade] || { grade, turno, total: 0, faltas: 0, abonos: 0, intermitentes: 0 };
+        bucket.total += 1;
+        if (absence.type === 'FALTA_JUSTIFICADA') bucket.faltas += 1;
+        if (absence.type === 'ABONO') bucket.abonos += 1;
+        if (absence.is_intermittent) bucket.intermitentes += 1;
+        acc[grade] = bucket;
+        return acc;
+      }, {})
+    )
+      .map(item => ({
+        grade: item.grade,
+        turno: item.turno,
+        total: item.total,
+        faltas: item.faltas,
+        abonos: item.abonos,
+        intermitentes: item.intermitentes,
+        risk: item.intermitentes >= 3 || item.total >= 6 ? 'Alta' : item.total >= 3 ? 'Média' : 'Baixa',
+      }))
+      .sort((a, b) => (b.total + b.intermitentes * 2) - (a.total + a.intermitentes * 2))
+      .slice(0, 5) as GradeRiskItem[];
 
     const riskStudents = Object.entries(countsByStudent)
       .filter(([, item]) => item.count >= Math.max(1, Math.ceil(rangeDays / 15)))
@@ -263,6 +308,7 @@ export const DashboardPage: React.FC = () => {
     });
     setAlerts(generatedAlerts);
     setStudentsAtRisk(riskStudents.length);
+    setGradeRisk(gradeRiskData);
     setRecentActivity(auditEntries.map(entry => {
       const details = entry.details || {};
       const actionLabel = {
@@ -442,7 +488,7 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {!loading && (
-        <section className="mb-12 grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+        <section className="mb-12 grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.7fr]">
           <div className="glass-card rounded-[2rem] border border-amber-200/70 bg-amber-50/50 p-6 md:p-8">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -492,6 +538,88 @@ export const DashboardPage: React.FC = () => {
                 <span>Consultar alunos em atenção</span><span className="material-symbols-outlined text-primary">arrow_forward</span>
               </Link>
               <p className="text-xs leading-relaxed text-on-surface-variant">Os alertas são recomendações baseadas nos dados disponíveis e precisam de validação da equipe.</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!loading && (
+        <section className="mb-12 grid grid-cols-1 gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="glass-card rounded-[2rem] border border-primary/10 p-6 md:p-8">
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary/70">Turmas</p>
+                <h3 className="mt-2 font-headline text-2xl font-extrabold text-on-surface">Risco por turma e turno</h3>
+              </div>
+              <span className="rounded-full bg-primary/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary">{currentRange.label}</span>
+            </div>
+
+            <div className="space-y-4">
+              {gradeRisk.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-5 text-sm text-on-surface-variant">
+                  Nenhuma turma com recorrência relevante no período atual.
+                </div>
+              ) : (
+                gradeRisk.map((item, index) => (
+                  <div key={`${item.grade}-${index}`} className="rounded-2xl border border-primary/10 bg-white/60 p-4">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-black text-on-surface">{item.grade}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">{item.turno}</p>
+                      </div>
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${item.risk === 'Alta' ? 'bg-rose-100 text-rose-700' : item.risk === 'Média' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {item.risk}
+                      </span>
+                    </div>
+
+                    <div className="mb-2 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className={`h-full rounded-full ${item.risk === 'Alta' ? 'bg-rose-500' : item.risk === 'Média' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                        style={{ width: `${Math.min(100, (item.total / Math.max(gradeRisk[0]?.total || 1, 1)) * 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold text-on-surface-variant">
+                      <div className="rounded-xl bg-slate-50 p-2">
+                        <p className="text-base font-black text-slate-800">{item.total}</p>
+                        <p>Total</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-2">
+                        <p className="text-base font-black text-blue-600">{item.faltas}</p>
+                        <p>Faltas</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-2">
+                        <p className="text-base font-black text-violet-600">{item.intermitentes}</p>
+                        <p>Intermit.</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="glass-card rounded-[2rem] p-6 md:p-8">
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary/70">Resumo</p>
+                <h3 className="mt-2 font-headline text-2xl font-extrabold text-on-surface">Ação de direção</h3>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm text-on-surface-variant">
+              <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                <p className="font-black text-on-surface">{gradeRisk[0]?.grade || 'Sem turma'}</p>
+                <p className="mt-1">Turma com maior atenção neste período.</p>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-black text-amber-900">{studentsAtRisk} aluno(s)</p>
+                <p className="mt-1 text-amber-800">em recorrência ou risco de acompanhamento.</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="font-black text-emerald-900">{stats.processosUrgentes}</p>
+                <p className="mt-1 text-emerald-800">processos urgentes em análise.</p>
+              </div>
             </div>
           </div>
         </section>
