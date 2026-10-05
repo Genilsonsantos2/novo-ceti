@@ -23,6 +23,16 @@
 }
 
 :root {
+  --primary: #0f4c81;
+  --primary-strong: #0b3766;
+  --primary-soft: #eaf4ff;
+  --surface: #f5f7fb;
+  --surface-strong: #edf3ff;
+  --text: #0f172a;
+  --text-soft: #475569;
+  --border: rgba(15, 76, 129, 0.1);
+  --shadow-card: 0 18px 40px rgba(15, 76, 129, 0.08);
+
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -48,12 +58,96 @@
   @apply bg-white/80 backdrop-blur-[20px] shadow-sm border border-white/60 hover:shadow-lg transition-all duration-300;
 }
 
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  padding: 1.5rem;
+  min-height: 12rem;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 42px rgba(15, 76, 129, 0.12);
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 5px;
+  background: linear-gradient(90deg, rgba(15,76,129,0.85), rgba(15,76,129,0.2));
+}
+
+.metric-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 1rem;
+  background: rgba(15, 76, 129, 0.08);
+  border: 1px solid rgba(15, 76, 129, 0.08);
+}
+
+.metric-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pill-select {
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  border: 1px solid rgba(15, 76, 129, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  color: #475569;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.pill-select--active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  color: white;
+  box-shadow: 0 14px 28px rgba(15, 76, 129, 0.2);
+}
+
 .dark .glass-panel {
   @apply bg-zinc-900/60 border-zinc-800/80 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] backdrop-blur-xl;
 }
 
 .dark .glass-card {
   @apply bg-zinc-900/70 border-zinc-800/70 shadow-sm hover:shadow-lg hover:bg-zinc-900/90 transition-all duration-300 backdrop-blur-[20px];
+}
+
+.dark .metric-card {
+  background: rgba(24, 24, 27, 0.75);
+  border-color: rgba(82, 82, 91, 0.7);
+}
+
+.dark .metric-card__icon {
+  background: rgba(96, 165, 250, 0.08);
+  border-color: rgba(96, 165, 250, 0.15);
+}
+
+.dark .pill-select {
+  background: rgba(24, 24, 27, 0.8);
+  border-color: rgba(82, 82, 91, 0.9);
+  color: #d4d4d8;
 }
 
 /* Global Dark Mode Overrides */

@@ -292,29 +292,33 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="flex-1 px-6 md:px-10 py-8 pb-32 min-h-screen">
       {/* Header */}
-      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Painel Administrativo</p>
-          <h2 className="font-headline font-extrabold text-3xl md:text-4xl text-on-surface tracking-tight">Gestão Central</h2>
-          <p className="text-on-surface-variant font-body mt-1">Visão geral do controle de Faltas e Abonos do Sigeduc.</p>
-        </div>
-        <div className="flex items-center gap-2 bg-primary/5 rounded-2xl px-4 py-2.5 border border-primary/10">
-          <span className="material-symbols-outlined text-primary text-lg">groups</span>
-          <p className="text-sm font-bold text-primary">{stats.totalAlunos} <span className="text-xs font-medium text-primary/70">alunos cadastrados</span></p>
+      <div className="relative mb-10 overflow-hidden rounded-[2rem] border border-primary/10 bg-gradient-to-br from-primary/10 via-white/80 to-sky-100/80 p-6 md:p-8 shadow-[0_18px_38px_rgba(15,76,129,0.08)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(96,165,250,0.18),transparent_35%)]" />
+        <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2 opacity-80">Painel Administrativo</p>
+            <h2 className="font-headline font-extrabold text-3xl md:text-4xl text-on-surface tracking-tight">Gestão Central</h2>
+            <p className="text-on-surface-variant font-body mt-1">Visão geral do controle de Faltas e Abonos do Sigeduc.</p>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-primary/10 bg-white/70 px-4 py-3 shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <span className="material-symbols-outlined text-lg">groups</span>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary/70">Base ativa</p>
+              <p className="text-sm font-black text-primary">{stats.totalAlunos} <span className="text-xs font-medium text-primary/70">alunos</span></p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mb-8 flex flex-wrap items-center gap-2">
+      <div className="mb-8 flex flex-wrap items-center gap-2 rounded-[1.5rem] border border-primary/10 bg-white/60 p-2 shadow-sm backdrop-blur-sm">
         {RANGE_OPTIONS.map(option => (
           <button
             key={option.key}
             type="button"
             onClick={() => setSelectedRange(option.key)}
-            className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] transition-all ${
-              selectedRange === option.key
-                ? 'bg-primary text-white shadow-md shadow-primary/20'
-                : 'bg-white/60 text-on-surface-variant border border-primary/10 hover:bg-primary/5'
-            }`}
+            className={`pill-select ${selectedRange === option.key ? 'pill-select--active' : ''}`}
           >
             {option.label}
           </button>
@@ -328,60 +332,59 @@ export const DashboardPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
           
-          <Link to="/absences?aba=historico&filtro=sigeduc-pending" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-rose-500 relative overflow-hidden">
-            <div className="absolute inset-0 bg-rose-500/5 group-hover:bg-rose-500/10 transition-colors"></div>
-            <div className="flex justify-between items-start relative z-10">
-              <div className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-rose-500/20 transition-all duration-500">
-                <span className="material-symbols-outlined text-rose-500 text-2xl">sync_problem</span>
+          <Link to="/absences?aba=historico&filtro=sigeduc-pending" className="metric-card group border-l-4 border-l-rose-500">
+            <div className="relative z-10 flex justify-between items-start gap-3">
+              <div className="metric-card__icon text-rose-500">
+                <span className="material-symbols-outlined text-2xl">sync_problem</span>
               </div>
               {stats.pendentesSigeduc > 0 && (
-                <span className="text-rose-500 text-[10px] font-bold uppercase tracking-widest animate-pulse bg-rose-50 px-2 py-1 rounded-full border border-rose-200">
+                <span className="metric-card__badge border border-rose-200 bg-rose-50 text-rose-500 animate-pulse">
                   Atenção
                 </span>
               )}
             </div>
-            <div className="relative z-10">
+            <div className="relative z-10 mt-8">
               <p className="text-5xl font-headline font-extrabold text-rose-500">{stats.pendentesSigeduc}</p>
-              <p className="text-on-surface-variant text-sm font-medium mt-1">Pendentes de Baixa (Sigeduc)</p>
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">Pendentes de Baixa (Sigeduc)</p>
             </div>
           </Link>
 
-          <Link to="/absences?aba=historico&filtro=hoje-faltas" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-blue-500">
-            <div className="flex justify-between items-start">
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-blue-500/10 transition-all duration-500">
-                <span className="material-symbols-outlined text-blue-500 text-2xl">person_off</span>
+          <Link to="/absences?aba=historico&filtro=hoje-faltas" className="metric-card border-l-4 border-l-blue-500">
+            <div className="relative z-10 flex justify-between items-start gap-3">
+              <div className="metric-card__icon text-blue-500">
+                <span className="material-symbols-outlined text-2xl">person_off</span>
               </div>
-              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">Hoje</span>
+              <span className="text-outline text-[10px] font-bold uppercase tracking-[0.2em]">Hoje</span>
             </div>
-            <div>
+            <div className="relative z-10 mt-8">
               <p className="text-5xl font-headline font-extrabold text-blue-500">{stats.faltasHoje}</p>
-              <p className="text-on-surface-variant text-sm font-medium mt-1">Faltas Justificadas (Hoje)</p>
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">Faltas Justificadas</p>
             </div>
           </Link>
 
-          <Link to="/absences?aba=historico&filtro=hoje-abonos" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-emerald-500">
-            <div className="flex justify-between items-start">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-emerald-500/10 transition-all duration-500">
-                <span className="material-symbols-outlined text-emerald-500 text-2xl">event_available</span>
+          <Link to="/absences?aba=historico&filtro=hoje-abonos" className="metric-card border-l-4 border-l-emerald-500">
+            <div className="relative z-10 flex justify-between items-start gap-3">
+              <div className="metric-card__icon text-emerald-500">
+                <span className="material-symbols-outlined text-2xl">event_available</span>
               </div>
-              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">Hoje</span>
+              <span className="text-outline text-[10px] font-bold uppercase tracking-[0.2em]">Hoje</span>
             </div>
-            <div>
+            <div className="relative z-10 mt-8">
               <p className="text-5xl font-headline font-extrabold text-emerald-500">{stats.abonosHoje}</p>
-              <p className="text-on-surface-variant text-sm font-medium mt-1">Abonos (Hoje)</p>
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">Abonos</p>
             </div>
           </Link>
 
-          <Link to="/absences?aba=historico&filtro=intermitentes-ativos" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-violet-500">
-            <div className="flex justify-between items-start">
-              <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-violet-500/10 transition-all duration-500">
-                <span className="material-symbols-outlined text-violet-500 text-2xl">autorenew</span>
+          <Link to="/absences?aba=historico&filtro=intermitentes-ativos" className="metric-card border-l-4 border-l-violet-500">
+            <div className="relative z-10 flex justify-between items-start gap-3">
+              <div className="metric-card__icon text-violet-500">
+                <span className="material-symbols-outlined text-2xl">autorenew</span>
               </div>
-              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">{currentRange.label}</span>
+              <span className="text-outline text-[10px] font-bold uppercase tracking-[0.2em]">{currentRange.label}</span>
             </div>
-            <div>
+            <div className="relative z-10 mt-8">
               <p className="text-5xl font-headline font-extrabold text-violet-500">{stats.intermitentes}</p>
-              <p className="text-on-surface-variant text-sm font-medium mt-1">Acompanhamentos intermitentes</p>
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">Acompanhamentos</p>
             </div>
           </Link>
 
