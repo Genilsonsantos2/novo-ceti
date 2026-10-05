@@ -11,6 +11,9 @@ export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
+  const navItemClass = ({ isActive }: { isActive: boolean }) =>
+    `nav-item ${isActive ? 'nav-item--active' : ''}`;
+
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentDate(new Date()), 1000);
     return () => window.clearInterval(timer);
@@ -27,10 +30,10 @@ export const AdminLayout: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-transparent">
       {/* Sidebar */}
-      <aside className="w-64 glass-panel border-r border-white/20 flex flex-col hidden md:flex fixed h-[calc(100vh-2rem)] z-10 top-4 left-4 rounded-[2rem] overflow-hidden print:hidden">
-        <div className="p-8 pb-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 bg-primary rounded-2xl shadow-xl flex items-center justify-center border border-white/50 relative overflow-hidden group">
+      <aside className="w-64 glass-panel border-r border-white/20 flex flex-col hidden md:flex fixed h-[calc(100vh-2rem)] z-10 top-4 left-4 rounded-[2rem] overflow-hidden print:hidden shadow-[0_18px_48px_rgba(15,76,129,0.12)]">
+        <div className="p-6 pb-4">
+          <div className="flex items-center gap-4 mb-5">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-strong rounded-2xl shadow-xl flex items-center justify-center border border-white/50 relative overflow-hidden group">
               <span className="material-symbols-outlined text-white text-2xl">school</span>
             </div>
             <div>
@@ -39,7 +42,7 @@ export const AdminLayout: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-col gap-1.5 mt-3">
-            <div className="px-1 py-0.5 bg-primary/5 rounded-full inline-block border border-primary/10 w-fit">
+            <div className="px-2 py-1 bg-primary/5 rounded-full inline-block border border-primary/10 w-fit">
               <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] px-2">{profile?.role}</p>
             </div>
             {!isOnline && (
@@ -49,7 +52,7 @@ export const AdminLayout: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="mt-5 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3">
+          <div className="mt-5 rounded-2xl border border-primary/10 bg-gradient-to-r from-primary/5 via-white/80 to-sky-100/80 px-4 py-3 shadow-sm">
             <div className="flex items-center gap-2 text-primary">
               <span className="material-symbols-outlined text-lg">schedule</span>
               <span className="font-mono text-xl font-black tracking-tight tabular-nums">{currentTime}</span>
@@ -58,63 +61,42 @@ export const AdminLayout: React.FC = () => {
           </div>
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
           {(profile?.role === 'ADM' || profile?.role === 'DIRETOR') && (
             <>
-              <NavLink
-                to="/dashboard" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
+              <NavLink to="/dashboard" className={({ isActive }) => navItemClass({ isActive })}>
                 <span className="material-symbols-outlined text-lg">space_dashboard</span>
                 Dashboard
               </NavLink>
 
-              <NavLink
-                to="/students" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
+              <NavLink to="/students" className={({ isActive }) => navItemClass({ isActive })}>
                 <span className="material-symbols-outlined text-lg">badge</span>
                 Alunos
               </NavLink>
 
-              <NavLink 
-                to="/workflow"
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
+              <NavLink to="/workflow" className={({ isActive }) => navItemClass({ isActive })}>
                 <span className="material-symbols-outlined text-lg">account_tree</span>
                 Processos
               </NavLink>
 
-              <NavLink 
-                to="/audit"
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
+              <NavLink to="/audit" className={({ isActive }) => navItemClass({ isActive })}>
                 <span className="material-symbols-outlined text-lg">history</span>
                 Auditoria
               </NavLink>
 
-              <NavLink 
-                to="/absences" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
+              <NavLink to="/absences" className={({ isActive }) => navItemClass({ isActive })}>
                 <span className="material-symbols-outlined text-lg">event_busy</span>
                 Faltas e Abonos
               </NavLink>
 
-              <NavLink 
-                to="/admin/users" 
-                className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-              >
+              <NavLink to="/admin/users" className={({ isActive }) => navItemClass({ isActive })}>
                 <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
                 Usuários
               </NavLink>
             </>
           )}
 
-          <NavLink 
-            to="/occurrences" 
-            className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-          >
+          <NavLink to="/occurrences" className={({ isActive }) => navItemClass({ isActive })}>
             <span className="material-symbols-outlined text-lg">report</span>
             Ocorrências
           </NavLink>
@@ -128,10 +110,7 @@ export const AdminLayout: React.FC = () => {
           )}
           */}
 
-          <NavLink 
-            to="/id" 
-            className={({isActive}) => `flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${isActive ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]' : 'text-on-surface hover:bg-white/50 hover:scale-[1.01]'}`}
-          >
+          <NavLink to="/id" className={({ isActive }) => navItemClass({ isActive })}>
             <span className="material-symbols-outlined text-lg">id_card</span>
             Meu Cartão
           </NavLink>

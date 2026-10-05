@@ -126,6 +126,55 @@
   box-shadow: 0 14px 28px rgba(15, 76, 129, 0.2);
 }
 
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1.15rem;
+  font-weight: 800;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  inset: 0.5rem auto 0.5rem 0.5rem;
+  width: 3px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.nav-item:hover {
+  background: rgba(15, 76, 129, 0.04);
+  border-color: rgba(15, 76, 129, 0.08);
+  transform: translateX(2px);
+}
+
+.nav-item--active {
+  background: linear-gradient(135deg, #0f4c81 0%, #0a3c6d 100%);
+  color: white;
+  box-shadow: 0 16px 26px rgba(15, 76, 129, 0.18);
+}
+
+.nav-item--active::before {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.dark .nav-item {
+  color: #d4d4d8;
+}
+
+.dark .nav-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
 .dark .glass-panel {
   @apply bg-zinc-900/60 border-zinc-800/80 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] backdrop-blur-xl;
 }
