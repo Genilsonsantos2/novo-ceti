@@ -6,35 +6,34 @@ export const exportToPDF = async (elementId: string, filename: string) => {
   if (!element) return;
 
   const pdf = new jsPDF('p', 'mm', 'a4');
-  const width = pdf.internal.pageSize.getWidth();
+  const margin = 10;
+  const contentWidth = pdf.internal.pageSize.getWidth() - margin * 2;
 
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.width = `${contentWidth}mm`;
+  clone.style.maxWidth = 'none';
+  clone.style.boxSizing = 'border-box';
+  clone.style.background = 'white';
+  document.body.appendChild(clone);
   try {
-    // Clone the element to avoid changing the UI during export
-    const clone = element.cloneNode(true) as HTMLElement;
-    clone.style.width = '210mm'; // Set to A4 width
-    clone.style.background = 'white';
-    
-    // Temporarily append to body to render
-    document.body.appendChild(clone);
-
+    await document.fonts.ready;
     await pdf.html(clone, {
-      callback: function (doc) {
-        doc.save(`${filename}.pdf`);
-        document.body.removeChild(clone);
-      },
-      x: 0,
-      y: 0,
-      width: width,
-      windowWidth: element.offsetWidth,
-      autoPaging: 'slice', // This handles slicing but pdf.html() is generally better at not cutting lines
+      callback: doc => doc.save(`${filename}.pdf`),
+      x: margin,
+      y: margin,
+      width: contentWidth,
+      windowWidth: element.scrollWidth,
+      autoPaging: 'text',
       html2canvas: {
-        scale: 0.2645833333, // Convert px to mm (approximately)
+        scale: 2,
         useCORS: true,
         logging: false,
       }
     });
   } catch (error) {
     console.error('Error exporting to PDF:', error);
+  } finally {
+    clone.remove();
   }
 };
 

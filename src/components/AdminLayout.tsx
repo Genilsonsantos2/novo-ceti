@@ -74,6 +74,11 @@ export const AdminLayout: React.FC = () => {
                 Alunos
               </NavLink>
 
+              <NavLink to="/student-history" className={({ isActive }) => navItemClass({ isActive })}>
+                <span className="material-symbols-outlined text-lg">manage_search</span>
+                Histórico do aluno
+              </NavLink>
+
               <NavLink to="/workflow" className={({ isActive }) => navItemClass({ isActive })}>
                 <span className="material-symbols-outlined text-lg">account_tree</span>
                 Processos
@@ -196,6 +201,13 @@ export const AdminLayout: React.FC = () => {
             <NavLink to="/students" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
               <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>groups</span>
               <span className="text-[8px] font-black uppercase tracking-tighter">Alunos</span>
+            </NavLink>
+          )}
+
+          {(profile?.role === 'ADM' || profile?.role === 'DIRETOR') && (
+            <NavLink to="/student-history" className={({isActive}) => `flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${isActive ? 'text-primary scale-110' : 'text-outline hover:text-primary/70'}`}>
+              <span className="material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>manage_search</span>
+              <span className="text-[8px] font-black uppercase tracking-tighter">Histórico</span>
             </NavLink>
           )}
 

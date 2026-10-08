@@ -206,7 +206,7 @@ export const AbsencesReportPage: React.FC = () => {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [startDate, endDate]);
+  }, [startDate, endDate, reportStartDate, reportEndDate]);
 
   useEffect(() => {
     fetchAllStudents();
@@ -242,11 +242,13 @@ export const AbsencesReportPage: React.FC = () => {
   };
 
   const fetchAbsences = async () => {
+    const queryStartDate = [startDate, reportStartDate].filter(Boolean).sort()[0] || startDate;
+    const queryEndDate = [endDate, reportEndDate].filter(Boolean).sort().at(-1) || endDate;
     const { data, error } = await supabase
       .from('student_absences')
       .select('*, students(full_name, enrollment_id, grade, photo_url), absence_guest_students(full_name, grade)')
-      .gte('date', startDate)
-      .lte('date', endDate)
+      .gte('date', queryStartDate)
+      .lte('date', queryEndDate)
       .order('date', { ascending: false });
 
     if (error) {
@@ -549,26 +551,6 @@ export const AbsencesReportPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleExportExecutiveReportCSV = () => {
-    const headers = ['Turma', 'Faltas', 'Abonos', 'Intermitentes', 'Total'];
-    const rows = reportByGrade.map(item => [
-      `"${item.grade}"`,
-      `"${item.faltas}"`,
-      `"${item.abonos}"`,
-      `"${item.intermitentes}"`,
-      `"${item.total}"`,
-    ]);
-    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Resumo_Turmas_${reportStartDate}_a_${reportEndDate}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const handleExportPDF = async () => {
     if (!dashboardRef.current) return;
     try {
@@ -587,23 +569,7 @@ export const AbsencesReportPage: React.FC = () => {
     }
   };
 
-  const handleExportReportPDF = async () => {
-    if (!reportRef.current) return;
-    try {
-      const canvas = await html2canvas(reportRef.current, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.setFontSize(16);
-      pdf.text('Relatório de Faltas e Abonos', 10, 10);
-      pdf.addImage(imgData, 'PNG', 0, 20, pdfWidth, pdfHeight);
-      pdf.save(`Relatorio_Detalhado_${startDate}_a_${endDate}.pdf`);
-    } catch (e) {
-      alert('Erro ao gerar relatório em PDF.');
-    }
-  };
+  const handleExportReportPDF = () => window.print();
 
   // ── Planilha Actions ────────────────────────────────────────────────────────
   const getDraft = (id: string): DraftRecord | undefined => draftRecords[id];
@@ -1220,7 +1186,7 @@ export const AbsencesReportPage: React.FC = () => {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 px-4 md:px-10 py-6 md:py-8 min-h-screen pb-40 relative bg-gray-50 dark:bg-zinc-900 transition-colors">
+    <div className="absences-report-root flex-1 px-4 md:px-10 py-6 md:py-8 min-h-screen pb-40 relative bg-gray-50 dark:bg-zinc-900 transition-colors">
       
       {/* ── TIMELINE MODAL ── */}
       {selectedTimelineStudent && (
@@ -2002,14 +1968,19 @@ export const AbsencesReportPage: React.FC = () => {
 
       {/* ── RELATÓRIOS ───────────────────────────────────────────────────── */}
       {activeTab === 'relatorios' && (
-        <div ref={reportRef} className="space-y-6">
-          <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 p-5 shadow-sm backdrop-blur-sm">
+        <div ref={reportRef} className="report-printable space-y-6">
+          <div className="hidden items-center gap-4 border-b-2 border-gray-900 pb-4 print:flex">
+            <img src="/ceti-logo.png" alt="Brasão do CETI" className="h-16 w-16 object-contain" />
+            <div className="flex-1 text-center"><p className="text-[10px] font-bold uppercase text-gray-600">Secretaria da Educação • CETI Nova Itarana</p><h2 className="mt-1 text-lg font-black uppercase text-gray-950">Relatório de faltas e abonos</h2></div>
+            <p className="text-right text-[10px] text-gray-600">Emissão<br />{format(new Date(), 'dd/MM/yyyy')}</p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white/80 p-5 shadow-sm backdrop-blur-sm print:rounded-none print:border-0 print:p-0 print:shadow-none">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-violet-300">Relatórios</p>
                 <h3 className="mt-2 text-xl font-extrabold text-gray-900 dark:text-white">Resumo executivo</h3>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 print:hidden">
                 <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700">
                   De
                   <input type="date" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none" />
@@ -2024,16 +1995,13 @@ export const AbsencesReportPage: React.FC = () => {
                     <option key={grade} value={grade}>{grade}</option>
                   ))}
                 </select>
-                <button onClick={handleExportExecutiveReportCSV} className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-3 py-2.5 rounded-xl font-bold text-xs transition-colors shadow-sm">
-                  <span className="material-symbols-outlined text-base">download</span>
-                  CSV resumido
-                </button>
                 <button onClick={handleExportReportPDF} className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm">
                   <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
-                  Exportar PDF
+                  Imprimir / Salvar PDF
                 </button>
               </div>
             </div>
+            <p className="mt-3 hidden text-xs font-semibold text-gray-700 print:block">Período: {reportStartDate ? format(parseISO(reportStartDate), 'dd/MM/yyyy') : 'Início não informado'} a {reportEndDate ? format(parseISO(reportEndDate), 'dd/MM/yyyy') : 'Data atual'} · Turma: {reportGradeFilter === 'ALL' ? 'Todas' : reportGradeFilter}</p>
           </div>
 
           <div className="grid md:grid-cols-2 xl:grid-cols-6 gap-4">
@@ -2291,6 +2259,19 @@ export const AbsencesReportPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <style>{`@media print {
+        @page { size: A4 portrait; margin: 14mm; }
+        html, body { background: #fff !important; }
+        body * { visibility: hidden !important; }
+        .report-printable, .report-printable * { visibility: visible !important; }
+        .report-printable { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; color: #111827 !important; background: #fff !important; }
+        .report-printable > div { break-inside: avoid-page; }
+        .report-printable table { width: 100% !important; border-collapse: collapse !important; }
+        .report-printable th, .report-printable td { border-bottom: 1px solid #d1d5db !important; }
+        .absences-report-root { min-height: 0 !important; padding: 0 !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }`}</style>
     </div>
   );
 };

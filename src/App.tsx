@@ -20,6 +20,7 @@ import { AbsencesReportPage } from './pages/AbsencesReportPage';
 import { OccurrencesPage } from './pages/OccurrencesPage';
 import { WorkflowPage } from './pages/WorkflowPage';
 import { AuditPage } from './pages/AuditPage';
+import { StudentHistoryPage } from './pages/StudentHistoryPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
   const { user, profile, loading } = useAuth();
@@ -78,6 +79,12 @@ function AppRoutes() {
         <Route path="/audit" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
             <AuditPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/student-history" element={
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
+            <StudentHistoryPage />
           </ProtectedRoute>
         } />
 
