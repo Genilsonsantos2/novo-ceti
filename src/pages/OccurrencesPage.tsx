@@ -347,7 +347,10 @@ export const OccurrencesPage: React.FC = () => {
         main > section { display: block !important; }
         main > section > form { display: none !important; }
         main > section > section { width: 100% !important; box-shadow: none !important; border: 0 !important; background: white !important; }
-        table { page-break-inside: auto; }
+        .overflow-x-auto { overflow: visible !important; }
+        table { width: 100% !important; page-break-inside: auto; }
+        thead { display: table-header-group; }
+        .overflow-x-auto th { background: white !important; color: #111827 !important; border-bottom: 2px solid #111827 !important; }
         tr { page-break-inside: avoid; page-break-after: auto; }
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       }`}</style>

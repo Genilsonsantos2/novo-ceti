@@ -1,41 +1,4 @@
-import jsPDF from 'jspdf';
 import { saveAs } from 'file-saver';
-
-export const exportToPDF = async (elementId: string, filename: string) => {
-  const element = document.getElementById(elementId);
-  if (!element) return;
-
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const margin = 10;
-  const contentWidth = pdf.internal.pageSize.getWidth() - margin * 2;
-
-  const clone = element.cloneNode(true) as HTMLElement;
-  clone.style.width = `${contentWidth}mm`;
-  clone.style.maxWidth = 'none';
-  clone.style.boxSizing = 'border-box';
-  clone.style.background = 'white';
-  document.body.appendChild(clone);
-  try {
-    await document.fonts.ready;
-    await pdf.html(clone, {
-      callback: doc => doc.save(`${filename}.pdf`),
-      x: margin,
-      y: margin,
-      width: contentWidth,
-      windowWidth: element.scrollWidth,
-      autoPaging: 'text',
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      }
-    });
-  } catch (error) {
-    console.error('Error exporting to PDF:', error);
-  } finally {
-    clone.remove();
-  }
-};
 
 export const exportToWord = (elementId: string, filename: string) => {
   const element = document.getElementById(elementId);

@@ -50,9 +50,9 @@ export const LunchReportPage: React.FC = () => {
         />
       </div>
 
-      <div id="report-sheet-lunch" className="max-w-[210mm] mx-auto bg-white print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-xl overflow-hidden relative" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+      <div id="report-sheet-lunch" className="report-sheet max-w-[210mm] mx-auto bg-white print:shadow-none shadow-xl border border-gray-100 print:border-none rounded-xl overflow-hidden relative" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
         
-        <div className="bg-[#001e40] text-white px-8 py-6 flex justify-between items-center relative z-10">
+        <div className="report-sheet-header bg-[#001e40] text-white px-8 py-6 flex justify-between items-center relative z-10">
           <div className="flex items-center gap-4">
             <img src="/ceti-logo.png" alt="Logo" className="h-12 w-12 object-contain bg-white rounded-lg p-1" />
             <div>
@@ -76,7 +76,7 @@ export const LunchReportPage: React.FC = () => {
               return acc;
             }, {})
           ) as [string, any[]][]).map(([grade, gradeStudents]) => (
-            <div key={grade} className="break-inside-avoid">
+            <div key={grade}>
               <div className="flex items-center gap-3 mb-3">
                 <h3 className="text-lg font-black text-gray-950 uppercase bg-gray-50 px-4 py-1.5 rounded-lg border-l-4 border-primary">{grade}</h3>
                 <div className="flex-1 h-[1px] bg-gray-200"></div>
@@ -139,23 +139,21 @@ export const LunchReportPage: React.FC = () => {
             font-family: Arial, Helvetica, sans-serif !important;
           }
           .print\\:hidden { display: none !important; }
-          @page { 
-            size: A4 portrait; 
-            /* ABNT Margins: Top 3cm, Left 3cm, Right 2cm, Bottom 2cm */
-            margin: 30mm 20mm 20mm 30mm !important;
-          }
-          .max-w-\\[210mm\\] { 
+          @page { size: A4 portrait; margin: 12mm !important; }
+          .report-sheet {
             width: 100% !important; 
-            max-width: 100% !important; 
+            max-width: none !important;
             margin: 0 !important; 
             padding: 0 !important;
             border: none !important; 
+            border-radius: 0 !important;
             box-shadow: none !important;
+            overflow: visible !important;
           }
-          td, th, p, h1, h2, h3 { color: black !important; }
-          .bg-\\[\\#001e40\\] { background-color: #001e40 !important; color: white !important; }
-          .bg-gray-100 { background-color: #f3f4f6 !important; }
-          .break-inside-avoid { break-inside: avoid !important; }
+          .report-sheet-header { background: white !important; color: #111827 !important; border-bottom: 2px solid #111827; }
+          .report-sheet-header * { color: #111827 !important; }
+          .report-sheet thead { display: table-header-group; }
+          .report-sheet tr { break-inside: avoid; }
           * { box-sizing: border-box !important; }
         }
       `}} />
