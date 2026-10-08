@@ -1,5 +1,57 @@
 import { saveAs } from 'file-saver';
 
+export const printElementAsPDF = async (elementId: string, filename: string) => {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Permita a abertura de janelas para gerar o PDF.');
+    return;
+  }
+
+  const printDocument = printWindow.document;
+  printDocument.open();
+  printDocument.write('<!doctype html><html><head><meta charset="utf-8"><title></title></head><body></body></html>');
+  printDocument.close();
+  printDocument.title = filename;
+
+  const stylesheetLoads = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map(source => new Promise<void>(resolve => {
+    const stylesheet = source.cloneNode(true) as HTMLLinkElement;
+    stylesheet.onload = () => resolve();
+    stylesheet.onerror = () => resolve();
+    printDocument.head.appendChild(stylesheet);
+  }));
+  document.querySelectorAll('style').forEach(source => printDocument.head.appendChild(source.cloneNode(true)));
+
+  const printRoot = printDocument.createElement('main');
+  printRoot.className = 'pdf-print-root';
+  printRoot.appendChild(element.cloneNode(true));
+  printDocument.body.appendChild(printRoot);
+
+  const printStyles = printDocument.createElement('style');
+  printStyles.textContent = `
+    html, body { margin: 0; padding: 0; background: #fff; }
+    .pdf-print-root { width: 100%; margin: 0 auto; background: #fff; }
+    .pdf-print-root > * { width: 100% !important; max-width: 100% !important; margin-left: auto !important; margin-right: auto !important; }
+    @media print {
+      @page { size: A4 portrait; margin: 12mm; }
+      html, body { width: auto; height: auto; background: #fff !important; }
+      .pdf-print-root { width: 100%; margin: 0; }
+      .pdf-print-root > * { box-shadow: none !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+  `;
+  printDocument.head.appendChild(printStyles);
+
+  await Promise.all(stylesheetLoads);
+  await printDocument.fonts.ready;
+  await Promise.all(Array.from(printRoot.querySelectorAll('img')).map(image => image.decode().catch(() => undefined)));
+  printWindow.onafterprint = () => printWindow.close();
+  printWindow.focus();
+  printWindow.print();
+};
+
 export const exportToWord = (elementId: string, filename: string) => {
   const element = document.getElementById(elementId);
   if (!element) return;

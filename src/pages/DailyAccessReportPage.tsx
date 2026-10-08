@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
+import { printElementAsPDF } from '../utils/exportUtils';
 
 export const DailyAccessReportPage: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
@@ -107,7 +108,7 @@ export const DailyAccessReportPage: React.FC = () => {
 
             <div className="flex items-end h-full pt-6 gap-3">
               <button
-                onClick={() => window.print()}
+                onClick={() => printElementAsPDF('daily-report', `Acessos_${selectedDate}`)}
                 className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-95"
               >
                 <span className="material-symbols-outlined text-sm">print</span>

@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { printElementAsPDF } from '../utils/exportUtils';
 
 interface Student {
   id: string;
@@ -279,7 +280,7 @@ export const OccurrencesPage: React.FC = () => {
           <h1 className="font-headline font-extrabold text-3xl text-on-surface tracking-tight">Ocorrências</h1>
           <p className="text-on-surface-variant font-medium mt-1">Registre tentativas de saída e situações envolvendo a carteira estudantil.</p>
         </div>
-        <button onClick={() => window.print()} className="flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20">
+        <button onClick={() => printElementAsPDF('occurrences-report', `Relatorio_Ocorrencias_${startDate}_a_${endDate}`)} className="flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20">
           <span className="material-symbols-outlined text-base">print</span> Imprimir relatório
         </button>
       </header>
@@ -312,7 +313,7 @@ export const OccurrencesPage: React.FC = () => {
           {message && <p className={`mt-3 text-sm font-bold ${messageType === 'error' ? 'text-error' : 'text-emerald-600'}`}>{message}</p>}
         </form>
 
-        <section className="glass-card rounded-[2rem] p-6 border border-white/30 h-fit print:rounded-none print:p-0 print:border-0 print:shadow-none">
+        <section id="occurrences-report" className="glass-card rounded-[2rem] p-6 border border-white/30 h-fit print:rounded-none print:p-0 print:border-0 print:shadow-none">
           {loadError && <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 print:hidden">{loadError}</div>}
           <div className="hidden print:flex items-center gap-5 border-b-2 border-gray-900 pb-5 mb-6">
             <img src="/ceti-logo.png" alt="Brasão do CETI" className="h-20 w-20 object-contain" />

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabase';
+import { printElementAsPDF } from '../utils/exportUtils';
 
 interface Student {
   id: string;
@@ -191,13 +192,13 @@ export const StudentHistoryPage: React.FC = () => {
               <label className="text-xs font-bold text-on-surface-variant">De<input type="date" value={startDate} max={endDate} onChange={event => setStartDate(event.target.value)} className="mt-1 block rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800" /></label>
               <label className="text-xs font-bold text-on-surface-variant">Até<input type="date" value={endDate} min={startDate} onChange={event => setEndDate(event.target.value)} className="mt-1 block rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800" /></label>
               <button type="button" onClick={loadHistory} disabled={loadingHistory} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-60"><span className="material-symbols-outlined text-base">calendar_month</span>{loadingHistory ? 'Consultando...' : 'Consultar período'}</button>
-              <button type="button" onClick={() => window.print()} disabled={!hasSearched} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-primary/20 bg-white px-4 py-2 text-sm font-bold text-primary disabled:opacity-40"><span className="material-symbols-outlined text-base">picture_as_pdf</span>Imprimir / Salvar PDF</button>
+              <button type="button" onClick={() => printElementAsPDF('student-history-report', `Historico_${selectedStudent.enrollment_id}_${startDate}_a_${endDate}`)} disabled={!hasSearched} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-primary/20 bg-white px-4 py-2 text-sm font-bold text-primary disabled:opacity-40"><span className="material-symbols-outlined text-base">picture_as_pdf</span>Imprimir / Salvar PDF</button>
             </div>
           </section>
 
           {warnings.length > 0 && <div role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 print:hidden"><p className="font-bold">Algumas fontes não puderam ser consultadas:</p>{warnings.map(warning => <p key={warning} className="mt-1">{warning}</p>)}</div>}
 
-          <section className="student-history-report rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:p-7 print:rounded-none print:border-0 print:p-0 print:shadow-none">
+          <section id="student-history-report" className="student-history-report rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:p-7 print:rounded-none print:border-0 print:p-0 print:shadow-none">
             <div className="hidden items-center gap-4 border-b-2 border-gray-900 pb-4 print:flex">
               <img src="/ceti-logo.png" alt="Brasão do CETI" className="h-16 w-16 object-contain" />
               <div className="flex-1 text-center"><p className="text-[10px] font-bold uppercase text-gray-600">Secretaria da Educação • CETI Nova Itarana</p><h2 className="mt-1 text-lg font-black uppercase text-gray-950">Relatório individual do aluno</h2></div>

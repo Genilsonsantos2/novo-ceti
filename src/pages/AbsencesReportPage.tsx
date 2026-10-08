@@ -9,6 +9,7 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTo
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { buildAiSuggestion, getAiAbsenceRecommendation } from '../lib/aiAbsenceAssist';
+import { printElementAsPDF } from '../utils/exportUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AbsenceRecord {
@@ -569,7 +570,10 @@ export const AbsencesReportPage: React.FC = () => {
     }
   };
 
-  const handleExportReportPDF = () => window.print();
+  const handleExportReportPDF = () => printElementAsPDF(
+    'absences-executive-report',
+    `Relatorio_Faltas_${reportStartDate}_a_${reportEndDate}`,
+  );
 
   // ── Planilha Actions ────────────────────────────────────────────────────────
   const getDraft = (id: string): DraftRecord | undefined => draftRecords[id];
@@ -1968,7 +1972,7 @@ export const AbsencesReportPage: React.FC = () => {
 
       {/* ── RELATÓRIOS ───────────────────────────────────────────────────── */}
       {activeTab === 'relatorios' && (
-        <div ref={reportRef} className="report-printable space-y-6">
+        <div id="absences-executive-report" ref={reportRef} className="report-printable space-y-6">
           <div className="hidden items-center gap-4 border-b-2 border-gray-900 pb-4 print:flex">
             <img src="/ceti-logo.png" alt="Brasão do CETI" className="h-16 w-16 object-contain" />
             <div className="flex-1 text-center"><p className="text-[10px] font-bold uppercase text-gray-600">Secretaria da Educação • CETI Nova Itarana</p><h2 className="mt-1 text-lg font-black uppercase text-gray-950">Relatório de faltas e abonos</h2></div>
