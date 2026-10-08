@@ -13,6 +13,12 @@ import { ImportStudentsModal } from '../components/students/ImportStudentsModal'
 import { StudentTable } from '../components/students/StudentTable';
 import { StudentMobileList } from '../components/students/StudentMobileList';
 
+interface StudentImportPreviewRow {
+  student: Record<string, any>;
+  issues: string[];
+  warnings: string[];
+}
+
 export const StudentsPage: React.FC = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +46,8 @@ export const StudentsPage: React.FC = () => {
     exit_type: 'none'
   });
   const [importing, setImporting] = useState(false);
+  const [importPreview, setImportPreview] = useState<StudentImportPreviewRow[]>([]);
+  const [importFileName, setImportFileName] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
@@ -302,6 +310,8 @@ export const StudentsPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
+    setImportPreview([]);
+    setImportFileName(file.name);
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
@@ -333,16 +343,30 @@ export const StudentsPage: React.FC = () => {
 
         if (nameIdx === -1 || rmIdx === -1) { alert('Colunas obrigatórias não encontradas.'); setImporting(false); return; }
 
-        const newStudents = [];
-        const existingRMs = new Set(students.map(s => String(s.enrollment_id).trim()));
+        const preview: StudentImportPreviewRow[] = [];
+        const normalizeValue = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const existingRMs = new Set(students.map(s => normalizeValue(String(s.enrollment_id))));
+        const existingNames = new Set(students.map(s => normalizeValue(String(s.full_name))));
+        const fileRMs = new Set<string>();
 
         for (let i = headerRowIndex + 1; i < rows.length; i++) {
           const rawValues = rows[i];
           const values = rows[i].map((v: any) => String(v).trim());
           if (!values.join('').trim()) continue;
 
-          const rmValue = values[rmIdx];
-          if (!rmValue || existingRMs.has(rmValue)) continue;
+          const rmValue = values[rmIdx] || '';
+          const nameValue = values[nameIdx] || '';
+          const issues: string[] = [];
+          const warnings: string[] = [];
+          const normalizedRM = normalizeValue(rmValue);
+          const normalizedName = normalizeValue(nameValue);
+          if (!nameValue) issues.push('Nome não informado');
+          if (!rmValue) issues.push('Matrícula não informada');
+          if (gradeIdx !== -1 && !values[gradeIdx]) issues.push('Turma não informada');
+          if (normalizedRM && existingRMs.has(normalizedRM)) issues.push('Matrícula já existe no cadastro');
+          if (normalizedRM && fileRMs.has(normalizedRM)) issues.push('Matrícula repetida no arquivo');
+          if (normalizedRM) fileRMs.add(normalizedRM);
+          if (normalizedName && existingNames.has(normalizedName) && !issues.some(issue => issue.includes('Matrícula'))) warnings.push('Nome igual a outro cadastro; confira antes de importar');
 
           let parsedBirthDate = null;
           if (birthIdx !== -1 && rawValues[birthIdx]) {
@@ -358,16 +382,19 @@ export const StudentsPage: React.FC = () => {
               if (bStr.includes('/')) {
                 const parts = bStr.split('/');
                 if (parts.length === 3) {
-                  parsedBirthDate = `${parts[2].length === 2 ? '20'+parts[2] : parts[2]}-${parts[1]}-${parts[0]}`;
+                  const parsed = new Date(`${parts[2].length === 2 ? '20'+parts[2] : parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+                  if (!Number.isNaN(parsed.getTime())) parsedBirthDate = parsed.toISOString().split('T')[0];
                 }
               } else if (bStr.includes('-')) {
-                parsedBirthDate = bStr;
+                const parsed = new Date(`${bStr}T00:00:00`);
+                if (!Number.isNaN(parsed.getTime())) parsedBirthDate = parsed.toISOString().split('T')[0];
               }
             }
+            if (!parsedBirthDate) warnings.push('Data de nascimento não reconhecida; será importada sem data');
           }
 
           const student: any = {
-            full_name: values[nameIdx],
+            full_name: nameValue,
             enrollment_id: rmValue,
             grade: gradeIdx !== -1 ? values[gradeIdx] : '',
             cpf: cpfIdx !== -1 ? values[cpfIdx] : '',
@@ -377,21 +404,33 @@ export const StudentsPage: React.FC = () => {
             is_authorized: true,
             photo_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(values[nameIdx])}&backgroundColor=random`
           };
-          newStudents.push(student);
+          preview.push({ student, issues, warnings });
         }
 
-        if (newStudents.length > 0) {
-          const { error } = await supabase.from('students').insert(newStudents);
-          if (error) alert('Erro ao salvar: ' + error.message);
-          else { alert(`${newStudents.length} alunos importados!`); fetchStudents(); setShowImportModal(false); }
-        } else {
-          alert('Nenhum novo aluno para importar. (Alunos já existentes foram ignorados)');
-          setShowImportModal(false);
-        }
+        setImportPreview(preview);
+        if (preview.length === 0) alert('O arquivo não contém linhas de alunos para conferir.');
       } catch (error) { console.error(error); alert('Erro ao ler arquivo.'); }
       setImporting(false);
+      e.target.value = '';
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const confirmImport = async () => {
+    const eligibleStudents = importPreview.filter(row => row.issues.length === 0).map(row => row.student);
+    if (eligibleStudents.length === 0) return;
+    setImporting(true);
+    const { error } = await supabase.from('students').insert(eligibleStudents);
+    if (error) {
+      alert('Erro ao salvar alunos: ' + error.message);
+    } else {
+      alert(`${eligibleStudents.length} aluno(s) importado(s). ${importPreview.length - eligibleStudents.length} linha(s) bloqueada(s) permaneceram sem alteração.`);
+      setImportPreview([]);
+      setImportFileName('');
+      setShowImportModal(false);
+      fetchStudents();
+    }
+    setImporting(false);
   };
 
   const grades = useMemo(() => {
@@ -485,10 +524,19 @@ export const StudentsPage: React.FC = () => {
 
       <ImportStudentsModal 
         show={showImportModal}
-        onClose={() => setShowImportModal(false)}
+        onClose={() => { setShowImportModal(false); setImportPreview([]); setImportFileName(''); }}
         onImportFile={handleImportFile}
         onDownloadTemplate={handleDownloadTemplate}
         importing={importing}
+        fileName={importFileName}
+        previewRows={importPreview.map(row => ({
+          full_name: row.student.full_name,
+          enrollment_id: row.student.enrollment_id,
+          grade: row.student.grade,
+          issues: row.issues,
+          warnings: row.warnings,
+        }))}
+        onConfirmImport={confirmImport}
       />
     </div>
   );

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useSearchParams } from 'react-router-dom';
-import { addDays, addYears, differenceInCalendarDays, format, parseISO, subDays, isAfter } from 'date-fns';
+import { addDays, addYears, differenceInCalendarDays, eachDayOfInterval, format, parseISO, subDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -75,6 +75,12 @@ interface ImportValidationResult {
   parsedSynced: boolean;
 }
 
+interface SchoolCalendarPeriod {
+  start_date: string;
+  end_date: string;
+  affects_school_days: boolean;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 // Amber for Faltas, Teal for Abonos
 const COLORS = ['#f59e0b', '#14b8a6']; 
@@ -93,6 +99,8 @@ export const AbsencesReportPage: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const recentlyDeletedIdsRef = useRef<Set<string>>(new Set());
   const hydratedFromRealtimeRef = useRef(false);
+  const reportPreferencesLoadedRef = useRef(false);
+  const reportPreferencesUserIdRef = useRef<string | null>(null);
 
   // ── Period Filter ───────────────────────────────────────────────────────────
   const [startDate, setStartDate] = useState(() => {
@@ -108,6 +116,77 @@ export const AbsencesReportPage: React.FC = () => {
   });
   const [reportEndDate, setReportEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [reportGradeFilter, setReportGradeFilter] = useState<'ALL' | string>('ALL');
+  const [schoolCalendarPeriod, setSchoolCalendarPeriod] = useState<SchoolCalendarPeriod[]>([]);
+  const [schoolCalendarError, setSchoolCalendarError] = useState('');
+  const [schoolCalendarLoading, setSchoolCalendarLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const loadPreferences = async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!active) return;
+      reportPreferencesUserIdRef.current = userId || null;
+      if (!userId) {
+        reportPreferencesLoadedRef.current = true;
+        return;
+      }
+
+      const { data, error } = await supabase.from('user_report_preferences').select('preferences').eq('user_id', userId).eq('report_key', 'absences-executive').maybeSingle();
+      let preferences: Record<string, unknown> | null = data?.preferences || null;
+      if (error || !preferences) {
+        try {
+          const stored = localStorage.getItem(`ceti-report-preferences-${userId}`);
+          preferences = stored ? JSON.parse(stored) : null;
+        } catch {
+          preferences = null;
+        }
+      }
+      if (!active) return;
+      if (typeof preferences?.startDate === 'string') setReportStartDate(preferences.startDate);
+      if (typeof preferences?.endDate === 'string') setReportEndDate(preferences.endDate);
+      if (typeof preferences?.grade === 'string') setReportGradeFilter(preferences.grade);
+      reportPreferencesLoadedRef.current = true;
+    };
+    loadPreferences();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const userId = reportPreferencesUserIdRef.current;
+    if (!reportPreferencesLoadedRef.current || !userId) return;
+    const preferences = { startDate: reportStartDate, endDate: reportEndDate, grade: reportGradeFilter };
+    localStorage.setItem(`ceti-report-preferences-${userId}`, JSON.stringify(preferences));
+    const timer = window.setTimeout(async () => {
+      const { error } = await supabase.from('user_report_preferences').upsert({
+        user_id: userId,
+        report_key: 'absences-executive',
+        preferences,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,report_key' });
+      if (error) console.warn('As preferências do relatório estão salvas neste navegador; aplique a migração para sincronizá-las entre dispositivos.', error.message);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [reportStartDate, reportEndDate, reportGradeFilter]);
+
+  useEffect(() => {
+    if (!reportStartDate || !reportEndDate || reportStartDate > reportEndDate) {
+      setSchoolCalendarPeriod([]);
+      return;
+    }
+    let active = true;
+    setSchoolCalendarLoading(true);
+    supabase.from('school_calendar_events').select('start_date, end_date, affects_school_days')
+      .lte('start_date', reportEndDate)
+      .gte('end_date', reportStartDate)
+      .then(({ data, error }) => {
+        if (!active) return;
+        setSchoolCalendarPeriod((data || []) as SchoolCalendarPeriod[]);
+        setSchoolCalendarError(error ? 'Calendário escolar indisponível; aplique a migração para calcular os dias letivos.' : '');
+        setSchoolCalendarLoading(false);
+      });
+    return () => { active = false; };
+  }, [reportStartDate, reportEndDate]);
 
   // ── Filters ─────────────────────────────────────────────────────────────────
   const [filterType, setFilterType] = useState<'ALL' | 'FALTA_JUSTIFICADA' | 'ABONO'>('ALL');
@@ -410,6 +489,16 @@ export const AbsencesReportPage: React.FC = () => {
 
     return Object.values(grouped).sort((a, b) => b.total - a.total).slice(0, 10);
   }, [reportFilteredAbsences]);
+
+  const reportSchoolDays = useMemo(() => {
+    if (!reportStartDate || !reportEndDate || reportStartDate > reportEndDate || schoolCalendarError) return null;
+    return eachDayOfInterval({ start: parseISO(reportStartDate), end: parseISO(reportEndDate) }).filter(day => {
+      const weekday = day.getDay();
+      if (weekday === 0 || weekday === 6) return false;
+      const date = format(day, 'yyyy-MM-dd');
+      return !schoolCalendarPeriod.some(event => event.affects_school_days && event.start_date <= date && event.end_date >= date);
+    }).length;
+  }, [reportStartDate, reportEndDate, schoolCalendarPeriod, schoolCalendarError]);
 
   // ── Filtered Data (Planilha) ─────────────────────────────────────────────────
   const allGrades = useMemo(() => {
@@ -2008,7 +2097,8 @@ export const AbsencesReportPage: React.FC = () => {
             <p className="mt-3 hidden text-xs font-semibold text-gray-700 print:block">Período: {reportStartDate ? format(parseISO(reportStartDate), 'dd/MM/yyyy') : 'Início não informado'} a {reportEndDate ? format(parseISO(reportEndDate), 'dd/MM/yyyy') : 'Data atual'} · Turma: {reportGradeFilter === 'ALL' ? 'Todas' : reportGradeFilter}</p>
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-6 gap-4">
+          {schoolCalendarError && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 print:hidden">{schoolCalendarError}</p>}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-700">Faltas</p>
               <p className="mt-3 text-3xl font-black text-amber-700">{reportFilteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length}</p>
@@ -2033,6 +2123,11 @@ export const AbsencesReportPage: React.FC = () => {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Acompanhamentos ativos</p>
               <p className="mt-3 text-3xl font-black text-sky-700">{reportFilteredAbsences.filter(a => a.is_intermittent && a.is_intermittent_active !== false).length}</p>
               <p className="mt-1 text-[11px] text-sky-700/70">{reportFilteredAbsences.filter(a => a.is_intermittent && a.is_intermittent_active === false).length} baixados</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-600">Dias letivos estimados</p>
+              <p className="mt-3 text-3xl font-black text-gray-800">{schoolCalendarLoading ? '…' : reportSchoolDays ?? '—'}</p>
+              <p className="mt-1 text-[11px] text-gray-600">Seg–sex, descontando calendário</p>
             </div>
           </div>
 

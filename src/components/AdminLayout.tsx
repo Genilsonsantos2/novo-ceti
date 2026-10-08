@@ -79,6 +79,26 @@ export const AdminLayout: React.FC = () => {
                 Histórico do aluno
               </NavLink>
 
+              <NavLink to="/student-dossier" className={({ isActive }) => navItemClass({ isActive })}>
+                <span className="material-symbols-outlined text-lg">folder_shared</span>
+                Prontuário digital
+              </NavLink>
+
+              <NavLink to="/school-calendar" className={({ isActive }) => navItemClass({ isActive })}>
+                <span className="material-symbols-outlined text-lg">calendar_month</span>
+                Calendário escolar
+              </NavLink>
+
+              <NavLink to="/data-quality" className={({ isActive }) => navItemClass({ isActive })}>
+                <span className="material-symbols-outlined text-lg">fact_check</span>
+                Revisão de cadastros
+              </NavLink>
+
+              <NavLink to="/school-documents" className={({ isActive }) => navItemClass({ isActive })}>
+                <span className="material-symbols-outlined text-lg">description</span>
+                Modelos de documentos
+              </NavLink>
+
               <NavLink to="/workflow" className={({ isActive }) => navItemClass({ isActive })}>
                 <span className="material-symbols-outlined text-lg">account_tree</span>
                 Processos

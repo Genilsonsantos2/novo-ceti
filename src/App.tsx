@@ -21,6 +21,10 @@ import { OccurrencesPage } from './pages/OccurrencesPage';
 import { WorkflowPage } from './pages/WorkflowPage';
 import { AuditPage } from './pages/AuditPage';
 import { StudentHistoryPage } from './pages/StudentHistoryPage';
+import { StudentDossierPage } from './pages/StudentDossierPage';
+import { SchoolCalendarPage } from './pages/SchoolCalendarPage';
+import { DataQualityPage } from './pages/DataQualityPage';
+import { SchoolDocumentsPage } from './pages/SchoolDocumentsPage';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, allowedRoles?: string[] }) => {
   const { user, profile, loading } = useAuth();
@@ -85,6 +89,30 @@ function AppRoutes() {
         <Route path="/student-history" element={
           <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
             <StudentHistoryPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/student-dossier" element={
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
+            <StudentDossierPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/school-calendar" element={
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
+            <SchoolCalendarPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/data-quality" element={
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
+            <DataQualityPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/school-documents" element={
+          <ProtectedRoute allowedRoles={['ADM', 'DIRETOR']}>
+            <SchoolDocumentsPage />
           </ProtectedRoute>
         } />
 
