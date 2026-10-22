@@ -47,7 +47,7 @@ export const AuthorizationTermPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+    <div className="authorization-term-page min-h-screen bg-gray-100 p-4 md:p-8">
       {/* Action Bar */}
       <div className="max-w-4xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-center gap-6 print:hidden">
         <button 
@@ -77,7 +77,7 @@ export const AuthorizationTermPage: React.FC = () => {
       </div>
 
       {/* Document Sheet - Optimized for A4 Portrait */}
-      <div className="w-full max-w-[210mm] mx-auto bg-white shadow-2xl relative print:shadow-none print:m-0" id="printable-term">
+      <div className="authorization-term-sheet w-full max-w-[210mm] mx-auto bg-white shadow-2xl relative print:shadow-none print:m-0" id="printable-term">
         
         {/* Absolute Container for Print Scaling */}
         <div className="p-12 md:p-20 flex flex-col min-h-[297mm] relative overflow-hidden print:p-0 print:shadow-none">
@@ -187,34 +187,34 @@ export const AuthorizationTermPage: React.FC = () => {
         @media print {
           @page { 
             size: A4 portrait; 
-            margin: 0 !important;
+            margin: 12mm !important;
           }
           html, body { 
             margin: 0 !important; 
             padding: 0 !important;
-            width: 210mm !important;
-            height: 297mm !important;
             background: white !important;
           }
           .print\\:hidden { display: none !important; }
+          .authorization-term-page { min-height: 0 !important; padding: 0 !important; }
           #printable-term {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 210mm !important;
-            height: 297mm !important;
+            position: relative !important;
+            width: 100% !important;
+            max-width: none !important;
+            min-height: 273mm !important;
+            height: auto !important;
             margin: 0 !important;
-            padding: 30mm 20mm 20mm 30mm !important;
+            padding: 0 !important;
             box-sizing: border-box !important;
             background: white !important;
-            z-index: 9999 !important;
-            overflow: hidden !important;
+            box-shadow: none !important;
+            overflow: visible !important;
           }
           #printable-term > div {
             padding: 0 !important;
             margin: 0 !important;
             width: 100% !important;
-            height: 100% !important;
+            min-height: 273mm !important;
+            height: auto !important;
             box-sizing: border-box !important;
             display: flex !important;
             flex-direction: column !important;

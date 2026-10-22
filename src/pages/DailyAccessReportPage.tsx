@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
+import { printElementAsPDF } from '../utils/exportUtils';
 
 export const DailyAccessReportPage: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
@@ -107,7 +108,7 @@ export const DailyAccessReportPage: React.FC = () => {
 
             <div className="flex items-end h-full pt-6 gap-3">
               <button
-                onClick={() => window.print()}
+                onClick={() => printElementAsPDF('daily-report', `Acessos_${selectedDate}`)}
                 className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-95"
               >
                 <span className="material-symbols-outlined text-sm">print</span>
@@ -126,7 +127,7 @@ export const DailyAccessReportPage: React.FC = () => {
       </div>
 
       {/* Printable Document */}
-      <div id="daily-report" className="max-w-[210mm] mx-auto bg-white shadow-xl mt-8 mb-12 print:shadow-none print:mt-0 print:mb-0 print:max-w-none rounded-[2rem] overflow-hidden border border-gray-100 print:border-none">
+      <div id="daily-report" className="daily-report-sheet max-w-[210mm] mx-auto bg-white shadow-xl mt-8 mb-12 print:shadow-none print:mt-0 print:mb-0 print:max-w-none rounded-[2rem] overflow-hidden border border-gray-100 print:border-none">
         <div className="p-10 print:p-[10mm]">
           {/* Header */}
           <div className="text-center mb-10 pb-6 border-b-2 border-gray-900">
@@ -265,13 +266,18 @@ export const DailyAccessReportPage: React.FC = () => {
           @page { size: A4 portrait; margin: 15mm !important; }
           html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
           .print\\:hidden { display: none !important; }
-          #daily-report { 
+          #daily-report {
             max-width: 100% !important; 
             margin: 0 !important; 
             box-shadow: none !important; 
             border: none !important;
             border-radius: 0 !important;
+            overflow: visible !important;
           }
+          #daily-report thead { display: table-header-group; }
+          #daily-report tr { break-inside: avoid; }
+          #daily-report .bg-gray-900 { background: white !important; color: #111827 !important; border-bottom: 2px solid #111827; }
+          #daily-report .bg-gray-900 * { color: #111827 !important; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}} />

@@ -23,6 +23,8 @@ const priorityOptions = [
 
 type WorkflowStatus = typeof statusOptions[number]['value'];
 type WorkflowPriority = typeof priorityOptions[number]['value'];
+type SearchField = 'TODOS' | 'NOME' | 'MATRICULA' | 'ASSUNTO';
+type DeadlineFilter = 'TODOS' | 'OVERDUE' | 'TODAY' | 'ON_TIME';
 
 interface WorkflowMovement {
   id: string;
@@ -45,6 +47,7 @@ interface WorkflowProcess {
   priority: WorkflowPriority;
   status: WorkflowStatus;
   responsible_name: string | null;
+  due_at: string | null;
   operator_name: string;
   created_at: string;
   updated_at: string;
@@ -60,7 +63,23 @@ interface Student {
 const getStatus = (status: WorkflowStatus) => statusOptions.find(option => option.value === status) || statusOptions[0];
 const getProcessPersonName = (process: WorkflowProcess) => process.student_name || process.guest_name || 'Solicitante não identificado';
 const getProcessEnrollment = (process: WorkflowProcess) => process.process_number || process.guest_enrollment_id || 'Matrícula não informada';
+const getInitials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 const formatDate = (date: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(date));
+const getDeadlineState = (dueAt: string | null, status: WorkflowStatus) => {
+  if (!dueAt || status === 'CONCLUIDO' || status === 'ARQUIVADO') return 'NO_DEADLINE';
+  const dueTime = new Date(dueAt).getTime();
+  const now = Date.now();
+  if (dueTime < now) return 'OVERDUE';
+  if (dueTime <= now + 24 * 60 * 60 * 1000) return 'TODAY';
+  return 'ON_TIME';
+};
+const getSuggestedDeadline = (priority: WorkflowPriority) => {
+  const daysByPriority: Record<WorkflowPriority, number> = { URGENTE: 2, ALTA: 5, NORMAL: 10, BAIXA: 15 };
+  const deadline = new Date();
+  deadline.setDate(deadline.getDate() + daysByPriority[priority]);
+  deadline.setHours(23, 59, 59, 0);
+  return deadline.toISOString();
+};
 
 export const WorkflowPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,15 +90,20 @@ export const WorkflowPage: React.FC = () => {
   const [selectedProcess, setSelectedProcess] = useState<WorkflowProcess | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [searchField, setSearchField] = useState<SearchField>('TODOS');
   const [statusFilter, setStatusFilter] = useState('TODOS');
+  const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>('TODOS');
+  const [priorityFilter, setPriorityFilter] = useState<WorkflowPriority | 'TODOS'>('TODOS');
+  const [responsibleFilter, setResponsibleFilter] = useState('TODOS');
   const [showNewProcess, setShowNewProcess] = useState(false);
   const [movementNote, setMovementNote] = useState('');
   const [nextStatus, setNextStatus] = useState<WorkflowStatus>('EM_ANALISE');
   const [students, setStudents] = useState<Student[]>([]);
-  const [newProcess, setNewProcess] = useState({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL' as WorkflowPriority, description: '' });
   const attentionOnly = searchParams.get('atencao') === 'parados';
+  const [newProcess, setNewProcess] = useState({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL' as WorkflowPriority, description: '', dueAt: '' });
 
   const fetchProcesses = async (keepSelected = true) => {
     setLoading(true);
@@ -135,14 +159,55 @@ export const WorkflowPage: React.FC = () => {
     const normalizedSearch = search.toLowerCase().trim();
     return processes.filter(process => {
       const matchesStatus = statusFilter === 'TODOS' || process.status === statusFilter;
-      const matchesSearch = !normalizedSearch || [process.process_number, process.student_name, process.guest_name, process.subject, process.responsible_name, process.operator_name]
-        .some(value => value?.toLowerCase().includes(normalizedSearch));
+      const matchesDeadline = deadlineFilter === 'TODOS' || getDeadlineState(process.due_at, process.status) === deadlineFilter;
+      const matchesPriority = priorityFilter === 'TODOS' || process.priority === priorityFilter;
+      const matchesResponsible = responsibleFilter === 'TODOS' || (process.responsible_name || 'A definir') === responsibleFilter;
+      const searchValues: Record<SearchField, string[]> = {
+        TODOS: [process.process_number, getProcessPersonName(process), process.subject, process.responsible_name || '', process.operator_name],
+        NOME: [getProcessPersonName(process)],
+        MATRICULA: [process.process_number, process.guest_enrollment_id || ''],
+        ASSUNTO: [process.subject],
+      };
+      const matchesSearch = !normalizedSearch || searchValues[searchField]
+        .some(value => value.toLowerCase().includes(normalizedSearch));
       const matchesAttention = !attentionOnly || isWorkflowProcessStale(process);
-      return matchesStatus && matchesSearch && matchesAttention;
+      return matchesStatus && matchesDeadline && matchesPriority && matchesResponsible && matchesSearch && matchesAttention;
     });
-  }, [processes, search, statusFilter, attentionOnly]);
+  }, [processes, search, searchField, statusFilter, deadlineFilter, priorityFilter, responsibleFilter, attentionOnly]);
+
+  const searchPlaceholder = {
+    TODOS: 'Nome, matrícula ou assunto...',
+    NOME: 'Digite o nome do aluno...',
+    MATRICULA: 'Digite a matrícula ou processo...',
+    ASSUNTO: 'Digite o assunto do processo...',
+  }[searchField];
 
   const countByStatus = (status: WorkflowStatus) => processes.filter(process => process.status === status).length;
+  const completedCount = countByStatus('CONCLUIDO');
+  const overdueCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'OVERDUE').length;
+  const dueTodayCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'TODAY').length;
+  const onTimeCount = processes.filter(process => getDeadlineState(process.due_at, process.status) === 'ON_TIME').length;
+  const responsibleOptions = Array.from(new Set(processes.map(process => process.responsible_name || 'A definir'))).sort();
+
+  const exportProcesses = () => {
+    const headers = ['Processo', 'Nome do aluno', 'Matrícula', 'Assunto', 'Prioridade', 'Status', 'Prazo', 'Última atualização'];
+    const rows = filteredProcesses.map(process => [
+      `PROC. RM-${process.process_number}`,
+      getProcessPersonName(process),
+      getProcessEnrollment(process),
+      process.subject,
+      priorityOptions.find(option => option.value === process.priority)?.label || process.priority,
+      getStatus(process.status).label,
+      process.due_at ? formatDate(process.due_at) : 'Sem prazo',
+      formatDate(process.updated_at),
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' }));
+    link.download = `Central_de_Processos_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -165,6 +230,7 @@ export const WorkflowPage: React.FC = () => {
       responsible_name: newProcess.responsibleName.trim() || null,
       priority: newProcess.priority,
       status: 'RECEBIDO',
+      due_at: newProcess.dueAt ? new Date(`${newProcess.dueAt}T23:59:59`).toISOString() : getSuggestedDeadline(newProcess.priority),
       operator_id: user?.id || null,
       operator_name: operatorName,
       created_at: new Date().toISOString(),
@@ -180,10 +246,20 @@ export const WorkflowPage: React.FC = () => {
       operator_name: operatorName,
       created_at: new Date().toISOString(),
     };
+    const auditPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: processId,
+      action: 'PROCESSO_ABERTO',
+      details: { process_number: processNumber, student_name: subjectName, priority: newProcess.priority },
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
 
     if (!isOnline) {
       await enqueue('workflow_processes', processPayload);
       await enqueue('workflow_movements', movementPayload);
+      await enqueue('workflow_audit_logs', auditPayload);
       const nextProcesses = [processPayload as WorkflowProcess, ...processes];
       setProcesses(nextProcesses);
       await cacheProcesses(nextProcesses);
@@ -197,10 +273,11 @@ export const WorkflowPage: React.FC = () => {
       }
       const { error: movementError } = await supabase.from('workflow_movements').insert(movementPayload);
       if (movementError) setError(`Processo criado, mas o histórico inicial não foi registrado: ${movementError.message}`);
+      await supabase.from('workflow_audit_logs').insert(auditPayload);
       await fetchProcesses(false);
       setSelectedProcess({ ...data, workflow_movements: [movementPayload] } as WorkflowProcess);
     }
-    setNewProcess({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL', description: '' });
+    setNewProcess({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL', description: '', dueAt: '' });
     setShowNewProcess(false);
     setSaving(false);
   };
@@ -220,6 +297,15 @@ export const WorkflowPage: React.FC = () => {
       operator_name: operatorName,
       created_at: new Date().toISOString(),
     };
+    const auditPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: selectedProcess.id,
+      action: 'STATUS_ALTERADO',
+      details: { from_status: selectedProcess.status, to_status: nextStatus, note: movementNote.trim() },
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
     const processUpdate = {
       id: selectedProcess.id,
       process_number: selectedProcess.process_number,
@@ -231,6 +317,7 @@ export const WorkflowPage: React.FC = () => {
       description: selectedProcess.description,
       priority: selectedProcess.priority,
       status: nextStatus,
+      due_at: selectedProcess.due_at,
       responsible_name: selectedProcess.responsible_name,
       operator_id: user?.id || null,
       operator_name: operatorName,
@@ -239,6 +326,7 @@ export const WorkflowPage: React.FC = () => {
     };
     if (!isOnline) {
       await enqueue('workflow_movements', movementPayload);
+      await enqueue('workflow_audit_logs', auditPayload);
       await enqueue('workflow_processes', { ...processUpdate });
       const nextProcesses = processes.map(process => process.id === selectedProcess.id ? processUpdate : process);
       setProcesses(nextProcesses);
@@ -251,6 +339,7 @@ export const WorkflowPage: React.FC = () => {
         setSaving(false);
         return;
       }
+      await supabase.from('workflow_audit_logs').insert(auditPayload);
       const { error: updateError } = await supabase.from('workflow_processes').update({ status: nextStatus, updated_at: processUpdate.updated_at }).eq('id', selectedProcess.id);
       if (updateError) setError(`Movimentação registrada, mas o status não foi atualizado: ${updateError.message}`);
     }
@@ -259,18 +348,122 @@ export const WorkflowPage: React.FC = () => {
     setSaving(false);
   };
 
+  const handleRevertLastMovement = async () => {
+    if (!selectedProcess) return;
+    const sortedMovements = [...(selectedProcess.workflow_movements || [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const latestMovement = sortedMovements[0];
+    if (!latestMovement || !latestMovement.from_status) {
+      setError('Não há uma alteração anterior para reverter neste processo.');
+      return;
+    }
+
+    const previousStatus = latestMovement.from_status;
+    const movementPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: selectedProcess.id,
+      from_status: selectedProcess.status,
+      to_status: previousStatus,
+      note: `Reversão da última alteração: ${latestMovement.note || 'sem observação'}`,
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
+    const auditPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: selectedProcess.id,
+      action: 'STATUS_ALTERADO',
+      details: { from_status: selectedProcess.status, to_status: previousStatus, note: movementPayload.note },
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
+
+    setSaving(true);
+    setError('');
+
+    if (!isOnline) {
+      await enqueue('workflow_movements', movementPayload);
+      await enqueue('workflow_audit_logs', auditPayload);
+      await enqueue('workflow_processes', { ...selectedProcess, status: previousStatus, updated_at: new Date().toISOString(), workflow_movements: [...(selectedProcess.workflow_movements || []), movementPayload] });
+      const nextProcesses = processes.map(process => process.id === selectedProcess.id ? { ...process, status: previousStatus, updated_at: new Date().toISOString(), workflow_movements: [...(process.workflow_movements || []), movementPayload] } : process);
+      setProcesses(nextProcesses);
+      setSelectedProcess({ ...selectedProcess, status: previousStatus, updated_at: new Date().toISOString(), workflow_movements: [...(selectedProcess.workflow_movements || []), movementPayload] });
+      await cacheProcesses(nextProcesses);
+    } else {
+      const { error: movementError } = await supabase.from('workflow_movements').insert(movementPayload);
+      if (movementError) {
+        setError(`Não foi possível registrar a reversão: ${movementError.message}`);
+        setSaving(false);
+        return;
+      }
+      await supabase.from('workflow_audit_logs').insert(auditPayload);
+      const { error: updateError } = await supabase.from('workflow_processes').update({ status: previousStatus, updated_at: new Date().toISOString() }).eq('id', selectedProcess.id);
+      if (updateError) {
+        setError(`Reversão registrada, mas o status não foi atualizado: ${updateError.message}`);
+      }
+    }
+
+    await fetchProcesses();
+    setSaving(false);
+  };
+
+  const handleDeleteProcess = async () => {
+    if (!selectedProcess || deleting) return;
+    if (!isOnline) {
+      setError('Conecte-se à internet para excluir um processo com segurança.');
+      return;
+    }
+    const confirmed = window.confirm(`Excluir o processo de ${getProcessPersonName(selectedProcess)}? Esta ação também removerá o histórico de movimentações e não pode ser desfeita.`);
+    if (!confirmed) return;
+    setDeleting(true);
+    setError('');
+    const auditPayload = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      process_id: selectedProcess.id,
+      action: 'PROCESSO_EXCLUIDO',
+      details: { process_number: selectedProcess.process_number, student_name: getProcessPersonName(selectedProcess) },
+      operator_id: user?.id || null,
+      operator_name: operatorName,
+      created_at: new Date().toISOString(),
+    };
+    const { error: auditError } = await supabase.from('workflow_audit_logs').insert(auditPayload);
+    if (auditError) {
+      setError(`Não foi possível registrar a auditoria da exclusão: ${auditError.message}`);
+      setDeleting(false);
+      return;
+    }
+    const { error: deleteError } = await supabase
+      .from('workflow_processes')
+      .delete()
+      .eq('id', selectedProcess.id);
+    if (deleteError) {
+      setError(`Não foi possível excluir o processo: ${deleteError.message}`);
+    } else {
+      setProcesses(current => current.filter(process => process.id !== selectedProcess.id));
+      setSelectedProcess(null);
+    }
+    setDeleting(false);
+  };
+
   return (
-    <div className="flex-1 px-6 py-8 md:px-10 md:py-10 pb-32 min-h-screen">
-      <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70">Tramitação administrativa</p>
-          <h2 className="mt-2 font-headline text-3xl font-extrabold tracking-tight text-on-surface md:text-4xl">Acompanhamento de processos</h2>
-          <p className="mt-2 max-w-2xl text-sm text-on-surface-variant">Fila de trabalho no modelo judicial, com matrícula como número do processo e histórico de cada ato praticado.</p>
+    <div className="flex-1 px-4 py-6 md:px-10 md:py-10 pb-32 min-h-screen">
+      <header className="relative mb-8 overflow-hidden rounded-[2rem] bg-[#071b33] px-6 py-7 text-white shadow-2xl shadow-[#071b33]/20 md:px-9 md:py-8">
+        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full border-[26px] border-[#d5ae68]/15" />
+        <div className="absolute right-16 -bottom-32 h-64 w-64 rounded-full border border-white/10" />
+        <div className="relative flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="mb-5 flex items-center gap-3 text-[#d5ae68]"><span className="material-symbols-outlined">account_balance</span><p className="text-[10px] font-black uppercase tracking-[0.28em]">Secretaria • Núcleo de registros</p></div>
+            <h2 className="font-headline text-3xl font-extrabold tracking-tight md:text-5xl">Central de Processos</h2>
+            <p className="mt-3 max-w-2xl text-sm font-medium leading-relaxed text-blue-100/70">Autuação, tramitação e acompanhamento dos estudantes em uma visão executiva, com cada processo identificado por nome e matrícula.</p>
+          </div>
+          <button onClick={() => setShowNewProcess(true)} className="relative flex items-center justify-center gap-2 rounded-xl bg-[#d5ae68] px-5 py-3.5 text-sm font-black text-[#071b33] shadow-xl shadow-black/20 transition hover:bg-[#e4c484] hover:-translate-y-0.5">
+            <span className="material-symbols-outlined">add_circle</span>
+            Abrir novo processo
+          </button>
         </div>
-        <button onClick={() => setShowNewProcess(true)} className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:scale-[1.02]">
-          <span className="material-symbols-outlined">add_circle</span>
-          Abrir processo
-        </button>
+        <div className="relative mt-7 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 sm:grid-cols-4">
+          {[{ label: 'Total na central', value: processes.length, icon: 'folder_copy' }, { label: 'Em andamento', value: processes.length - completedCount, icon: 'pending_actions' }, { label: 'Concluídos', value: completedCount, icon: 'verified' }, { label: 'Atrasados', value: overdueCount, icon: 'schedule' }].map(metric => <div key={metric.label} className="flex items-center gap-2"><span className="material-symbols-outlined text-[#d5ae68]">{metric.icon}</span><div><p className="text-xl font-black leading-none">{metric.value}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">{metric.label}</p></div></div>)}
+        </div>
       </header>
 
       {error && <div className="mb-6 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><span className="material-symbols-outlined">error</span><p>{error}</p></div>}
@@ -301,28 +494,56 @@ export const WorkflowPage: React.FC = () => {
 
       <section className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {statusOptions.map(status => (
-          <button key={status.value} onClick={() => setStatusFilter(statusFilter === status.value ? 'TODOS' : status.value)} className={`glass-card rounded-2xl p-4 text-left ${statusFilter === status.value ? 'ring-2 ring-primary' : ''}`}>
+          <button key={status.value} onClick={() => setStatusFilter(statusFilter === status.value ? 'TODOS' : status.value)} className={`group relative overflow-hidden rounded-2xl border bg-white/75 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-zinc-900/70 ${statusFilter === status.value ? 'border-[#b2843d] ring-2 ring-[#d5ae68]/30' : 'border-white/60 dark:border-zinc-800'}`}>
+            <div className={`absolute inset-x-0 top-0 h-1 ${status.color.split(' ')[0]}`} />
             <p className="text-2xl font-black text-on-surface">{countByStatus(status.value)}</p>
-            <p className="mt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{status.label}</p>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-on-surface-variant">{status.label}</p>
           </button>
         ))}
       </section>
 
+      <section className="mb-8 rounded-2xl border border-[#d5ae68]/30 bg-[#fffaf0] p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9a6d28]">Prazos de tramitação</p><p className="mt-1 text-sm font-bold text-[#071b33]">Filtre a fila pelas tarefas que exigem atenção agora.</p></div>
+          <div className="flex flex-wrap gap-2">
+            {[{ value: 'TODOS' as DeadlineFilter, label: 'Todos', count: processes.length }, { value: 'OVERDUE' as DeadlineFilter, label: 'Atrasados', count: overdueCount }, { value: 'TODAY' as DeadlineFilter, label: 'Vencem hoje', count: dueTodayCount }, { value: 'ON_TIME' as DeadlineFilter, label: 'No prazo', count: onTimeCount }].map(filter => <button key={filter.value} type="button" onClick={() => setDeadlineFilter(filter.value)} className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wide transition ${deadlineFilter === filter.value ? 'bg-[#071b33] text-white shadow-md' : 'border border-[#d5ae68]/40 bg-white/70 text-[#8b6222] hover:bg-white'}`}>{filter.label} <span className="ml-1 opacity-70">{filter.count}</span></button>)}
+          </div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
-        <section className="glass-card overflow-hidden rounded-[2rem]">
-          <div className="flex flex-col gap-3 border-b border-white/60 p-5 md:flex-row md:items-center md:justify-between md:p-6">
-            <div><h3 className="font-headline text-xl font-extrabold text-on-surface">Fila de processos</h3><p className="mt-1 text-xs text-on-surface-variant">{filteredProcesses.length} processo(s) encontrado(s) · identificação por nome e matrícula</p></div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <label className="relative"><span className="sr-only">Pesquisar processos</span><span className="material-symbols-outlined absolute left-3 top-2.5 text-lg text-outline">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Matrícula, assunto..." className="w-full rounded-xl border border-primary/10 bg-white/60 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-primary sm:w-56" /></label>
-              <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Todos os status</option>{statusOptions.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select>
+        <section className="glass-card overflow-hidden rounded-[2rem] border border-white/70 shadow-xl shadow-slate-200/40 dark:border-zinc-800 dark:shadow-black/20">
+          <div className="border-b border-white/60 p-5 md:p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div><div className="flex items-center gap-2"><span className="material-symbols-outlined text-[#b2843d]">manage_search</span><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b2843d]">Pesquisa inteligente</p></div><h3 className="mt-1 font-headline text-xl font-extrabold text-on-surface">Fila de processos</h3><p className="mt-1 text-xs text-on-surface-variant">{filteredProcesses.length} processo(s) encontrado(s) · identificação por nome e matrícula</p></div>
+              <div className="flex flex-wrap gap-2"><select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Todos os status</option>{statusOptions.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select><select value={priorityFilter} onChange={event => setPriorityFilter(event.target.value as WorkflowPriority | 'TODOS')} className="rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Prioridade</option>{priorityOptions.map(priority => <option key={priority.value} value={priority.value}>{priority.label}</option>)}</select><select value={responsibleFilter} onChange={event => setResponsibleFilter(event.target.value)} className="max-w-[150px] rounded-xl border border-primary/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-primary"><option value="TODOS">Responsável</option>{responsibleOptions.map(responsible => <option key={responsible} value={responsible}>{responsible}</option>)}</select><button type="button" onClick={exportProcesses} className="inline-flex items-center gap-1.5 rounded-xl border border-[#b2843d]/30 bg-[#fffaf0] px-3 py-2.5 text-[10px] font-black uppercase tracking-wide text-[#8b6222] transition hover:bg-[#f7e8c5]" title="Exportar resultados"><span className="material-symbols-outlined text-base">download</span><span className="hidden sm:inline">Exportar</span></button></div>
+            </div>
+            <div className="mt-5 flex flex-col gap-3 lg:flex-row">
+              <div className="flex shrink-0 overflow-x-auto rounded-xl border border-primary/10 bg-slate-100/70 p-1 dark:bg-zinc-900/70">
+                {[
+                  { value: 'TODOS' as SearchField, label: 'Todos', icon: 'travel_explore' },
+                  { value: 'NOME' as SearchField, label: 'Nome do aluno', icon: 'person_search' },
+                  { value: 'MATRICULA' as SearchField, label: 'Matrícula', icon: 'badge' },
+                  { value: 'ASSUNTO' as SearchField, label: 'Assunto', icon: 'description' },
+                ].map(option => <button key={option.value} type="button" onClick={() => setSearchField(option.value)} className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-wide transition ${searchField === option.value ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-white/70'}`}><span className="material-symbols-outlined text-sm">{option.icon}</span>{option.label}</button>)}
+              </div>
+              <label className="relative min-w-0 flex-1"><span className="sr-only">Pesquisar na fila</span><span className="material-symbols-outlined absolute left-3 top-2.5 text-lg text-outline">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder={searchPlaceholder} className="w-full rounded-xl border border-primary/10 bg-white/60 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-[#b2843d] focus:ring-4 focus:ring-[#b2843d]/10" />{search && <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-2.5 text-outline hover:text-primary" aria-label="Limpar pesquisa"><span className="material-symbols-outlined text-lg">close</span></button>}</label>
             </div>
           </div>
-          {loading ? <div className="flex justify-center p-16"><span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div> : filteredProcesses.length === 0 ? <div className="p-12 text-center"><span className="material-symbols-outlined text-5xl text-primary/30">folder_open</span><p className="mt-3 font-bold text-on-surface">Nenhum processo na fila</p><p className="mt-1 text-sm text-on-surface-variant">Abra um processo para iniciar o acompanhamento.</p></div> : <div className="divide-y divide-white/60">{filteredProcesses.map(process => { const status = getStatus(process.status); return <button key={process.id} onClick={() => { setSelectedProcess(process); setNextStatus(process.status === 'RECEBIDO' ? 'EM_ANALISE' : process.status); }} className={`flex w-full items-center gap-4 p-5 text-left transition hover:bg-primary/5 ${selectedProcess?.id === process.id ? 'bg-primary/5' : ''}`}><div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:flex"><span className="material-symbols-outlined">folder_managed</span></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-mono text-sm font-extrabold text-primary">{process.process_number}</p><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${status.color}`}>{status.label}</span></div><p className="mt-1 truncate font-bold text-on-surface">{process.subject}</p><p className="mt-1 text-xs text-on-surface-variant">Atualizado em {formatDate(process.updated_at)} · Operado por {process.operator_name}</p></div><span className="material-symbols-outlined text-outline">chevron_right</span></button>; })}</div>}
+          {loading ? <div className="flex justify-center p-16"><span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div> : filteredProcesses.length === 0 ? <div className="p-12 text-center"><span className="material-symbols-outlined text-5xl text-primary/30">folder_open</span><p className="mt-3 font-bold text-on-surface">Nenhum processo na fila</p><p className="mt-1 text-sm text-on-surface-variant">Abra um processo para iniciar o acompanhamento.</p></div> : <div className="divide-y divide-white/60">{filteredProcesses.map(process => { const status = getStatus(process.status); const personName = getProcessPersonName(process); const deadlineState = getDeadlineState(process.due_at, process.status); return <button key={process.id} onClick={() => { setSelectedProcess(process); setNextStatus(process.status === 'RECEBIDO' ? 'EM_ANALISE' : process.status); }} className={`group flex w-full items-center gap-4 p-5 text-left transition hover:bg-[#b2843d]/5 ${selectedProcess?.id === process.id ? 'bg-[#b2843d]/10' : ''}`}><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#071b33] text-xs font-black text-[#d5ae68] shadow-md">{getInitials(personName)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-mono text-[11px] font-black tracking-wide text-[#b2843d]">PROC. RM-{process.process_number}</p><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${status.color}`}>{status.label}</span>{process.priority === 'URGENTE' && <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-black uppercase text-red-700">Urgente</span>}{deadlineState === 'OVERDUE' && <span className="rounded-full bg-rose-100 px-2 py-1 text-[10px] font-black uppercase text-rose-700">Atrasado</span>}{deadlineState === 'TODAY' && <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase text-amber-700">Vence hoje</span>}</div><p className="mt-1 truncate font-headline text-base font-extrabold text-on-surface">{personName}</p><p className="mt-1 truncate text-xs font-medium text-on-surface-variant"><span className="font-mono font-bold">RM {getProcessEnrollment(process)}</span> <span className="mx-1 text-outline/50">•</span> {process.subject}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-outline">{process.due_at ? `Prazo ${formatDate(process.due_at)}` : 'Sem prazo definido'} · Atualizado em {formatDate(process.updated_at)}</p></div><span className="material-symbols-outlined text-outline transition group-hover:translate-x-1 group-hover:text-[#b2843d]">chevron_right</span></button>; })}</div>}
         </section>
 
-        <aside className="glass-card rounded-[2rem] border-t-4 border-t-primary p-6">
+        <aside className="glass-card rounded-[2rem] border border-white/70 border-t-4 border-t-[#b2843d] p-6 shadow-xl shadow-slate-200/40 dark:border-zinc-800 dark:shadow-black/20">
           {selectedProcess && <div className="mb-6 rounded-2xl border border-primary/15 bg-primary/5 p-4">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-primary"><span className="material-symbols-outlined text-base">badge</span> Identificação do processo</div>
+            <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-primary"><span className="material-symbols-outlined text-base">badge</span> Identificação do processo</div><div className="flex gap-2">
+              {(selectedProcess.workflow_movements || []).some(movement => movement.from_status) && (
+                <button type="button" onClick={handleRevertLastMovement} disabled={saving} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700 transition hover:bg-amber-100 disabled:cursor-wait disabled:opacity-50" title="Reverter última alteração">
+                  <span className="material-symbols-outlined text-sm">undo</span>
+                  Reverter
+                </button>
+              )}
+              <button type="button" onClick={handleDeleteProcess} disabled={deleting} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide text-rose-700 transition hover:bg-rose-100 disabled:cursor-wait disabled:opacity-50" title="Excluir processo"><span className="material-symbols-outlined text-sm">{deleting ? 'progress_activity' : 'delete'}</span>{deleting ? 'Excluindo' : 'Excluir'}</button>
+            </div></div>
             <p className="mt-3 text-lg font-extrabold text-on-surface">{getProcessPersonName(selectedProcess)}</p>
             <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-on-surface-variant"><span className="rounded-lg bg-white/70 px-2 py-1">Matrícula: {getProcessEnrollment(selectedProcess)}</span><span className="rounded-lg bg-white/70 px-2 py-1">{selectedProcess.student_id ? 'Aluno cadastrado' : 'Solicitação avulsa'}</span></div>
           </div>}

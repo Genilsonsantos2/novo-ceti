@@ -17,22 +17,23 @@ interface DashboardAbsence {
   students: { full_name: string; grade: string | null }[] | null;
 }
 
-interface DashboardWorkflowProcess {
-  id: string;
-  process_number: string;
-  subject: string;
-  student_name: string | null;
-  guest_name: string | null;
-  status: string;
-  priority: string;
-  updated_at: string;
-}
-
 interface DashboardOccurrence {
   id: string;
   occurred_at: string;
   has_card: boolean;
   reason: string;
+}
+
+interface DashboardProcess {
+  id: string;
+  process_number: string;
+  student_name: string | null;
+  guest_name: string | null;
+  subject: string;
+  priority: 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
+  status: 'RECEBIDO' | 'EM_ANALISE' | 'PENDENTE' | 'DECISAO' | 'CONCLUIDO' | 'ARQUIVADO';
+  due_at: string | null;
+  updated_at: string;
 }
 
 interface AlertItem {
@@ -51,12 +52,47 @@ interface AutomationTaskReview {
   reviewed_at: string;
 }
 
+interface RecentAuditItem {
+  id: string;
+  action: string;
+  summary: string;
+  operatorName: string;
+  createdAt: string;
+}
+
+interface GradeRiskItem {
+  grade: string;
+  turno: string;
+  total: number;
+  faltas: number;
+  abonos: number;
+  intermitentes: number;
+  risk: 'Alta' | 'Média' | 'Baixa';
+}
+
+const RANGE_OPTIONS = [
+  { key: '7d', label: '7 dias', days: 7 },
+  { key: '30d', label: '30 dias', days: 30 },
+  { key: '90d', label: '90 dias', days: 90 },
+] as const;
+
+const inferTurno = (gradeLabel: string): string => {
+  const normalized = gradeLabel.toLowerCase();
+  if (normalized.includes('manha') || normalized.includes('matutino') || normalized.includes('m') && normalized.includes('manhã')) return 'Manhã';
+  if (normalized.includes('tarde') || normalized.includes('vespertino')) return 'Tarde';
+  if (normalized.includes('noite') || normalized.includes('noturno')) return 'Noite';
+  if (normalized.includes('integral')) return 'Integral';
+  return 'Sem turno';
+};
+
 export const DashboardPage: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0, ocorrenciasHoje: 0, semCarteira30Dias: 0 });
+  const [stats, setStats] = useState({ pendentesSigeduc: 0, faltasHoje: 0, abonosHoje: 0, intermitentes: 0, totalAlunos: 0, ocorrenciasHoje: 0, semCarteira30Dias: 0, processosAbertos: 0, processosUrgentes: 0, processosPendentes: 0 });
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [studentsAtRisk, setStudentsAtRisk] = useState(0);
+  const [gradeRisk, setGradeRisk] = useState<GradeRiskItem[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentAuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [automationQuery, setAutomationQuery] = useState('');
   const [taskReviews, setTaskReviews] = useState<Record<string, AutomationTaskReview>>({});
@@ -188,6 +224,8 @@ export const DashboardPage: React.FC = () => {
       setNotificationError('Não foi possível exibir o lembrete neste dispositivo.');
     }
   }, [loading, taskReviewLoading, pendingTasksCount, notificationPermission, taskDate, user]);
+  const [selectedRange, setSelectedRange] = useState<(typeof RANGE_OPTIONS)[number]['key']>('30d');
+  const currentRange = RANGE_OPTIONS.find(option => option.key === selectedRange) ?? RANGE_OPTIONS[1];
 
   useEffect(() => {
     fetchStats();
@@ -216,31 +254,33 @@ export const DashboardPage: React.FC = () => {
       supabase.removeChannel(absencesSubscription);
       supabase.removeChannel(occurrencesSubscription);
     };
-  }, []);
+  }, [selectedRange]);
 
   const fetchStats = async () => {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const ninetyDaysAgo = format(subDays(new Date(), 90), 'yyyy-MM-dd');
+    const rangeDays = RANGE_OPTIONS.find(option => option.key === selectedRange)?.days ?? 30;
+    const rangeStart = format(subDays(new Date(), rangeDays), 'yyyy-MM-dd');
+    const historyStart = format(subDays(new Date(), 90), 'yyyy-MM-dd');
 
-    const [
-      { data: absenceData, error: absenceError },
-      { count: totalAlunos },
-      { data: occurrenceData, error: occurrenceError },
-      { data: workflowData, error: workflowError },
-    ] = await Promise.all([
+    const [{ data: absenceData, error: absenceError }, { count: totalAlunos }, { data: occurrenceData, error: occurrenceError }, { data: processData, error: processError }, { data: auditData, error: auditError }] = await Promise.all([
       supabase
         .from('student_absences')
         .select('id, student_id, date, type, is_intermittent, reason, sigeduc_synced, students(full_name, grade)')
-        .gte('date', ninetyDaysAgo),
+        .gte('date', historyStart),
       supabase.from('students').select('*', { count: 'exact', head: true }),
       supabase
         .from('gate_occurrences')
         .select('id, occurred_at, has_card, reason')
-        .gte('occurred_at', `${ninetyDaysAgo}T00:00:00`),
+        .gte('occurred_at', `${historyStart}T00:00:00`),
       supabase
         .from('workflow_processes')
-        .select('id, process_number, subject, student_name, guest_name, status, priority, updated_at')
-        .in('status', ['RECEBIDO', 'EM_ANALISE', 'PENDENTE', 'DECISAO']),
+        .select('id, process_number, student_name, guest_name, subject, priority, status, due_at, updated_at')
+        .neq('status', 'ARQUIVADO'),
+      supabase
+        .from('workflow_audit_logs')
+        .select('id, action, details, operator_name, created_at')
+        .order('created_at', { ascending: false })
+        .limit(8),
     ]);
 
     if (absenceError) {
@@ -249,13 +289,18 @@ export const DashboardPage: React.FC = () => {
     if (occurrenceError && !occurrenceError.message.includes("Could not find the table 'public.gate_occurrences'")) {
       console.error('Erro ao buscar ocorrências do dashboard:', occurrenceError);
     }
-    if (workflowError) {
-      console.error('Erro ao buscar processos para o dashboard:', workflowError);
+    if (processError && !processError.message.includes("Could not find the table 'public.workflow_processes'")) {
+      console.error('Erro ao buscar processos do dashboard:', processError);
+    }
+    if (auditError && !auditError.message.includes("Could not find the table 'public.workflow_audit_logs'")) {
+      console.error('Erro ao buscar auditoria do dashboard:', auditError);
     }
 
     const absences = (absenceData || []) as DashboardAbsence[];
     const occurrences = (occurrenceData || []) as DashboardOccurrence[];
-    const stalledProcesses = ((workflowData || []) as DashboardWorkflowProcess[])
+    const processes = (processData || []) as DashboardProcess[];
+    const auditEntries = (auditData || []) as Array<{ id: string; action: string; details: Record<string, any>; operator_name: string | null; created_at: string }>;
+    const stalledProcesses = processes
       .filter(process => isWorkflowProcessStale(process))
       .sort((first, second) => {
         const firstUpdatedAt = new Date(first.updated_at).getTime();
@@ -263,12 +308,12 @@ export const DashboardPage: React.FC = () => {
         return firstUpdatedAt - secondUpdatedAt;
       });
     const validUntilToday = absences.filter(absence => absence.date <= today);
-    const recentAbsences = validUntilToday.filter(absence => absence.date >= format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+    const recentAbsences = validUntilToday.filter(absence => absence.date >= rangeStart);
     const lastSevenDays = validUntilToday.filter(absence => absence.date >= format(subDays(new Date(), 7), 'yyyy-MM-dd'));
-    const pendingSync = validUntilToday.filter(absence => !absence.sigeduc_synced);
-    const missingReason = validUntilToday.filter(absence => !absence.reason?.trim());
+    const pendingSync = validUntilToday.filter(absence => !absence.sigeduc_synced && absence.date >= rangeStart);
+    const missingReason = validUntilToday.filter(absence => !absence.reason?.trim() && absence.date >= rangeStart);
     const todayOccurrences = occurrences.filter(occurrence => occurrence.occurred_at.slice(0, 10) === today);
-    const recentOccurrencesWithoutCard = occurrences.filter(occurrence => !occurrence.has_card);
+    const recentOccurrencesWithoutCard = occurrences.filter(occurrence => !occurrence.has_card && occurrence.occurred_at.slice(0, 10) >= rangeStart);
 
     const countsByStudent = recentAbsences.reduce<Record<string, { count: number; lastSeven: number; name: string; grade: string }>>((acc, absence) => {
       if (!absence.student_id) return acc;
@@ -284,8 +329,33 @@ export const DashboardPage: React.FC = () => {
       return acc;
     }, {});
 
+    const gradeRiskData: GradeRiskItem[] = Object.values(
+      recentAbsences.reduce<Record<string, { grade: string; turno: string; total: number; faltas: number; abonos: number; intermitentes: number }>>((acc, absence) => {
+        const grade = absence.students?.[0]?.grade || 'Sem turma';
+        const turno = inferTurno(grade);
+        const bucket = acc[grade] || { grade, turno, total: 0, faltas: 0, abonos: 0, intermitentes: 0 };
+        bucket.total += 1;
+        if (absence.type === 'FALTA_JUSTIFICADA') bucket.faltas += 1;
+        if (absence.type === 'ABONO') bucket.abonos += 1;
+        if (absence.is_intermittent) bucket.intermitentes += 1;
+        acc[grade] = bucket;
+        return acc;
+      }, {})
+    )
+      .map(item => ({
+        grade: item.grade,
+        turno: item.turno,
+        total: item.total,
+        faltas: item.faltas,
+        abonos: item.abonos,
+        intermitentes: item.intermitentes,
+        risk: item.intermitentes >= 3 || item.total >= 6 ? 'Alta' : item.total >= 3 ? 'Média' : 'Baixa',
+      }))
+      .sort((a, b) => (b.total + b.intermitentes * 2) - (a.total + a.intermitentes * 2))
+      .slice(0, 5) as GradeRiskItem[];
+
     const riskStudents = Object.entries(countsByStudent)
-      .filter(([, item]) => item.count >= 3)
+      .filter(([, item]) => item.count >= Math.max(1, Math.ceil(rangeDays / 15)))
       .sort(([, first], [, second]) => second.count - first.count);
 
     const generatedAlerts: AlertItem[] = [];
@@ -295,7 +365,7 @@ export const DashboardPage: React.FC = () => {
         id: 'recurrence',
         severity: riskStudents.length >= 3 ? 'Alta' : 'Média',
         title: `${riskStudents.length} aluno(s) com recorrência`,
-        description: `${student.name} lidera a lista com ${student.count} registros nos últimos 30 dias (${student.lastSeven} na última semana).`,
+        description: `${student.name} lidera a lista com ${student.count} registros nos últimos ${rangeDays} dias (${student.lastSeven} na última semana).`,
         actionLabel: 'Revisar histórico',
         href: '/absences?aba=historico&filtro=reincidentes',
       });
@@ -317,7 +387,7 @@ export const DashboardPage: React.FC = () => {
         id: 'missing-reason',
         severity: 'Alta',
         title: `${missingReason.length} registro(s) sem justificativa`,
-        description: 'Esses lançamentos precisam de revisão antes de serem considerados válidos.',
+        description: `Esses lançamentos precisam de revisão antes de serem considerados válidos no período de ${RANGE_OPTIONS.find(option => option.key === selectedRange)?.label.toLowerCase()}.`,
         actionLabel: 'Completar justificativas',
         href: '/absences?aba=historico&filtro=sem-justificativa',
       });
@@ -337,7 +407,7 @@ export const DashboardPage: React.FC = () => {
         id: 'trend',
         severity: 'Média',
         title: 'Aumento recente de ausências',
-        description: `${lastSevenDays.length} registros ocorreram na última semana. Vale investigar a tendência por turma.`,
+        description: `${lastSevenDays.length} registros ocorreram na última semana. Vale investigar a tendência por turma dentro do período atual.`,
         actionLabel: 'Abrir relatórios',
         href: '/absences?aba=relatorios&filtro=tendencia',
       });
@@ -352,6 +422,41 @@ export const DashboardPage: React.FC = () => {
         href: '/occurrences',
       });
     }
+    const urgentProcesses = processes.filter(process => process.priority === 'URGENTE');
+    const pendingProcesses = processes.filter(process => process.status === 'PENDENTE' || process.status === 'DECISAO');
+    const overdueProcesses = processes.filter(process => process.due_at && new Date(process.due_at).getTime() < Date.now() && !['CONCLUIDO', 'ARQUIVADO'].includes(process.status));
+    if (urgentProcesses.length > 0) {
+      const process = urgentProcesses[0];
+      generatedAlerts.push({
+        id: 'urgent-processes',
+        severity: 'Alta',
+        title: `${urgentProcesses.length} processo(s) urgente(s)`,
+        description: `${process.student_name || process.guest_name || 'Solicitante não identificado'} aguarda atenção no processo RM-${process.process_number}.`,
+        actionLabel: 'Abrir Central',
+        href: '/workflow',
+      });
+    }
+    if (pendingProcesses.length > 0) {
+      generatedAlerts.push({
+        id: 'pending-processes',
+        severity: pendingProcesses.length >= 5 ? 'Alta' : 'Média',
+        title: `${pendingProcesses.length} processo(s) aguardando decisão`,
+        description: 'Há processos pendentes ou encaminhados para decisão na fila administrativa.',
+        actionLabel: 'Revisar processos',
+        href: '/workflow',
+      });
+    }
+    if (overdueProcesses.length > 0) {
+      const process = overdueProcesses[0];
+      generatedAlerts.push({
+        id: 'overdue-processes',
+        severity: overdueProcesses.length >= 3 ? 'Alta' : 'Média',
+        title: `${overdueProcesses.length} processo(s) atrasado(s)`,
+        description: `${process.student_name || process.guest_name || 'Solicitante não identificado'} possui prazo vencido no processo RM-${process.process_number}.`,
+        actionLabel: 'Ver atrasados',
+        href: '/workflow',
+      });
+    }
 
     setStats({
       pendentesSigeduc: pendingSync.filter(absence => absence.date <= today).length,
@@ -360,11 +465,37 @@ export const DashboardPage: React.FC = () => {
       intermitentes: recentAbsences.filter(absence => absence.is_intermittent).length,
       totalAlunos: totalAlunos || 0,
       ocorrenciasHoje: todayOccurrences.length,
-      semCarteira30Dias: recentOccurrencesWithoutCard.length
+      semCarteira30Dias: recentOccurrencesWithoutCard.length,
+      processosAbertos: processes.length,
+      processosUrgentes: urgentProcesses.length,
+      processosPendentes: pendingProcesses.length,
     });
     const severityOrder = { Alta: 0, Média: 1, Baixa: 2 };
     setAlerts(generatedAlerts.sort((first, second) => severityOrder[first.severity] - severityOrder[second.severity]));
     setStudentsAtRisk(riskStudents.length);
+    setGradeRisk(gradeRiskData);
+    setRecentActivity(auditEntries.map(entry => {
+      const details = entry.details || {};
+      const actionLabel = {
+        PROCESSO_ABERTO: 'Processo aberto',
+        STATUS_ALTERADO: 'Status alterado',
+        PROCESSO_EXCLUIDO: 'Processo excluído',
+      }[entry.action] || entry.action.replace(/_/g, ' ').toLowerCase();
+
+      const summary =
+        details.note ||
+        details.student_name ||
+        details.process_number ||
+        `Ação registrada em ${entry.created_at}`;
+
+      return {
+        id: entry.id,
+        action: actionLabel,
+        summary: summary.length > 80 ? `${summary.slice(0, 77)}...` : summary,
+        operatorName: entry.operator_name || 'Sistema',
+        createdAt: entry.created_at,
+      };
+    }));
     
     setLoading(false);
   };
@@ -372,15 +503,23 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="flex-1 px-6 md:px-10 py-8 pb-32 min-h-screen">
       {/* Header */}
-      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2 opacity-70">Painel Administrativo</p>
-          <h2 className="font-headline font-extrabold text-3xl md:text-4xl text-on-surface tracking-tight">Gestão Central</h2>
-          <p className="text-on-surface-variant font-body mt-1">Visão geral do controle de Faltas e Abonos do Sigeduc.</p>
-        </div>
-        <div className="flex items-center gap-2 bg-primary/5 rounded-2xl px-4 py-2.5 border border-primary/10">
-          <span className="material-symbols-outlined text-primary text-lg">groups</span>
-          <p className="text-sm font-bold text-primary">{stats.totalAlunos} <span className="text-xs font-medium text-primary/70">alunos cadastrados</span></p>
+      <div className="relative mb-10 overflow-hidden rounded-[2rem] border border-primary/10 bg-gradient-to-br from-primary/10 via-white/80 to-sky-100/80 p-6 md:p-8 shadow-[0_18px_38px_rgba(15,76,129,0.08)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(96,165,250,0.18),transparent_35%)]" />
+        <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2 opacity-80">Painel Administrativo</p>
+            <h2 className="font-headline font-extrabold text-3xl md:text-4xl text-on-surface tracking-tight">Gestão Central</h2>
+            <p className="text-on-surface-variant font-body mt-1">Visão geral do controle de Faltas e Abonos do Sigeduc.</p>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-primary/10 bg-white/70 px-4 py-3 shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <span className="material-symbols-outlined text-lg">groups</span>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary/70">Base ativa</p>
+              <p className="text-sm font-black text-primary">{stats.totalAlunos} <span className="text-xs font-medium text-primary/70">alunos</span></p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -411,6 +550,18 @@ export const DashboardPage: React.FC = () => {
           A busca interpreta atalhos em português e leva você aos filtros correspondentes. Ex.: “faltas de hoje”, “pendências Sigeduc” ou “processos parados”.
         </p>
       </section>
+      <div className="mb-8 flex flex-wrap items-center gap-2 rounded-[1.5rem] border border-primary/10 bg-white/60 p-2 shadow-sm backdrop-blur-sm">
+        {RANGE_OPTIONS.map(option => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => setSelectedRange(option.key)}
+            className={`pill-select ${selectedRange === option.key ? 'pill-select--active' : ''}`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <div className="flex justify-center py-20">
@@ -419,60 +570,59 @@ export const DashboardPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
           
-          <Link to="/absences?aba=historico&filtro=sigeduc-pending" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-rose-500 relative overflow-hidden">
-            <div className="absolute inset-0 bg-rose-500/5 group-hover:bg-rose-500/10 transition-colors"></div>
-            <div className="flex justify-between items-start relative z-10">
-              <div className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-rose-500/20 transition-all duration-500">
-                <span className="material-symbols-outlined text-rose-500 text-2xl">sync_problem</span>
+          <Link to="/absences?aba=historico&filtro=sigeduc-pending" className="metric-card group border-l-4 border-l-rose-500">
+            <div className="relative z-10 flex justify-between items-start gap-3">
+              <div className="metric-card__icon text-rose-500">
+                <span className="material-symbols-outlined text-2xl">sync_problem</span>
               </div>
               {stats.pendentesSigeduc > 0 && (
-                <span className="text-rose-500 text-[10px] font-bold uppercase tracking-widest animate-pulse bg-rose-50 px-2 py-1 rounded-full border border-rose-200">
+                <span className="metric-card__badge border border-rose-200 bg-rose-50 text-rose-500 animate-pulse">
                   Atenção
                 </span>
               )}
             </div>
-            <div className="relative z-10">
+            <div className="relative z-10 mt-8">
               <p className="text-5xl font-headline font-extrabold text-rose-500">{stats.pendentesSigeduc}</p>
-              <p className="text-on-surface-variant text-sm font-medium mt-1">Pendentes de Baixa (Sigeduc)</p>
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">Pendentes de Baixa (Sigeduc)</p>
             </div>
           </Link>
 
-          <Link to="/absences?aba=historico&filtro=hoje-faltas" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-blue-500">
-            <div className="flex justify-between items-start">
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-blue-500/10 transition-all duration-500">
-                <span className="material-symbols-outlined text-blue-500 text-2xl">person_off</span>
+          <Link to="/absences?aba=historico&filtro=hoje-faltas" className="metric-card border-l-4 border-l-blue-500">
+            <div className="relative z-10 flex justify-between items-start gap-3">
+              <div className="metric-card__icon text-blue-500">
+                <span className="material-symbols-outlined text-2xl">person_off</span>
               </div>
-              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">Hoje</span>
+              <span className="text-outline text-[10px] font-bold uppercase tracking-[0.2em]">Hoje</span>
             </div>
-            <div>
+            <div className="relative z-10 mt-8">
               <p className="text-5xl font-headline font-extrabold text-blue-500">{stats.faltasHoje}</p>
-              <p className="text-on-surface-variant text-sm font-medium mt-1">Faltas Justificadas (Hoje)</p>
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">Faltas Justificadas</p>
             </div>
           </Link>
 
-          <Link to="/absences?aba=historico&filtro=hoje-abonos" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-emerald-500">
-            <div className="flex justify-between items-start">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-emerald-500/10 transition-all duration-500">
-                <span className="material-symbols-outlined text-emerald-500 text-2xl">event_available</span>
+          <Link to="/absences?aba=historico&filtro=hoje-abonos" className="metric-card border-l-4 border-l-emerald-500">
+            <div className="relative z-10 flex justify-between items-start gap-3">
+              <div className="metric-card__icon text-emerald-500">
+                <span className="material-symbols-outlined text-2xl">event_available</span>
               </div>
-              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">Hoje</span>
+              <span className="text-outline text-[10px] font-bold uppercase tracking-[0.2em]">Hoje</span>
             </div>
-            <div>
+            <div className="relative z-10 mt-8">
               <p className="text-5xl font-headline font-extrabold text-emerald-500">{stats.abonosHoje}</p>
-              <p className="text-on-surface-variant text-sm font-medium mt-1">Abonos (Hoje)</p>
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">Abonos</p>
             </div>
           </Link>
 
-          <Link to="/absences?aba=historico&filtro=intermitentes-ativos" className="glass-card rounded-[2rem] p-8 flex flex-col justify-between h-48 group hover:scale-[1.02] transition-all duration-500 border-l-4 border-l-violet-500">
-            <div className="flex justify-between items-start">
-              <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-violet-500/10 transition-all duration-500">
-                <span className="material-symbols-outlined text-violet-500 text-2xl">autorenew</span>
+          <Link to="/absences?aba=historico&filtro=intermitentes-ativos" className="metric-card border-l-4 border-l-violet-500">
+            <div className="relative z-10 flex justify-between items-start gap-3">
+              <div className="metric-card__icon text-violet-500">
+                <span className="material-symbols-outlined text-2xl">autorenew</span>
               </div>
-              <span className="text-outline text-[10px] font-bold uppercase tracking-widest">30 dias</span>
+              <span className="text-outline text-[10px] font-bold uppercase tracking-[0.2em]">{currentRange.label}</span>
             </div>
-            <div>
+            <div className="relative z-10 mt-8">
               <p className="text-5xl font-headline font-extrabold text-violet-500">{stats.intermitentes}</p>
-              <p className="text-on-surface-variant text-sm font-medium mt-1">Acompanhamentos intermitentes</p>
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">Acompanhamentos</p>
             </div>
           </Link>
 
@@ -493,7 +643,7 @@ export const DashboardPage: React.FC = () => {
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-rose-700">Atenção da portaria</p>
               <p className="mt-2 text-4xl font-headline font-extrabold text-rose-600">{stats.semCarteira30Dias}</p>
-              <p className="mt-1 text-sm font-medium text-on-surface-variant">Sem carteira nos últimos 30 dias</p>
+              <p className="mt-1 text-sm font-medium text-on-surface-variant">Sem carteira nos últimos {currentRange.label.toLowerCase()}</p>
             </div>
             <span className="material-symbols-outlined text-4xl text-rose-500/50 group-hover:text-rose-500 transition-colors">badge</span>
           </Link>
@@ -501,7 +651,36 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {!loading && (
-        <section className="mb-12 grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+        <section className="mb-12 grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <Link to="/workflow" className="group relative overflow-hidden rounded-[2rem] bg-[#071b33] p-6 text-white shadow-xl shadow-[#071b33]/20 transition hover:-translate-y-0.5 md:p-8">
+            <div className="absolute -right-12 -top-16 h-44 w-44 rounded-full border-[18px] border-[#d5ae68]/15" />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#d5ae68]">Central de Processos</p>
+                <h3 className="mt-2 font-headline text-2xl font-extrabold">Fila administrativa</h3>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-blue-100/70">Acompanhe os autos ativos, decisões pendentes e prioridades da secretaria.</p>
+              </div>
+              <span className="material-symbols-outlined text-3xl text-[#d5ae68]">account_tree</span>
+            </div>
+            <div className="relative mt-7 grid grid-cols-3 gap-3 border-t border-white/10 pt-5">
+              <div><p className="text-3xl font-black">{stats.processosAbertos}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">Ativos</p></div>
+              <div><p className="text-3xl font-black text-[#f3c979]">{stats.processosUrgentes}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">Urgentes</p></div>
+              <div><p className="text-3xl font-black text-rose-300">{stats.processosPendentes}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-blue-100/50">Decisão</p></div>
+            </div>
+          </Link>
+          <div className="glass-card rounded-[2rem] border border-[#d5ae68]/30 bg-[#fffaf0] p-6 md:p-8">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#9a6d28]">Comando executivo</p>
+            <h3 className="mt-2 font-headline text-2xl font-extrabold text-[#071b33]">Ações prioritárias</h3>
+            <div className="mt-5 space-y-3">
+              <Link to="/workflow" className="flex items-center justify-between rounded-xl border border-[#d5ae68]/30 bg-white/70 p-3 text-sm font-bold text-[#071b33] transition hover:bg-white"><span><span className="mr-2 text-[#b2843d]">01</span>Revisar processos pendentes</span><span className="material-symbols-outlined text-[#b2843d]">arrow_forward</span></Link>
+              <Link to="/students" className="flex items-center justify-between rounded-xl border border-[#d5ae68]/30 bg-white/70 p-3 text-sm font-bold text-[#071b33] transition hover:bg-white"><span><span className="mr-2 text-[#b2843d]">02</span>Consultar cadastro de alunos</span><span className="material-symbols-outlined text-[#b2843d]">arrow_forward</span></Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!loading && (
+        <section className="mb-12 grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.7fr]">
           <div className="glass-card rounded-[2rem] border border-amber-200/70 bg-amber-50/50 p-6 md:p-8">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -643,6 +822,123 @@ export const DashboardPage: React.FC = () => {
             <p className="mt-4 text-xs leading-relaxed text-on-surface-variant">
               Marcar como revisado salva o progresso neste navegador para sua conta e para hoje; isso não altera registros nem substitui a validação da equipe.
             </p>
+          </div>
+        </section>
+      )}
+
+      {!loading && (
+        <section className="mb-12 grid grid-cols-1 gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="glass-card rounded-[2rem] border border-primary/10 p-6 md:p-8">
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary/70">Turmas</p>
+                <h3 className="mt-2 font-headline text-2xl font-extrabold text-on-surface">Risco por turma e turno</h3>
+              </div>
+              <span className="rounded-full bg-primary/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary">{currentRange.label}</span>
+            </div>
+
+            <div className="space-y-4">
+              {gradeRisk.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-5 text-sm text-on-surface-variant">
+                  Nenhuma turma com recorrência relevante no período atual.
+                </div>
+              ) : (
+                gradeRisk.map((item, index) => (
+                  <div key={`${item.grade}-${index}`} className="rounded-2xl border border-primary/10 bg-white/60 p-4">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-black text-on-surface">{item.grade}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-on-surface-variant">{item.turno}</p>
+                      </div>
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${item.risk === 'Alta' ? 'bg-rose-100 text-rose-700' : item.risk === 'Média' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {item.risk}
+                      </span>
+                    </div>
+
+                    <div className="mb-2 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className={`h-full rounded-full ${item.risk === 'Alta' ? 'bg-rose-500' : item.risk === 'Média' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                        style={{ width: `${Math.min(100, (item.total / Math.max(gradeRisk[0]?.total || 1, 1)) * 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold text-on-surface-variant">
+                      <div className="rounded-xl bg-slate-50 p-2">
+                        <p className="text-base font-black text-slate-800">{item.total}</p>
+                        <p>Total</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-2">
+                        <p className="text-base font-black text-blue-600">{item.faltas}</p>
+                        <p>Faltas</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-2">
+                        <p className="text-base font-black text-violet-600">{item.intermitentes}</p>
+                        <p>Intermit.</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="glass-card rounded-[2rem] p-6 md:p-8">
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary/70">Resumo</p>
+                <h3 className="mt-2 font-headline text-2xl font-extrabold text-on-surface">Ação de direção</h3>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm text-on-surface-variant">
+              <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                <p className="font-black text-on-surface">{gradeRisk[0]?.grade || 'Sem turma'}</p>
+                <p className="mt-1">Turma com maior atenção neste período.</p>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-black text-amber-900">{studentsAtRisk} aluno(s)</p>
+                <p className="mt-1 text-amber-800">em recorrência ou risco de acompanhamento.</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="font-black text-emerald-900">{stats.processosUrgentes}</p>
+                <p className="mt-1 text-emerald-800">processos urgentes em análise.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!loading && (
+        <section className="mb-12">
+          <div className="glass-card rounded-[2rem] p-6 md:p-8">
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary/70">Auditoria</p>
+                <h3 className="mt-2 font-headline text-2xl font-extrabold text-on-surface">Atividades recentes</h3>
+              </div>
+              <Link to="/workflow" className="text-sm font-bold text-primary hover:text-primary/80">Ver central</Link>
+            </div>
+
+            {recentActivity.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-5 text-sm text-on-surface-variant">
+                Nenhuma ação registrada recentemente.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map(item => (
+                  <div key={item.id} className="flex flex-col gap-2 rounded-2xl border border-primary/10 bg-white/60 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-bold text-on-surface">{item.action}</p>
+                      <p className="mt-1 text-sm text-on-surface-variant">{item.summary}</p>
+                    </div>
+                    <div className="text-left md:text-right">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary/70">{item.operatorName}</p>
+                      <p className="mt-1 text-xs text-on-surface-variant">{new Date(item.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}

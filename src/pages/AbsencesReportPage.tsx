@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useSearchParams } from 'react-router-dom';
-import { addDays, addYears, differenceInCalendarDays, format, parseISO, subDays, isAfter } from 'date-fns';
+import { addDays, addYears, differenceInCalendarDays, eachDayOfInterval, format, parseISO, subDays, isAfter } from 'date-fns';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -73,6 +73,12 @@ interface ImportValidationResult {
   parsedSynced: boolean;
 }
 
+interface SchoolCalendarPeriod {
+  start_date: string;
+  end_date: string;
+  affects_school_days: boolean;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 // Amber for Faltas, Teal for Abonos
 const COLORS = ['#f59e0b', '#14b8a6']; 
@@ -91,6 +97,8 @@ export const AbsencesReportPage: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const recentlyDeletedIdsRef = useRef<Set<string>>(new Set());
   const hydratedFromRealtimeRef = useRef(false);
+  const reportPreferencesLoadedRef = useRef(false);
+  const reportPreferencesUserIdRef = useRef<string | null>(null);
 
   // ── Period Filter ───────────────────────────────────────────────────────────
   const [startDate, setStartDate] = useState(() => {
@@ -99,6 +107,84 @@ export const AbsencesReportPage: React.FC = () => {
     return format(d, 'yyyy-MM-dd');
   });
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [reportStartDate, setReportStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return format(d, 'yyyy-MM-dd');
+  });
+  const [reportEndDate, setReportEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [reportGradeFilter, setReportGradeFilter] = useState<'ALL' | string>('ALL');
+  const [schoolCalendarPeriod, setSchoolCalendarPeriod] = useState<SchoolCalendarPeriod[]>([]);
+  const [schoolCalendarError, setSchoolCalendarError] = useState('');
+  const [schoolCalendarLoading, setSchoolCalendarLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const loadPreferences = async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!active) return;
+      reportPreferencesUserIdRef.current = userId || null;
+      if (!userId) {
+        reportPreferencesLoadedRef.current = true;
+        return;
+      }
+
+      const { data, error } = await supabase.from('user_report_preferences').select('preferences').eq('user_id', userId).eq('report_key', 'absences-executive').maybeSingle();
+      let preferences: Record<string, unknown> | null = data?.preferences || null;
+      if (error || !preferences) {
+        try {
+          const stored = localStorage.getItem(`ceti-report-preferences-${userId}`);
+          preferences = stored ? JSON.parse(stored) : null;
+        } catch {
+          preferences = null;
+        }
+      }
+      if (!active) return;
+      if (typeof preferences?.startDate === 'string') setReportStartDate(preferences.startDate);
+      if (typeof preferences?.endDate === 'string') setReportEndDate(preferences.endDate);
+      if (typeof preferences?.grade === 'string') setReportGradeFilter(preferences.grade);
+      reportPreferencesLoadedRef.current = true;
+    };
+    loadPreferences();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const userId = reportPreferencesUserIdRef.current;
+    if (!reportPreferencesLoadedRef.current || !userId) return;
+    const preferences = { startDate: reportStartDate, endDate: reportEndDate, grade: reportGradeFilter };
+    localStorage.setItem(`ceti-report-preferences-${userId}`, JSON.stringify(preferences));
+    const timer = window.setTimeout(async () => {
+      const { error } = await supabase.from('user_report_preferences').upsert({
+        user_id: userId,
+        report_key: 'absences-executive',
+        preferences,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,report_key' });
+      if (error) console.warn('As preferências do relatório estão salvas neste navegador; aplique a migração para sincronizá-las entre dispositivos.', error.message);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [reportStartDate, reportEndDate, reportGradeFilter]);
+
+  useEffect(() => {
+    if (!reportStartDate || !reportEndDate || reportStartDate > reportEndDate) {
+      setSchoolCalendarPeriod([]);
+      return;
+    }
+    let active = true;
+    setSchoolCalendarLoading(true);
+    supabase.from('school_calendar_events').select('start_date, end_date, affects_school_days')
+      .lte('start_date', reportEndDate)
+      .gte('end_date', reportStartDate)
+      .then(({ data, error }) => {
+        if (!active) return;
+        setSchoolCalendarPeriod((data || []) as SchoolCalendarPeriod[]);
+        setSchoolCalendarError(error ? 'Calendário escolar indisponível; aplique a migração para calcular os dias letivos.' : '');
+        setSchoolCalendarLoading(false);
+      });
+    return () => { active = false; };
+  }, [reportStartDate, reportEndDate]);
 
   // ── Filters ─────────────────────────────────────────────────────────────────
   const [filterType, setFilterType] = useState<'ALL' | 'FALTA_JUSTIFICADA' | 'ABONO'>('ALL');
@@ -198,7 +284,7 @@ export const AbsencesReportPage: React.FC = () => {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [startDate, endDate]);
+  }, [startDate, endDate, reportStartDate, reportEndDate]);
 
   useEffect(() => {
     fetchAllStudents();
@@ -234,11 +320,13 @@ export const AbsencesReportPage: React.FC = () => {
   };
 
   const fetchAbsences = async () => {
+    const queryStartDate = [startDate, reportStartDate].filter(Boolean).sort()[0] || startDate;
+    const queryEndDate = [endDate, reportEndDate].filter(Boolean).sort().at(-1) || endDate;
     const { data, error } = await supabase
       .from('student_absences')
       .select('*, students(full_name, enrollment_id, grade, photo_url), absence_guest_students(full_name, grade)')
-      .gte('date', startDate)
-      .lte('date', endDate)
+      .gte('date', queryStartDate)
+      .lte('date', queryEndDate)
       .order('date', { ascending: false });
 
     if (error) {
@@ -359,8 +447,16 @@ export const AbsencesReportPage: React.FC = () => {
     return Object.values(counts).sort((a, b) => b.total - a.total).slice(0, 5);
   }, [absences]);
 
+  const reportFilteredAbsences = useMemo(() => {
+    return absences.filter(record => {
+      const inDateRange = (!reportStartDate || record.date >= reportStartDate) && (!reportEndDate || record.date <= reportEndDate);
+      const matchesGrade = reportGradeFilter === 'ALL' || record.students?.grade === reportGradeFilter;
+      return inDateRange && matchesGrade;
+    });
+  }, [absences, reportStartDate, reportEndDate, reportGradeFilter]);
+
   const reportByGrade = useMemo(() => {
-    const grouped = absences.reduce((acc, record) => {
+    const grouped = reportFilteredAbsences.reduce((acc, record) => {
       const grade = record.students?.grade || 'Sem turma';
       if (!acc[grade]) {
         acc[grade] = { grade, faltas: 0, abonos: 0, intermitentes: 0, total: 0 };
@@ -373,10 +469,10 @@ export const AbsencesReportPage: React.FC = () => {
     }, {} as Record<string, { grade: string; faltas: number; abonos: number; intermitentes: number; total: number }>);
 
     return Object.values(grouped).sort((a, b) => b.total - a.total);
-  }, [absences]);
+  }, [reportFilteredAbsences]);
 
   const reportByStudent = useMemo(() => {
-    const grouped = absences.reduce((acc, record) => {
+    const grouped = reportFilteredAbsences.reduce((acc, record) => {
       const studentName = record.students?.full_name || 'Aluno sem nome';
       const key = record.student_id || studentName;
       if (!acc[key]) {
@@ -390,7 +486,17 @@ export const AbsencesReportPage: React.FC = () => {
     }, {} as Record<string, { student: string; grade: string; faltas: number; abonos: number; intermitentes: number; total: number }>);
 
     return Object.values(grouped).sort((a, b) => b.total - a.total).slice(0, 10);
-  }, [absences]);
+  }, [reportFilteredAbsences]);
+
+  const reportSchoolDays = useMemo(() => {
+    if (!reportStartDate || !reportEndDate || reportStartDate > reportEndDate || schoolCalendarError) return null;
+    return eachDayOfInterval({ start: parseISO(reportStartDate), end: parseISO(reportEndDate) }).filter(day => {
+      const weekday = day.getDay();
+      if (weekday === 0 || weekday === 6) return false;
+      const date = format(day, 'yyyy-MM-dd');
+      return !schoolCalendarPeriod.some(event => event.affects_school_days && event.start_date <= date && event.end_date >= date);
+    }).length;
+  }, [reportStartDate, reportEndDate, schoolCalendarPeriod, schoolCalendarError]);
 
   // ── Filtered Data (Planilha) ─────────────────────────────────────────────────
   const allGrades = useMemo(() => {
@@ -1164,7 +1270,7 @@ export const AbsencesReportPage: React.FC = () => {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="flex-1 px-4 md:px-10 py-6 md:py-8 min-h-screen pb-40 relative bg-gray-50 dark:bg-zinc-900 transition-colors">
+    <div className="absences-report-root flex-1 px-4 md:px-10 py-6 md:py-8 min-h-screen pb-40 relative bg-gray-50 dark:bg-zinc-900 transition-colors">
       
       {/* ── TIMELINE MODAL ── */}
       {selectedTimelineStudent && (
@@ -1946,45 +2052,73 @@ export const AbsencesReportPage: React.FC = () => {
 
       {/* ── RELATÓRIOS ───────────────────────────────────────────────────── */}
       {activeTab === 'relatorios' && (
-        <div ref={reportRef} className="space-y-6">
-          <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 p-5 shadow-sm backdrop-blur-sm">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div id="absences-executive-report" ref={reportRef} className="report-printable space-y-6">
+          <div className="hidden items-center gap-4 border-b-2 border-gray-900 pb-4 print:flex">
+            <img src="/ceti-logo.png" alt="Brasão do CETI" className="h-16 w-16 object-contain" />
+            <div className="flex-1 text-center"><p className="text-[10px] font-bold uppercase text-gray-600">Secretaria da Educação • CETI Nova Itarana</p><h2 className="mt-1 text-lg font-black uppercase text-gray-950">Relatório de faltas e abonos</h2></div>
+            <p className="text-right text-[10px] text-gray-600">Emissão<br />{format(new Date(), 'dd/MM/yyyy')}</p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white/80 p-5 shadow-sm backdrop-blur-sm print:rounded-none print:border-0 print:p-0 print:shadow-none">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-violet-300">Relatórios</p>
                 <h3 className="mt-2 text-xl font-extrabold text-gray-900 dark:text-white">Resumo executivo</h3>
               </div>
-              <button onClick={handleExportReportPDF} data-html2canvas-ignore="true" className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm">
-                <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
-                Exportar PDF
-              </button>
+              <div className="flex flex-wrap items-center gap-2 print:hidden">
+                <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700">
+                  De
+                  <input type="date" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none" />
+                </label>
+                <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700">
+                  Até
+                  <input type="date" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none" />
+                </label>
+                <select value={reportGradeFilter} onChange={e => setReportGradeFilter(e.target.value)} className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 outline-none">
+                  <option value="ALL">Todas as turmas</option>
+                  {allGrades.map(grade => (
+                    <option key={grade} value={grade}>{grade}</option>
+                  ))}
+                </select>
+                <button onClick={handleExportReportPDF} data-html2canvas-ignore="true" className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm">
+                  <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
+                  Imprimir / Salvar PDF
+                </button>
+              </div>
             </div>
+            <p className="mt-3 hidden text-xs font-semibold text-gray-700 print:block">Período: {reportStartDate ? format(parseISO(reportStartDate), 'dd/MM/yyyy') : 'Início não informado'} a {reportEndDate ? format(parseISO(reportEndDate), 'dd/MM/yyyy') : 'Data atual'} · Turma: {reportGradeFilter === 'ALL' ? 'Todas' : reportGradeFilter}</p>
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-6 gap-4">
+          {schoolCalendarError && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 print:hidden">{schoolCalendarError}</p>}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-700">Faltas</p>
-              <p className="mt-3 text-3xl font-black text-amber-700">{faltasCount}</p>
+              <p className="mt-3 text-3xl font-black text-amber-700">{reportFilteredAbsences.filter(a => a.type === 'FALTA_JUSTIFICADA').length}</p>
             </div>
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Abonos</p>
-              <p className="mt-3 text-3xl font-black text-emerald-700">{abonosCount}</p>
+              <p className="mt-3 text-3xl font-black text-emerald-700">{reportFilteredAbsences.filter(a => a.type === 'ABONO').length}</p>
             </div>
             <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-700">Pendentes</p>
-              <p className="mt-3 text-3xl font-black text-yellow-700">{pendentesCount}</p>
+              <p className="mt-3 text-3xl font-black text-yellow-700">{reportFilteredAbsences.filter(a => !a.sigeduc_synced).length}</p>
             </div>
             <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-700">Reincidentes</p>
-              <p className="mt-3 text-3xl font-black text-violet-700">{recurrentStudents.size}</p>
+              <p className="mt-3 text-3xl font-black text-violet-700">{new Set(reportFilteredAbsences.filter(a => a.student_id).map(a => a.student_id)).size}</p>
             </div>
             <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-fuchsia-700">Intermitentes</p>
-              <p className="mt-3 text-3xl font-black text-fuchsia-700">{intermittentCount}</p>
+              <p className="mt-3 text-3xl font-black text-fuchsia-700">{reportFilteredAbsences.filter(a => a.is_intermittent).length}</p>
             </div>
             <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Acompanhamentos ativos</p>
-              <p className="mt-3 text-3xl font-black text-sky-700">{activeIntermittentCount}</p>
-              <p className="mt-1 text-[11px] text-sky-700/70">{closedIntermittentCount} baixados</p>
+              <p className="mt-3 text-3xl font-black text-sky-700">{reportFilteredAbsences.filter(a => a.is_intermittent && a.is_intermittent_active !== false).length}</p>
+              <p className="mt-1 text-[11px] text-sky-700/70">{reportFilteredAbsences.filter(a => a.is_intermittent && a.is_intermittent_active === false).length} baixados</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-600">Dias letivos estimados</p>
+              <p className="mt-3 text-3xl font-black text-gray-800">{schoolCalendarLoading ? '…' : reportSchoolDays ?? '—'}</p>
+              <p className="mt-1 text-[11px] text-gray-600">Seg–sex, descontando calendário</p>
             </div>
           </div>
 
@@ -2215,6 +2349,19 @@ export const AbsencesReportPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <style>{`@media print {
+        @page { size: A4 portrait; margin: 14mm; }
+        html, body { background: #fff !important; }
+        body * { visibility: hidden !important; }
+        .report-printable, .report-printable * { visibility: visible !important; }
+        .report-printable { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; color: #111827 !important; background: #fff !important; }
+        .report-printable > div { break-inside: avoid-page; }
+        .report-printable table { width: 100% !important; border-collapse: collapse !important; }
+        .report-printable th, .report-printable td { border-bottom: 1px solid #d1d5db !important; }
+        .absences-report-root { min-height: 0 !important; padding: 0 !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }`}</style>
     </div>
   );
 };

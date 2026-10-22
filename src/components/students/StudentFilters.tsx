@@ -11,6 +11,9 @@ interface StudentFiltersProps {
   setPrintFilter: (filter: 'all' | 'printed' | 'pending') => void;
   grades: string[];
   totalStudents: number;
+  filteredStudents: number;
+  authorizedStudents: number;
+  pendingPrintStudents: number;
   onSelectAllWithPhoto: () => void;
 }
 
@@ -25,14 +28,27 @@ export const StudentFilters: React.FC<StudentFiltersProps> = ({
   setPrintFilter,
   grades,
   totalStudents,
+  filteredStudents,
+  authorizedStudents,
+  pendingPrintStudents,
   onSelectAllWithPhoto,
 }) => {
   return (
     <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 glass-card p-4 rounded-[2rem] border border-white/20">
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="glass-card px-4 py-2 rounded-xl inline-flex items-center gap-2 border-none bg-primary/5">
-          <span className="material-symbols-outlined text-primary text-base">group</span>
-          <span className="text-xs font-bold text-on-surface-variant">{totalStudents} Total</span>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+          <div className="glass-card px-3 py-2 rounded-xl inline-flex items-center gap-2 border-none bg-primary/5">
+            <span className="material-symbols-outlined text-primary text-base">group</span>
+            <span><strong className="block text-sm font-black text-on-surface">{totalStudents}</strong><span className="text-[9px] font-bold uppercase tracking-wide text-on-surface-variant">Total</span></span>
+          </div>
+          <div className="glass-card px-3 py-2 rounded-xl inline-flex items-center gap-2 border-none bg-emerald-50/80">
+            <span className="material-symbols-outlined text-emerald-700 text-base">verified</span>
+            <span><strong className="block text-sm font-black text-emerald-800">{authorizedStudents}</strong><span className="text-[9px] font-bold uppercase tracking-wide text-emerald-700">Autorizados</span></span>
+          </div>
+          <div className="glass-card px-3 py-2 rounded-xl inline-flex items-center gap-2 border-none bg-amber-50/80">
+            <span className="material-symbols-outlined text-amber-700 text-base">print_disabled</span>
+            <span><strong className="block text-sm font-black text-amber-800">{pendingPrintStudents}</strong><span className="text-[9px] font-bold uppercase tracking-wide text-amber-700">Impressão</span></span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 px-3 bg-white/60 rounded-xl border border-gray-200 focus-within:border-primary transition-colors flex-1 md:flex-none min-w-[200px]">
@@ -45,6 +61,7 @@ export const StudentFilters: React.FC<StudentFiltersProps> = ({
             className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 py-2 w-full outline-none"
           />
         </div>
+        <span className="text-[10px] font-black uppercase tracking-wide text-outline">{filteredStudents} resultado(s)</span>
 
         <div className="flex items-center gap-2 px-3 bg-white/60 rounded-xl border border-gray-200 focus-within:border-primary transition-colors">
           <span className="material-symbols-outlined text-gray-500 text-sm">filter_list</span>
