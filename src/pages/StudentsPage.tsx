@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 import { TermDevolutivaModal } from '../components/TermDevolutivaModal';
@@ -14,6 +15,8 @@ import { StudentTable } from '../components/students/StudentTable';
 import { StudentMobileList } from '../components/students/StudentMobileList';
 
 export const StudentsPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('busca') || '';
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -24,7 +27,7 @@ export const StudentsPage: React.FC = () => {
   const [devolutivaStudent, setDevolutivaStudent] = useState<any | null>(null);
   const [photoFilter, setPhotoFilter] = useState<'all' | 'withPhoto' | 'withoutPhoto'>('all');
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [printFilter, setPrintFilter] = useState<'all' | 'printed' | 'pending'>('all');
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
   
@@ -48,14 +51,20 @@ export const StudentsPage: React.FC = () => {
     fetchStudents();
   }, []);
 
+  useEffect(() => {
+    if (initialSearch) setSearchTerm(initialSearch);
+  }, [initialSearch]);
+
   const normalizeGrade = (g?: string) => (g || '').trim().toUpperCase();
+  const normalizeSearch = (value?: string) => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
   const filteredData = useMemo(() => {
     return students.filter(s => {
       const matchesGrade = !selectedGrade || normalizeGrade(s.grade) === selectedGrade;
+      const normalizedSearch = normalizeSearch(debouncedSearchTerm);
       const matchesSearch = !debouncedSearchTerm || 
-        (s.full_name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) || 
-        (s.enrollment_id?.includes(debouncedSearchTerm));
+        normalizeSearch(s.full_name).includes(normalizedSearch) ||
+        (s.enrollment_id?.toLowerCase().includes(normalizedSearch));
       
       const hasPhoto = s.photo_url && !s.photo_url.includes('dicebear.com');
       const matchesPhoto = photoFilter === 'all' || (photoFilter === 'withPhoto' ? hasPhoto : !hasPhoto);

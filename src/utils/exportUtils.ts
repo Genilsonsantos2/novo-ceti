@@ -1,41 +1,67 @@
-import jsPDF from 'jspdf';
+import html2pdf from 'html2pdf.js';
 import { saveAs } from 'file-saver';
 
-export const exportToPDF = async (elementId: string, filename: string) => {
-  const element = document.getElementById(elementId);
-  if (!element) return;
+export const exportElementToPDF = async (
+  element: HTMLElement | null,
+  filename: string,
+  title?: string
+) => {
+  if (!element) {
+    alert('Conteúdo para exportação não encontrado.');
+    return;
+  }
 
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const width = pdf.internal.pageSize.getWidth();
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.classList.add('pdf-export-mode');
+  [clone, ...Array.from(clone.querySelectorAll<HTMLElement>('[class]'))].forEach(node => {
+    const darkModeClasses = Array.from(node.classList).filter(className => className.startsWith('dark:'));
+    node.classList.remove(...darkModeClasses);
+  });
+  clone.style.width = '210mm';
+  clone.style.backgroundColor = '#ffffff';
+  clone.style.position = 'absolute';
+  clone.style.left = '-10000px';
+  clone.style.top = '0';
+
+  if (title) {
+    const heading = document.createElement('h1');
+    heading.textContent = title;
+    heading.style.cssText = 'font: 700 18px Arial, sans-serif; margin: 0 0 16px; padding: 0 0 8px; border-bottom: 1px solid #d1d5db; color: #111827;';
+    clone.prepend(heading);
+  }
+
+  const options = {
+    filename: `${filename}.pdf`,
+    image: { type: 'jpeg' as const, quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+    pagebreak: {
+      mode: ['css', 'legacy'],
+      avoid: ['tr', '.pdf-keep-together', '.page-container'],
+    },
+  };
 
   try {
-    // Clone the element to avoid changing the UI during export
-    const clone = element.cloneNode(true) as HTMLElement;
-    clone.style.width = '210mm'; // Set to A4 width
-    clone.style.background = 'white';
-    
-    // Temporarily append to body to render
     document.body.appendChild(clone);
-
-    await pdf.html(clone, {
-      callback: function (doc) {
-        doc.save(`${filename}.pdf`);
-        document.body.removeChild(clone);
-      },
-      x: 0,
-      y: 0,
-      width: width,
-      windowWidth: element.offsetWidth,
-      autoPaging: 'slice', // This handles slicing but pdf.html() is generally better at not cutting lines
-      html2canvas: {
-        scale: 0.2645833333, // Convert px to mm (approximately)
-        useCORS: true,
-        logging: false,
-      }
-    });
+    await html2pdf()
+      .set(options)
+      .from(clone)
+      .save();
   } catch (error) {
     console.error('Error exporting to PDF:', error);
+    alert('Erro ao gerar PDF.');
+  } finally {
+    clone.remove();
   }
+};
+
+export const exportToPDF = async (elementId: string, filename: string) => {
+  await exportElementToPDF(document.getElementById(elementId), filename);
 };
 
 export const exportToWord = (elementId: string, filename: string) => {

@@ -6,8 +6,7 @@ import { addDays, addYears, differenceInCalendarDays, format, parseISO, subDays,
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { exportElementToPDF } from '../utils/exportUtils';
 import { buildAiSuggestion, getAiAbsenceRecommendation } from '../lib/aiAbsenceAssist';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -535,39 +534,19 @@ export const AbsencesReportPage: React.FC = () => {
   };
 
   const handleExportPDF = async () => {
-    if (!dashboardRef.current) return;
-    try {
-      const canvas = await html2canvas(dashboardRef.current, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.setFontSize(16);
-      pdf.text('Relatório Gerencial de Faltas e Abonos', 10, 10);
-      pdf.addImage(imgData, 'PNG', 0, 15, pdfWidth, pdfHeight);
-      pdf.save(`Relatorio_Faltas_${startDate}_a_${endDate}.pdf`);
-    } catch (e) {
-      alert('Erro ao gerar PDF.');
-    }
+    await exportElementToPDF(
+      dashboardRef.current,
+      `Relatorio_Faltas_${startDate}_a_${endDate}`,
+      'Relatório Gerencial de Faltas e Abonos'
+    );
   };
 
   const handleExportReportPDF = async () => {
-    if (!reportRef.current) return;
-    try {
-      const canvas = await html2canvas(reportRef.current, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.setFontSize(16);
-      pdf.text('Relatório de Faltas e Abonos', 10, 10);
-      pdf.addImage(imgData, 'PNG', 0, 20, pdfWidth, pdfHeight);
-      pdf.save(`Relatorio_Detalhado_${startDate}_a_${endDate}.pdf`);
-    } catch (e) {
-      alert('Erro ao gerar relatório em PDF.');
-    }
+    await exportElementToPDF(
+      reportRef.current,
+      `Relatorio_Detalhado_${startDate}_a_${endDate}`,
+      'Relatório de Faltas e Abonos'
+    );
   };
 
   // ── Planilha Actions ────────────────────────────────────────────────────────
@@ -1337,7 +1316,7 @@ export const AbsencesReportPage: React.FC = () => {
                <span className="text-gray-400">até</span>
                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border border-gray-300 dark:border-zinc-600 p-2 rounded-lg text-sm outline-none bg-white dark:bg-zinc-900 dark:text-white"/>
              </div>
-             <button onClick={handleExportPDF} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors">
+             <button onClick={handleExportPDF} data-html2canvas-ignore="true" className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors">
                 <span className="material-symbols-outlined text-lg">picture_as_pdf</span> Gerar Relatório (PDF)
              </button>
           </div>
@@ -1974,7 +1953,7 @@ export const AbsencesReportPage: React.FC = () => {
                 <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-violet-300">Relatórios</p>
                 <h3 className="mt-2 text-xl font-extrabold text-gray-900 dark:text-white">Resumo executivo</h3>
               </div>
-              <button onClick={handleExportReportPDF} className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm">
+              <button onClick={handleExportReportPDF} data-html2canvas-ignore="true" className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm">
                 <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
                 Exportar PDF
               </button>

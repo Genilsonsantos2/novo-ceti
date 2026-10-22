@@ -15,7 +15,7 @@ export const ExportActions: React.FC<ExportActionsProps> = ({
   className = "" 
 }) => {
   return (
-    <div className={`flex flex-wrap gap-3 print:hidden ${className}`}>
+    <div className={`flex flex-wrap gap-3 print:hidden ${className}`} data-html2canvas-ignore="true">
       <button 
         onClick={onPrint}
         className="flex-1 min-w-[140px] bg-primary text-white px-6 py-3.5 rounded-2xl font-black shadow-lg shadow-primary/20 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2"

@@ -73,7 +73,7 @@ export const ExitReportPage: React.FC = () => {
               return acc;
             }, {})
           ) as [string, any[]][]).map(([grade, gradeStudents]) => (
-            <div key={grade} className="break-inside-avoid">
+            <div key={grade}>
               <div className="flex items-center gap-3 mb-3">
                 <h3 className="text-lg font-black text-gray-950 uppercase bg-gray-50 px-4 py-1.5 rounded-lg border-l-4 border-primary">{grade}</h3>
                 <div className="flex-1 h-[1px] bg-gray-200"></div>
@@ -159,4 +159,3 @@ export const ExitReportPage: React.FC = () => {
     </div>
   );
 };
-

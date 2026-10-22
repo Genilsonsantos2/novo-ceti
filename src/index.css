@@ -116,6 +116,105 @@
   background: linear-gradient(135deg, #001e40 0%, #003366 100%);
 }
 
+.pdf-export-mode {
+  color-scheme: light;
+  background: #ffffff !important;
+}
+
+.dark .pdf-export-mode .text-on-surface,
+.dark .pdf-export-mode .text-gray-700 {
+  color: #374151 !important;
+}
+
+.dark .pdf-export-mode .text-on-surface-variant,
+.dark .pdf-export-mode .text-outline {
+  color: #6b7280 !important;
+}
+
+.dark .pdf-export-mode .text-primary {
+  color: #3b82f6 !important;
+}
+
+.dark .pdf-export-mode [class~="text-[#001e40]"] {
+  color: #001e40 !important;
+}
+
+.dark .pdf-export-mode .bg-white {
+  background-color: #ffffff !important;
+}
+
+.dark .pdf-export-mode [class~="bg-white/60"] {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.dark .pdf-export-mode [class~="bg-white/50"] {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.dark .pdf-export-mode [class~="bg-white/30"] {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.dark .pdf-export-mode .border-gray-200 {
+  border-color: #e5e7eb !important;
+}
+
+.dark .pdf-export-mode [class~="border-white/80"] {
+  border-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.dark .pdf-export-mode [class~="border-white/50"] {
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.dark .pdf-export-mode [class~="border-white/20"] {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.pdf-export-mode [data-html2canvas-ignore="true"],
+.pdf-export-mode [class~="print:hidden"] {
+  display: none !important;
+}
+
+.pdf-export-mode tr,
+.pdf-export-mode .pdf-keep-together,
+.pdf-export-mode [class~="print:break-inside-avoid"] {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+.pdf-export-mode .page-container {
+  box-sizing: border-box !important;
+  width: 210mm !important;
+  height: 297mm !important;
+  min-height: 297mm !important;
+  margin: 0 !important;
+  padding: 20mm 20mm 15mm !important;
+  background: #ffffff !important;
+  break-after: page;
+  page-break-after: always;
+}
+
+.pdf-export-mode .page-container:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.pdf-export-mode .page-container > div {
+  height: 100%;
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+
+.pdf-export-mode table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pdf-export-mode thead {
+  display: table-header-group;
+}
+
 @media print {
   @page {
     size: A4;

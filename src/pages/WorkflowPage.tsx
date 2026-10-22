@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useOfflineWorkflow } from '../hooks/useOfflineWorkflow';
+import { isWorkflowProcessStale } from '../utils/workflow';
 
 const statusOptions = [
   { value: 'RECEBIDO', label: 'Recebido', color: 'bg-sky-100 text-sky-700' },
@@ -61,6 +63,7 @@ const getProcessEnrollment = (process: WorkflowProcess) => process.process_numbe
 const formatDate = (date: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(date));
 
 export const WorkflowPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const { isOnline, enqueue, cacheProcesses, getCachedProcesses, cacheStudents, getCachedStudents } = useOfflineWorkflow();
   const operatorName = profile?.full_name || user?.email || 'Operador não identificado';
@@ -76,6 +79,7 @@ export const WorkflowPage: React.FC = () => {
   const [nextStatus, setNextStatus] = useState<WorkflowStatus>('EM_ANALISE');
   const [students, setStudents] = useState<Student[]>([]);
   const [newProcess, setNewProcess] = useState({ processNumber: '', studentId: '', guestEnrollmentId: '', guestName: '', subject: '', responsibleName: '', priority: 'NORMAL' as WorkflowPriority, description: '' });
+  const attentionOnly = searchParams.get('atencao') === 'parados';
 
   const fetchProcesses = async (keepSelected = true) => {
     setLoading(true);
@@ -133,9 +137,10 @@ export const WorkflowPage: React.FC = () => {
       const matchesStatus = statusFilter === 'TODOS' || process.status === statusFilter;
       const matchesSearch = !normalizedSearch || [process.process_number, process.student_name, process.guest_name, process.subject, process.responsible_name, process.operator_name]
         .some(value => value?.toLowerCase().includes(normalizedSearch));
-      return matchesStatus && matchesSearch;
+      const matchesAttention = !attentionOnly || isWorkflowProcessStale(process);
+      return matchesStatus && matchesSearch && matchesAttention;
     });
-  }, [processes, search, statusFilter]);
+  }, [processes, search, statusFilter, attentionOnly]);
 
   const countByStatus = (status: WorkflowStatus) => processes.filter(process => process.status === status).length;
 
@@ -269,6 +274,10 @@ export const WorkflowPage: React.FC = () => {
       </header>
 
       {error && <div className="mb-6 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><span className="material-symbols-outlined">error</span><p>{error}</p></div>}
+      {attentionOnly && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+        <p><strong>Filtro de atenção:</strong> processos urgentes sem atualização há pelo menos 2 dias e demais processos abertos sem atualização há pelo menos 7 dias.</p>
+        <button onClick={() => { const nextParams = new URLSearchParams(searchParams); nextParams.delete('atencao'); setSearchParams(nextParams); }} className="shrink-0 font-bold underline underline-offset-2">Limpar filtro</button>
+      </div>}
 
       <section className="glass-card mb-8 rounded-[2rem] p-5 md:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end">

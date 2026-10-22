@@ -88,7 +88,7 @@ export const PrintCardsPage: React.FC = () => {
         }`}>
           {filteredStudents.length > 0 ? (
             filteredStudents.map((s) => (
-              <div key={s.id} className="print:break-inside-avoid flex justify-center">
+              <div key={s.id} className="pdf-keep-together print:break-inside-avoid flex justify-center">
                 <StudentBadge student={s} showPhoto={showPhoto} />
               </div>
             ))
